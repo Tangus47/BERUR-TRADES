@@ -221,7 +221,7 @@ function connect() {
    }
    if (data.msg_type === "active_symbols") {
      const active = data.active_symbols || [];
-     const activeSet = new Set(active.map(x => x.symbol));
+     const activeSet = new Set(active.map(x => x.underlying_symbol || x.symbol).filter(Boolean));
      let found = 0;
      SYMBOLS.forEach((symbol,index) => {
        const m = markets[symbol];
