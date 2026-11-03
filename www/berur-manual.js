@@ -1,6 +1,9 @@
-/* BERUR TRADES - MANUAL DEMO QUOTE MODULE
-   Demo connection and quote requests only.
-   BUY EXECUTION DISABLED.
+/* BERUR TRADES — MANUAL DEMO EXECUTION
+   DEMO ACCOUNT ONLY
+   USD stake: $0.35
+   Duration: 5 ticks
+   Manual confirmation required for every purchase.
+   No automatic trading or purchase loops.
 */
 (() => {
   "use strict";
@@ -8,13 +11,20 @@
   const APP_ID = "34RcebpeLamDpn5C515Yg";
   const API = "https://api.derivws.com";
   const STAKE = 0.35;
-  const DURATION = 15;
+  const DURATION = 5;
+  const QUOTE_MAX_AGE_MS = 30000;
 
   let ws = null;
   let connected = false;
   let stopped = false;
   let requestId = 200;
-  let requests = new Map();
+
+  const requests = new Map();
+
+  let pendingProposal = null;
+  let quoteInProgress = false;
+  let buyInProgress = false;
+  let refreshTimer = null;
 
   const el = id => document.getElementById(id);
 
@@ -27,7 +37,41 @@
   }
 
   function output(message) {
-    if (el("manualOutput")) el("manualOutput").textContent = message;
+    const node = el("manualOutput");
+    if (node) node.textContent = message;
+  }
+
+  function setQuoteButtonEnabled(enabled) {
+    const button = el("manualQuote");
+    if (button) {
+      button.disabled = !enabled;
+      button.style.opacity = enabled ? "1" : "0.55";
+    }
+  }
+
+  function clearPendingProposal(message) {
+    pendingProposal = null;
+
+    const button = el("manualBuy");
+    if (button) {
+      button.disabled = true;
+      button.textContent = "DEMO BUY — GET A FRESH QUOTE";
+      button.style.background = "#555";
+    }
+
+    if (message) output(message);
+  }
+
+  function invalidateConnection(message) {
+    connected = false;
+    clearPendingProposal(message || "Connection ended. No purchase made.");
+
+    requests.forEach(item => {
+      clearTimeout(item.timer);
+      item.reject(new Error("Demo connection closed."));
+    });
+
+    requests.clear();
   }
 
   function createPanel() {
@@ -35,14 +79,20 @@
 
     const panel = document.createElement("section");
     panel.id = "berurManualPanel";
+
     panel.style.cssText =
       "margin:16px 0;padding:16px;background:#10251d;color:white;" +
       "border:2px solid #16a34a;border-radius:12px;font-family:Arial;";
 
     panel.innerHTML = `
       <h2 style="color:#4ade80">BERUR TRADES — MANUAL DEMO</h2>
+
       <p style="color:#facc15;font-weight:bold">
-        DEMO ONLY | PURCHASE DISABLED
+        DEMO ONLY | MANUAL CONFIRMATION REQUIRED
+      </p>
+
+      <p style="color:#cbd5e1">
+        Stake: $0.35 USD | Duration: 5 ticks
       </p>
 
       <button id="manualConnect"
@@ -62,6 +112,7 @@
       <hr style="margin:15px 0;border-color:#365447">
 
       <label>Qualified market</label>
+
       <select id="manualMarket"
         style="width:100%;padding:12px;margin:8px 0">
       </select>
@@ -70,7 +121,7 @@
         Waiting for analyzer signal.
       </div>
 
-      <p>Contract duration: 15 seconds</p>
+      <p>Contract duration: 5 ticks</p>
       <p>Stake: $0.35 USD</p>
 
       <button id="manualQuote"
@@ -81,10 +132,15 @@
       <pre id="manualOutput"
         style="white-space:pre-wrap;background:#07150f;padding:12px;border-radius:8px;margin-top:12px">No quote requested.</pre>
 
-      <button disabled
+      <button id="manualBuy" disabled
         style="padding:13px;width:100%;background:#555;color:white;border:0;border-radius:7px">
-        PURCHASE DISABLED — TEST STAGE
+        DEMO BUY — GET A FRESH QUOTE
       </button>
+
+      <p style="font-size:12px;color:#facc15">
+        A purchase is made only after you press DEMO BUY and confirm.
+        Never retry a purchase when its result is uncertain.
+      </p>
 
       <button id="manualStop"
         style="padding:12px;width:100%;margin-top:10px;background:#991b1b;color:white;border:0;border-radius:7px">
@@ -103,27 +159,42 @@
     el("manualConnect").onclick = connect;
     el("manualDisconnect").onclick = disconnect;
     el("manualQuote").onclick = getQuote;
+    el("manualBuy").onclick = buyDemo;
+
     el("manualStop").onclick = () => {
       stopped = true;
-      output("STOPPED — no purchase can be made.");
-      status("NEW REQUESTS STOPPED", "#f87171");
+      clearPendingProposal("STOPPED — no purchase can be made.");
+      setQuoteButtonEnabled(false);
+      status("REQUESTS STOPPED — DISCONNECT TO RESET", "#f87171");
     };
 
-    el("manualMarket").onchange = showSignal;
+    el("manualMarket").onchange = () => {
+      clearPendingProposal("Market changed. Get a fresh quote.");
+      showSignal();
+    };
 
     refreshMarkets();
-    setInterval(refreshMarkets, 2500);
+
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(refreshMarkets, 2500);
   }
 
   function candidates() {
     try {
-      return radarCandidates().filter(m =>
+      if (typeof radarCandidates !== "function") return [];
+
+      const list = radarCandidates();
+
+      if (!Array.isArray(list)) return [];
+
+      return list.filter(m =>
+        m &&
         m.available &&
         m.analysis &&
         m.analysis.allowed &&
         ["RISE", "FALL"].includes(m.analysis.direction)
       );
-    } catch (e) {
+    } catch (error) {
       return [];
     }
   }
@@ -134,6 +205,7 @@
 
     const list = candidates();
     const previous = select.value;
+
     select.innerHTML = "";
 
     if (!list.length) {
@@ -141,6 +213,7 @@
       option.value = "";
       option.textContent = "NO QUALIFIED MARKET — WAIT";
       select.appendChild(option);
+
       showSignal();
       return;
     }
@@ -149,39 +222,63 @@
       const option = document.createElement("option");
       option.value = m.symbol;
       option.textContent =
-        m.symbol + " | " + m.analysis.direction +
-        " | " + m.analysis.score + "/100";
+        m.symbol + " | " +
+        m.analysis.direction + " | " +
+        m.analysis.score + "/100";
+
       select.appendChild(option);
     });
 
     select.value = list.some(m => m.symbol === previous)
-      ? previous : list[0].symbol;
+      ? previous
+      : list[0].symbol;
 
     showSignal();
   }
 
   function selectedMarket() {
+    const select = el("manualMarket");
+    if (!select) return null;
+
     return candidates().find(
-      m => m.symbol === el("manualMarket")?.value
+      m => m.symbol === select.value
     ) || null;
+  }
+
+  function signalMatches(quote) {
+    const market = selectedMarket();
+
+    return !!(
+      market &&
+      market.symbol === quote.symbol &&
+      market.analysis.allowed &&
+      market.analysis.direction === quote.direction &&
+      Number(market.analysis.score) === quote.score
+    );
   }
 
   function showSignal() {
     const node = el("manualSignal");
     if (!node) return;
 
-    const m = selectedMarket();
+    const market = selectedMarket();
 
-    node.textContent = m
-      ? "Market: " + m.symbol +
-        " | Direction: " + m.analysis.direction +
-        " | Score: " + m.analysis.score + "/100"
+    node.textContent = market
+      ? "Market: " + market.symbol +
+        " | Direction: " + market.analysis.direction +
+        " | Score: " + market.analysis.score + "/100"
       : "NO TRADE — no qualified analyzer signal.";
+
+    if (pendingProposal && !signalMatches(pendingProposal)) {
+      clearPendingProposal(
+        "QUOTE INVALIDATED — analyzer signal changed. Get a fresh quote."
+      );
+    }
   }
 
   function send(payload, expectedType) {
     return new Promise((resolve, reject) => {
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (!ws || ws.readyState !== WebSocket.OPEN || !connected) {
         reject(new Error("Demo WebSocket is not connected."));
         return;
       }
@@ -195,38 +292,54 @@
       }, 12000);
 
       requests.set(id, {
-        resolve, reject, expectedType, timer
+        resolve,
+        reject,
+        expectedType,
+        timer
       });
 
-      ws.send(JSON.stringify(payload));
+      try {
+        ws.send(JSON.stringify(payload));
+      } catch (error) {
+        clearTimeout(timer);
+        requests.delete(id);
+        reject(error);
+      }
     });
   }
 
   function onMessage(event) {
     let data;
+
     try {
       data = JSON.parse(event.data);
-    } catch (e) {
+    } catch (error) {
       return;
     }
 
     if (data.msg_type === "balance" && data.balance) {
       status(
         "DEMO CONNECTED | Balance: " +
-        data.balance.balance + " " + data.balance.currency,
+        data.balance.balance + " " +
+        data.balance.currency,
         "#4ade80"
       );
     }
 
     if (data.req_id && requests.has(data.req_id)) {
       const item = requests.get(data.req_id);
+
       clearTimeout(item.timer);
       requests.delete(data.req_id);
 
       if (data.error) {
-        item.reject(new Error(data.error.message || "Deriv error."));
+        item.reject(
+          new Error(data.error.message || "Deriv error.")
+        );
       } else if (data.msg_type !== item.expectedType) {
-        item.reject(new Error("Unexpected response: " + data.msg_type));
+        item.reject(
+          new Error("Unexpected response: " + data.msg_type)
+        );
       } else {
         item.resolve(data);
       }
@@ -235,44 +348,70 @@
 
   async function readJson(response) {
     const raw = await response.text();
+
     try {
       return JSON.parse(raw);
-    } catch (e) {
-      throw new Error("Invalid Deriv response: " + raw.slice(0, 120));
+    } catch (error) {
+      throw new Error(
+        "Invalid Deriv response: " + raw.slice(0, 120)
+      );
+    }
+  }
+
+  function ensureActive() {
+    if (stopped) {
+      throw new Error("Requests have been stopped.");
+    }
+
+    if (!connected || !ws || ws.readyState !== WebSocket.OPEN) {
+      throw new Error("Demo connection is no longer active.");
     }
   }
 
   async function connect() {
     if (connected) {
-      status("Already connected.", "#4ade80");
+      if (stopped) {
+        status("DISCONNECT AND RECONNECT TO RESET STOP.", "#f87171");
+      } else {
+        status("Already connected.", "#4ade80");
+      }
       return;
     }
 
     stopped = false;
+    clearPendingProposal();
+    setQuoteButtonEnabled(false);
 
     const input = el("berurPat");
     const token = input ? input.value.trim() : "";
 
     if (!token) {
-      status("Enter your demo token in the existing connection panel.", "#f87171");
+      status(
+        "Enter your demo token in the existing connection panel.",
+        "#f87171"
+      );
       return;
     }
 
     try {
       status("VERIFYING DEMO ACCOUNT...");
 
-      const response = await fetch(API + "/trading/v1/options/accounts", {
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Deriv-App-ID": APP_ID
+      const response = await fetch(
+        API + "/trading/v1/options/accounts",
+        {
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Deriv-App-ID": APP_ID
+          }
         }
-      });
+      );
 
       const data = await readJson(response);
 
       if (!response.ok) {
         throw new Error(
-          data.message || data.errors?.[0]?.message ||
+          data.message ||
+          data.errors?.[0]?.message ||
           "Account verification failed."
         );
       }
@@ -289,7 +428,9 @@
         throw new Error("No demo account found.");
       }
 
-      if (String(demo.currency || "").toUpperCase() !== "USD") {
+      if (
+        String(demo.currency || "").toUpperCase() !== "USD"
+      ) {
         throw new Error("A USD demo account is required.");
       }
 
@@ -311,69 +452,85 @@
 
       if (!otpResponse.ok) {
         throw new Error(
-          otp.message || otp.errors?.[0]?.message ||
+          otp.message ||
+          otp.errors?.[0]?.message ||
           "Demo session request failed."
         );
       }
 
       const url = otp.data?.url;
 
-      if (!url ||
-          !url.startsWith("wss://api.derivws.com/") ||
-          !url.includes("/ws/demo?")) {
+      if (
+        !url ||
+        !url.startsWith("wss://api.derivws.com/") ||
+        !url.includes("/ws/demo?")
+      ) {
         throw new Error("Demo WebSocket URL verification failed.");
       }
 
       status("OPENING DEMO WEBSOCKET...");
 
-      ws = new WebSocket(url);
+      const socket = new WebSocket(url);
+      ws = socket;
 
-      ws.onopen = () => {
+      socket.onopen = () => {
+        if (ws !== socket || stopped) {
+          socket.close();
+          return;
+        }
+
         connected = true;
-        status("DEMO CONNECTED — PURCHASE DISABLED", "#4ade80");
+        setQuoteButtonEnabled(true);
 
-        ws.send(JSON.stringify({
+        status("DEMO CONNECTED — USD DEMO ONLY", "#4ade80");
+
+        socket.send(JSON.stringify({
           balance: 1,
           subscribe: 1,
           req_id: ++requestId
         }));
       };
 
-      ws.onmessage = onMessage;
+      socket.onmessage = onMessage;
 
-      ws.onerror = () => {
-        status("WEBSOCKET ERROR", "#f87171");
+      socket.onerror = () => {
+        if (ws === socket) {
+          status("WEBSOCKET ERROR", "#f87171");
+        }
       };
 
-      ws.onclose = () => {
-        connected = false;
+      socket.onclose = () => {
+        if (ws !== socket) return;
+
         ws = null;
+        invalidateConnection(
+          "DISCONNECTED — no purchase made."
+        );
 
-        requests.forEach(item => {
-          clearTimeout(item.timer);
-          item.reject(new Error("Demo connection closed."));
-        });
-
-        requests.clear();
-        status("DISCONNECTED");
+        setQuoteButtonEnabled(false);
+        status("DISCONNECTED", "#f87171");
       };
 
     } catch (error) {
+      connected = false;
+      ws = null;
+      setQuoteButtonEnabled(false);
       status("CONNECTION FAILED: " + error.message, "#f87171");
     }
   }
 
-  function durationSeconds(value) {
-    const match = String(value || "").match(/^(\d+)(s|m|h|d)$/i);
-    if (!match) return null;
-
-    const units = { s: 1, m: 60, h: 3600, d: 86400 };
-    return Number(match[1]) * units[match[2].toLowerCase()];
+  function durationTicks(value) {
+    const match = String(value || "").match(/^(\d+)t$/i);
+    return match ? Number(match[1]) : null;
   }
 
   async function getQuote() {
+    if (quoteInProgress || buyInProgress) return;
+
+    clearPendingProposal();
+
     if (stopped) {
-      status("REQUESTS STOPPED. Reconnect to continue.", "#f87171");
+      status("REQUESTS STOPPED. Disconnect and reconnect.", "#f87171");
       return;
     }
 
@@ -391,16 +548,22 @@
 
     const symbol = market.symbol;
     const direction = market.analysis.direction;
+    const score = Number(market.analysis.score);
     const contractType = direction === "RISE" ? "CALL" : "PUT";
 
-    el("manualQuote").disabled = true;
+    quoteInProgress = true;
+    setQuoteButtonEnabled(false);
     output("Checking contract availability...");
 
     try {
+      ensureActive();
+
       const check = await send(
         { contracts_for: symbol },
         "contracts_for"
       );
+
+      ensureActive();
 
       const available = check.contracts_for?.available || [];
 
@@ -414,14 +577,15 @@
         );
       }
 
-      const min = durationSeconds(contract.min_contract_duration);
-      const max = durationSeconds(contract.max_contract_duration);
+      const min = durationTicks(contract.min_contract_duration);
+      const max = durationTicks(contract.max_contract_duration);
 
-      if (min === null || max === null ||
-          DURATION < min || DURATION > max) {
+      if (
+        (min !== null && DURATION < min) ||
+        (max !== null && DURATION > max)
+      ) {
         throw new Error(
-          "15 seconds is not supported for this contract. " +
-          "Deriv reports: " +
+          "5 ticks is outside this contract range. Deriv reports: " +
           (contract.min_contract_duration || "?") + " to " +
           (contract.max_contract_duration || "?")
         );
@@ -429,9 +593,13 @@
 
       const latest = selectedMarket();
 
-      if (!latest ||
-          latest.analysis.direction !== direction ||
-          !latest.analysis.allowed) {
+      if (
+        !latest ||
+        latest.symbol !== symbol ||
+        latest.analysis.direction !== direction ||
+        Number(latest.analysis.score) !== score ||
+        !latest.analysis.allowed
+      ) {
         throw new Error("Analyzer signal changed. No trade.");
       }
 
@@ -444,41 +612,225 @@
         contract_type: contractType,
         currency: "USD",
         duration: DURATION,
-        duration_unit: "s",
+        duration_unit: "t",
         underlying_symbol: symbol
       }, "proposal");
 
+      ensureActive();
+
+      const current = selectedMarket();
+      if (
+        !current ||
+        current.symbol !== symbol ||
+        current.analysis.direction !== direction ||
+        Number(current.analysis.score) !== score ||
+        !current.analysis.allowed
+      ) {
+        throw new Error("Analyzer signal changed. Quote discarded.");
+      }
+
       const p = quote.proposal;
 
-      if (!p || !p.id ||
-          !Number.isFinite(Number(p.ask_price)) ||
-          !Number.isFinite(Number(p.payout))) {
+      if (
+        !p ||
+        !p.id ||
+        !Number.isFinite(Number(p.ask_price)) ||
+        !Number.isFinite(Number(p.payout))
+      ) {
         throw new Error("Deriv returned an incomplete quote.");
       }
 
+      pendingProposal = {
+        id: p.id,
+        askPrice: Number(p.ask_price),
+        payout: Number(p.payout),
+        symbol,
+        direction,
+        contractType,
+        score,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + QUOTE_MAX_AGE_MS
+      };
+
       output(
         "VALID PRICE QUOTE\n\n" +
+        "Account: DEMO USD\n" +
         "Market: " + symbol + "\n" +
         "Direction: " + direction + "\n" +
         "Contract: " + contractType + "\n" +
-        "Duration: 15 seconds\n" +
-        "Analyzer score: " + market.analysis.score + "/100\n" +
-        "Stake: $" + Number(p.ask_price).toFixed(2) + "\n" +
+        "Duration: 5 ticks\n" +
+        "Analyzer score: " + score + "/100\n" +
+        "Requested stake: $0.35\n" +
+        "Quoted purchase price: $" +
+        Number(p.ask_price).toFixed(2) + "\n" +
         "Payout: $" + Number(p.payout).toFixed(2) + "\n" +
         "Potential profit: $" +
         (Number(p.payout) - Number(p.ask_price)).toFixed(2) +
         "\n\n" + (p.longcode || "") +
-        "\n\nPURCHASE DISABLED — NO TRADE PLACED."
+        "\n\nQuote valid for up to 30 seconds.\n" +
+        "NO PURCHASE HAS BEEN MADE."
       );
 
-      status("QUOTE RECEIVED — NO PURCHASE MADE", "#4ade80");
+      const button = el("manualBuy");
+
+      if (button) {
+        button.disabled = false;
+        button.textContent = "CONFIRM DEMO BUY — $" +
+          Number(p.ask_price).toFixed(2);
+        button.style.background = "#16a34a";
+      }
+
+      status("FRESH QUOTE READY — WAITING FOR YOUR CONFIRMATION", "#4ade80");
 
     } catch (error) {
+      clearPendingProposal();
       output("NO TRADE\n\n" + error.message);
       status("QUOTE CHECK FAILED", "#f87171");
 
     } finally {
-      el("manualQuote").disabled = false;
+      quoteInProgress = false;
+
+      if (connected && !stopped && !buyInProgress) {
+        setQuoteButtonEnabled(true);
+      }
+    }
+  }
+
+  async function buyDemo() {
+    if (buyInProgress) return;
+
+    const quote = pendingProposal;
+
+    if (!quote) {
+      status("NO VALID QUOTE — GET A FRESH QUOTE FIRST.", "#f87171");
+      return;
+    }
+
+    try {
+      ensureActive();
+
+      if (Date.now() > quote.expiresAt) {
+        clearPendingProposal("QUOTE EXPIRED — request a fresh quote.");
+        status("QUOTE EXPIRED", "#f87171");
+        return;
+      }
+
+      if (!signalMatches(quote)) {
+        clearPendingProposal("SIGNAL CHANGED — request a fresh quote.");
+        status("SIGNAL CHANGED", "#f87171");
+        return;
+      }
+
+      const confirmation =
+        "CONFIRM DEMO PURCHASE?\n\n" +
+        "DEMO ACCOUNT ONLY\n" +
+        "Market: " + quote.symbol + "\n" +
+        "Direction: " + quote.direction + "\n" +
+        "Contract: " + quote.contractType + "\n" +
+        "Duration: 5 ticks\n" +
+        "Stake: $0.35 USD\n" +
+        "Quoted purchase price: $" +
+        quote.askPrice.toFixed(2) + "\n" +
+        "Payout: $" + quote.payout.toFixed(2) + "\n\n" +
+        "This sends ONE purchase request.\n" +
+        "Do you want to continue?";
+
+      if (!window.confirm(confirmation)) {
+        status("PURCHASE CANCELLED — NO TRADE PLACED.", "#facc15");
+        return;
+      }
+
+      ensureActive();
+
+      if (
+        pendingProposal !== quote ||
+        Date.now() > quote.expiresAt ||
+        !signalMatches(quote)
+      ) {
+        clearPendingProposal("QUOTE OR SIGNAL CHANGED — no purchase sent.");
+        status("PURCHASE CANCELLED — GET A FRESH QUOTE.", "#f87171");
+        return;
+      }
+
+      buyInProgress = true;
+
+      const buyButton = el("manualBuy");
+      if (buyButton) {
+        buyButton.disabled = true;
+        buyButton.textContent = "PURCHASE REQUEST SENT...";
+      }
+
+      setQuoteButtonEnabled(false);
+      status("SENDING ONE DEMO PURCHASE REQUEST...", "#facc15");
+
+      let result;
+
+      try {
+        result = await send({
+          buy: quote.id,
+          price: quote.askPrice
+        }, "buy");
+
+      } catch (error) {
+        clearPendingProposal();
+        output(
+          "PURCHASE RESULT UNCERTAIN\n\n" +
+          error.message + "\n\n" +
+          "Do NOT retry automatically.\n" +
+          "Check your Deriv DEMO open positions and contract history " +
+          "before making another purchase."
+        );
+        status("RESULT UNCERTAIN — CHECK DEMO HISTORY", "#f87171");
+        return;
+      }
+
+      const bought = result.buy;
+
+      if (!bought || !bought.contract_id) {
+        clearPendingProposal();
+        output(
+          "Deriv did not return a confirmed contract ID.\n\n" +
+          "Check your DEMO contract history before retrying."
+        );
+        status("PURCHASE NOT CONFIRMED — CHECK DEMO HISTORY", "#f87171");
+        return;
+      }
+
+      output(
+        "DEMO PURCHASE CONFIRMED\n\n" +
+        "Contract ID: " + bought.contract_id + "\n" +
+        "Market: " + quote.symbol + "\n" +
+        "Direction: " + quote.direction + "\n" +
+        "Duration: 5 ticks\n" +
+        "Requested stake: $0.35 USD\n" +
+        "Actual purchase price: $" +
+        Number(bought.buy_price).toFixed(2) + "\n" +
+        "Payout: $" + Number(bought.payout).toFixed(2) + "\n\n" +
+        "Check the Deriv DEMO account for contract settlement."
+      );
+
+      clearPendingProposal();
+      status("DEMO PURCHASE CONFIRMED", "#4ade80");
+
+    } catch (error) {
+      clearPendingProposal();
+      output("NO PURCHASE SENT\n\n" + error.message);
+      status("PURCHASE CANCELLED", "#f87171");
+
+    } finally {
+      buyInProgress = false;
+
+      if (connected && !stopped) {
+        setQuoteButtonEnabled(true);
+      }
+
+      const button = el("manualBuy");
+
+      if (button && !pendingProposal) {
+        button.disabled = true;
+        button.textContent = "DEMO BUY — GET A FRESH QUOTE";
+        button.style.background = "#555";
+      }
     }
   }
 
@@ -486,10 +838,14 @@
     stopped = true;
     connected = false;
 
+    clearPendingProposal();
+    setQuoteButtonEnabled(false);
+
     requests.forEach(item => {
       clearTimeout(item.timer);
       item.reject(new Error("Disconnected."));
     });
+
     requests.clear();
 
     if (ws) {
@@ -499,7 +855,7 @@
     }
 
     status("DISCONNECTED — TOKEN NOT STORED");
-    output("No quote requested.");
+    output("No purchase request is active.");
   }
 
   createPanel();
