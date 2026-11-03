@@ -1,0 +1,1133 @@
+u<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#07111f">
+<title>BERUR TRADES V2</title>
+<style>
+:root {
+  --bg:#07111f;
+  --panel:#101d30;
+  --panel2:#14243a;
+  --text:#e8f0fc;
+  --muted:#91a4bd;
+  --green:#20d997;
+  --red:#ff647c;
+  --gold:#f4c45e;
+  --blue:#55aaff;
+  --line:#263951;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Arial,sans-serif;
+}
+header {
+  padding:18px;
+  background:#0b1728;
+  border-bottom:1px solid var(--line);
+}
+.brand {
+  font-size:24px;
+  font-weight:900;
+  letter-spacing:1px;
+}
+.brand span { color:var(--green); }
+.sub { color:var(--muted);font-size:12px;margin-top:5px; }
+.wrap { max-width:1200px;margin:auto;padding:14px; }
+.topline {
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+.status { font-size:12px;color:var(--gold); }
+.grid {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+}
+.card {
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:14px;
+  min-width:0;
+}
+.card h3 {
+  margin:0 0 12px;
+  font-size:13px;
+  color:#c8d8ee;
+}
+.metric { font-size:22px;font-weight:800; }
+.small { font-size:11px;color:var(--muted);margin-top:6px; }
+.section { margin-top:14px; }
+.section-title { font-size:16px;font-weight:800;margin-bottom:10px; }
+.two {
+  display:grid;
+  grid-template-columns:1.2fr .8fr;
+  gap:10px;
+}
+button,select {
+  background:var(--panel2);
+  color:var(--text);
+  border:1px solid var(--line);
+  padding:10px 12px;
+  border-radius:8px;
+  cursor:pointer;
+}
+button.primary {
+  background:var(--green);
+  color:#062016;
+  font-weight:800;
+}
+button:disabled { opacity:.45; }
+.tablewrap { overflow-x:auto; }
+table { width:100%;border-collapse:collapse;font-size:12px; }
+th,td {
+  text-align:left;
+  padding:10px 8px;
+  border-bottom:1px solid var(--line);
+}
+th { color:var(--muted); }
+tr.market { cursor:pointer; }
+tr.market.selected { background:#1a3049; }
+.green { color:var(--green); }
+.red { color:var(--red); }
+.gold { color:var(--gold); }
+.signal { font-size:22px;font-weight:900;margin:8px 0; }
+.bar { height:7px;background:#263951;border-radius:10px;overflow:hidden; }
+.bar i { display:block;height:100%;background:var(--blue); }
+.digits {
+  display:grid;
+  grid-template-columns:repeat(10,minmax(0,1fr));
+  gap:5px;
+}
+.digit {
+  background:var(--panel2);
+  border:1px solid var(--line);
+  border-radius:7px;
+  padding:8px 2px;
+  text-align:center;
+}
+.digit b { display:block;font-size:16px; }
+.digit small { font-size:10px;color:var(--muted); }
+.actions { display:flex;gap:8px;flex-wrap:wrap; }
+.note { font-size:11px;color:var(--muted);line-height:1.5; }
+a { color:var(--blue);text-decoration:none; }
+footer { padding:20px 4px;color:var(--muted);font-size:11px; }
+@media(max-width:800px) {
+  .grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .two { grid-template-columns:1fr; }
+}
+@media(max-width:420px) {
+  .digits { grid-template-columns:repeat(5,minmax(0,1fr)); }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">BERUR <span>TRADES</span></div>
+  <div class="sub">SYNTHETIC MARKET ANALYSIS • VERSION 2</div>
+</header>
+
+<div class="wrap">
+
+  <div class="topline">
+    <div id="connection" class="status">● CONNECTING...</div>
+    <div id="marketCount" class="status">DISCOVERING MARKETS...</div>
+  </div>
+
+  <div class="actions">
+    <select id="marketSelect">
+      <option value="">Discovering markets...</option>
+    </select>
+    <button id="refreshBtn">REFRESH</button>
+    <button id="soundBtn">SOUND: OFF</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">MARKET RANKING — STRONGEST FIRST</div>
+    <div class="card tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>RANK</th>
+            <th>MARKET</th>
+            <th>DIRECTION</th>
+            <th>SCORE</th>
+            <th>DATA</th>
+          </tr>
+        </thead>
+        <tbody id="rankingBody">
+          <tr><td colspan="5">Waiting for market data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section two">
+    <div class="card">
+      <h3>SELECTED MARKET ANALYSIS</h3>
+      <div class="small">MARKET</div>
+      <div class="metric" id="selectedMarket">—</div>
+      <div class="small">EVIDENCE-BASED DIRECTION</div>
+      <div class="signal" id="direction">WAIT</div>
+      <div class="small" id="directionReason">Collecting market data...</div>
+      <div class="small">ANALYSIS SCORE</div>
+      <div class="metric" id="score">—</div>
+      <div class="bar"><i id="scoreBar" style="width:0%"></i></div>
+      <div class="small" id="tradeStatus">NO TRADE — WAITING FOR EVIDENCE</div>
+    </div>
+
+    <div class="card">
+      <h3>CONTRACT ANALYSIS</h3>
+      <div class="small">SUGGESTED CONTRACT</div>
+      <div class="metric" id="contract">WAIT</div>
+      <div class="small" id="contractReason">Insufficient evidence.</div>
+      <hr style="border-color:var(--line);margin:14px 0">
+      <div class="small">MATCHES / DIFFERS DIGIT</div>
+      <div class="metric" id="matchDigit">—</div>
+      <div class="small" id="matchStats">Waiting for verified digit data.</div>
+    </div>
+  </div>
+
+  <div class="section card">
+    <h3>DIGIT DISTRIBUTION — HISTORICAL OBSERVATIONS</h3>
+    <div class="digits" id="digitGrid"></div>
+    <p class="note" id="digitQuality">
+      Digit analysis will only activate when market precision is verified.
+    </p>
+  </div>
+
+  <div class="section grid">
+    <div class="card">
+      <h3>OVER / UNDER</h3>
+      <div class="metric" id="overUnder">WAIT</div>
+      <div class="small" id="overUnderReason">Insufficient evidence.</div>
+    </div>
+    <div class="card">
+      <h3>EVEN / ODD</h3>
+      <div class="metric" id="evenOdd">WAIT</div>
+      <div class="small" id="evenOddReason">Insufficient evidence.</div>
+    </div>
+    <div class="card">
+      <h3>RISE / FALL</h3>
+      <div class="metric" id="riseFall">WAIT</div>
+      <div class="small" id="riseFallReason">Insufficient evidence.</div>
+    </div>
+    <div class="card">
+      <h3>DATA QUALITY</h3>
+      <div class="metric" id="dataQuality">LOW</div>
+      <div class="small" id="dataReason">Waiting for observations.</div>
+    </div>
+  </div>
+
+  <div class="section card">
+    <h3>SIGNAL PERFORMANCE HISTORY</h3>
+    <div class="grid">
+      <div>
+        <div class="small">RECORDED SIGNALS</div>
+        <div class="metric" id="totalSignals">0</div>
+      </div>
+      <div>
+        <div class="small">CORRECT</div>
+        <div class="metric green" id="correctSignals">0</div>
+      </div>
+      <div>
+        <div class="small">INCORRECT</div>
+        <div class="metric red" id="wrongSignals">0</div>
+      </div>
+      <div>
+        <div class="small">OBSERVED ACCURACY</div>
+        <div class="metric" id="accuracy">—</div>
+      </div>
+    </div>
+    <div class="actions" style="margin-top:12px">
+      <button id="clearHistoryBtn">CLEAR HISTORY</button>
+    </div>
+    <p class="note">Historical tracking is not a guarantee of future results.</p>
+  </div>
+
+  <div class="section card">
+    <h3>MANUAL EXECUTION</h3>
+    <p class="note">
+      Analysis only. No automatic trades or order placement.
+      Review the evidence and risk before making any decision.
+    </p>
+    <div class="actions">
+      <button class="primary" id="botBtn">OPEN DERIV BOT</button>
+      <button id="copyBtn">COPY ANALYSIS</button>
+    </div>
+  </div>
+
+  <footer>
+    BERUR TRADES V2 • Statistical analysis is experimental.
+    Historical frequency is not a prediction or guaranteed win probability.
+    Digital options and synthetic indices involve substantial risk.
+  </footer>
+
+</div>
+<script>
+"use strict";
+
+/* BERUR TRADES V2 — ANALYSIS ENGINE */
+
+const WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
+
+const SYMBOLS = [
+  "R_10","R_25","R_50","R_75","R_100",
+  "1HZ10V","1HZ25V","1HZ50V","1HZ75V","1HZ100V",
+  "1HZ150V","1HZ250V","1HZ300V"
+];
+
+const markets = {};
+let ws = null;
+let selected = "R_10";
+let requestId = 1;
+let soundEnabled = false;
+let audioContext = null;
+let reconnectTimer = null;
+
+let signalHistory = [];
+try {
+  signalHistory = JSON.parse(
+    localStorage.getItem("berur_v2_history") || "[]"
+  );
+  if (!Array.isArray(signalHistory)) signalHistory = [];
+} catch (e) {
+  signalHistory = [];
+}
+
+SYMBOLS.forEach(symbol => {
+  markets[symbol] = {
+    symbol,
+    ticks: [],
+    precision: null,
+    pipSize: null,
+    available: false,
+    loading: false,
+    direction: "WAIT",
+    score: 0,
+    reason: "Waiting for market data",
+    lastRecordedDirection: "WAIT",
+    pending: null,
+    analysis: null
+  };
+});
+
+function el(id) {
+  return document.getElementById(id);
+}
+
+function send(request) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+
+  request.req_id = requestId++;
+  ws.send(JSON.stringify(request));
+  return true;
+}
+
+function setConnection(message, good = false) {
+  el("connection").textContent = "● " + message;
+  el("connection").style.color =
+    good ? "var(--green)" : "var(--gold)";
+}
+
+function decimalPlaces(value) {
+  if (!Number.isFinite(value) || value <= 0) return null;
+
+  const text = value.toString();
+  if (text.includes("e-")) {
+    return Math.min(8, Number(text.split("e-")[1]));
+  }
+
+  const parts = text.split(".");
+  return parts.length > 1 ? parts[1].length : 0;
+}
+
+function setPrecision(m, value) {
+  const pip = Number(value);
+
+  if (!Number.isFinite(pip) || pip <= 0) return;
+
+  const precision = decimalPlaces(pip);
+
+  if (precision !== null && precision <= 8) {
+    m.pipSize = pip;
+    m.precision = precision;
+  }
+}
+
+function lastDigit(m, quote) {
+  if (m.precision === null) return null;
+
+  const scale = Math.pow(10, m.precision);
+  const scaled = Math.round(Number(quote) * scale);
+
+  if (!Number.isSafeInteger(scaled)) return null;
+
+  return Math.abs(scaled) % 10;
+}
+
+function average(values) {
+  if (!values.length) return 0;
+  return values.reduce((a,b) => a + b, 0) / values.length;
+}
+
+function wilson(successes, total) {
+  if (!total) return null;
+
+  const z = 1.96;
+  const p = successes / total;
+  const z2 = z * z;
+
+  const denominator = 1 + z2 / total;
+  const center = p + z2 / (2 * total);
+  const margin = z * Math.sqrt(
+    (p * (1 - p) / total) +
+    (z2 / (4 * total * total))
+  );
+
+  return {
+    low: Math.max(0, (center - margin) / denominator),
+    high: Math.min(1, (center + margin) / denominator)
+  };
+}
+
+function percent(value) {
+  return (value * 100).toFixed(1) + "%";
+}
+
+function saveHistory() {
+  try {
+    localStorage.setItem(
+      "berur_v2_history",
+      JSON.stringify(signalHistory.slice(-500))
+    );
+  } catch (e) {
+    console.warn("Could not save signal history", e);
+  }
+}
+
+function recordSignal(m, analysis) {
+  if (!analysis || !["RISE","FALL"].includes(analysis.direction)) {
+    return;
+  }
+
+  if (m.lastRecordedDirection === analysis.direction) return;
+
+  m.lastRecordedDirection = analysis.direction;
+
+  m.pending = {
+    symbol: m.symbol,
+    direction: analysis.direction,
+    entry: m.ticks[m.ticks.length - 1],
+    time: Date.now()
+  };
+}
+
+function resolveSignal(m, nextQuote) {
+  if (!m.pending) return;
+
+  const p = m.pending;
+  const entry = Number(p.entry);
+  const next = Number(nextQuote);
+
+  if (!Number.isFinite(entry) || !Number.isFinite(next)) {
+    m.pending = null;
+    return;
+  }
+
+  if (next === entry) {
+    m.pending = null;
+    return;
+  }
+
+  const correct =
+    p.direction === "RISE" ? next > entry : next < entry;
+
+  signalHistory.push({
+    symbol: p.symbol,
+    direction: p.direction,
+    correct,
+    time: p.time
+  });
+
+  signalHistory = signalHistory.slice(-500);
+  saveHistory();
+  renderHistory();
+
+  m.pending = null;
+}
+
+function digitStatistics(m) {
+  if (m.precision === null) return null;
+
+  const counts = Array(10).fill(0);
+  let valid = 0;
+
+  m.ticks.forEach(quote => {
+    const digit = lastDigit(m, quote);
+
+    if (digit !== null) {
+      counts[digit]++;
+      valid++;
+    }
+  });
+
+  if (!valid) return null;
+
+  return { counts, total: valid };
+}
+
+function analyze(m) {
+  const prices = m.ticks;
+
+  if (prices.length < 150) {
+    return {
+      direction: "WAIT",
+      score: 0,
+      reason: "Need at least 150 price observations.",
+      contract: "WAIT",
+      contractReason: "Insufficient price history.",
+      digits: null,
+      overUnder: "WAIT",
+      evenOdd: "WAIT",
+      quality: "LOW"
+    };
+  }
+
+  const recent = prices.slice(-30);
+  const previous = prices.slice(-60, -30);
+
+  const shortAverage = average(recent);
+  const previousAverage = average(previous);
+
+  const movement = shortAverage - previousAverage;
+
+  let rises = 0;
+  let falls = 0;
+
+  for (let i = 1; i < recent.length; i++) {
+    if (recent[i] > recent[i - 1]) rises++;
+    if (recent[i] < recent[i - 1]) falls++;
+  }
+
+  const movementCount = rises + falls;
+  const dominantShare = movementCount
+    ? Math.max(rises, falls) / movementCount
+    : 0;
+
+  const magnitude = Math.abs(movement);
+  const balance = Math.min(1, magnitude /
+    (Math.abs(shortAverage) * 0.0001 || 1));
+
+  const direction =
+    movement > 0 && rises > falls ? "RISE" :
+    movement < 0 && falls > rises ? "FALL" : "WAIT";
+
+  let score = Math.round(
+    dominantShare * 65 + Math.min(balance, 1) * 35
+  );
+
+  if (direction === "WAIT") score = 0;
+
+  const allowed =
+    direction !== "WAIT" &&
+    dominantShare >= 0.60 &&
+    score >= 75 &&
+    movementCount >= 20;
+
+  const finalDirection = allowed ? direction : "WAIT";
+
+  const directionReason = allowed
+    ? "Recent movement and trend agree. Manual review only."
+    : "Trend evidence is weak or conflicting. NO TRADE.";
+
+  const digits = digitStatistics(m);
+
+  let match = null;
+  let overUnder = "WAIT";
+  let evenOdd = "WAIT";
+
+  if (digits && digits.total >= 300) {
+    const highest = Math.max(...digits.counts);
+    const digit = digits.counts.indexOf(highest);
+    const interval = wilson(highest, digits.total);
+
+    match = {
+      digit,
+      count: highest,
+      total: digits.total,
+      rate: highest / digits.total,
+      low: interval.low,
+      high: interval.high
+    };
+
+    const lowerDigits = digits.counts.slice(0, 5)
+      .reduce((a,b) => a + b, 0);
+
+    const upperDigits = digits.counts.slice(5)
+      .reduce((a,b) => a + b, 0);
+
+    overUnder = lowerDigits > upperDigits ? "UNDER 5" :
+      upperDigits > lowerDigits ? "OVER 4" : "BALANCED";
+
+    const even = [0,2,4,6,8]
+      .reduce((sum,d) => sum + digits.counts[d], 0);
+
+    const odd = digits.total - even;
+
+    evenOdd = even > odd ? "EVEN" :
+      odd > even ? "ODD" : "BALANCED";
+  }
+
+  let contract = "WAIT";
+  let contractReason = "No sufficiently strong direction signal.";
+
+  if (allowed) {
+    contract = finalDirection;
+    contractReason =
+      "Directional setup passed the analysis filters. Review risk before acting.";
+  } else if (match) {
+    contractReason =
+      "Historical digit frequency is available, but it does not authorize a trade.";
+  }
+
+  const quality = prices.length >= 300 ? "GOOD" :
+    prices.length >= 150 ? "MEDIUM" : "LOW";
+
+  return {
+    direction: finalDirection,
+    score,
+    reason: directionReason,
+    contract,
+    contractReason,
+    digits,
+    match,
+    overUnder,
+    evenOdd,
+    quality,
+    allowed
+  };
+}
+
+
+/* BERUR_BEST_MARKET_RADAR_V2 */
+
+function radarCandidates() {
+  return Object.values(markets)
+    .filter(m =>
+      m.available &&
+      m.analysis &&
+      m.analysis.allowed &&
+      m.analysis.direction !== "WAIT"
+    )
+    .sort((a,b) => b.analysis.score - a.analysis.score);
+}
+
+function autoSelectBestMarket() {
+  const candidates = radarCandidates();
+  if (!candidates.length) return;
+
+  const best = candidates[0];
+  const current = markets[selected];
+
+  const currentValid = current &&
+    current.analysis &&
+    current.analysis.allowed &&
+    current.analysis.direction !== "WAIT";
+
+  const shouldSwitch = !currentValid ||
+    best.symbol === selected ||
+    best.analysis.score >= current.analysis.score + 8;
+
+  if (shouldSwitch) {
+    selected = best.symbol;
+    const select = el("marketSelect");
+    if (select) select.value = selected;
+  }
+}
+
+function ensureBestMarketRadar() {
+  if (el("bestMarketRadar")) return;
+
+  const panel = document.createElement("section");
+  panel.id = "bestMarketRadar";
+  panel.style.cssText =
+    "margin:14px 0;padding:16px;border:2px solid #16a34a;" +
+    "border-radius:12px;background:#10251d;color:#fff;";
+
+  panel.innerHTML = `
+    <div style="font-size:18px;font-weight:bold;color:#4ade80">
+      BEST MARKET SEARCH RADAR
+    </div>
+    <div id="radarStatus" style="margin:8px 0;color:#facc15">
+      INITIALISING RADAR...
+    </div>
+    <div style="font-size:13px;color:#cbd5e1">TOP MARKET</div>
+    <div id="radarMarket" style="font-size:25px;font-weight:bold">
+      SCANNING...
+    </div>
+    <div id="radarDirection" style="font-size:19px;margin-top:5px">
+      WAIT
+    </div>
+    <div id="radarScore" style="margin-top:5px">Score: —</div>
+    <div id="radarContract" style="margin-top:5px">Contract: —</div>
+    <div id="radarReason" style="font-size:13px;margin-top:8px;color:#cbd5e1">
+      Waiting for market evidence.
+    </div>
+    <div id="radarCoverage" style="font-size:12px;margin-top:10px;color:#94a3b8">
+      Waiting for markets...
+    </div>
+    <div id="radarSelected" style="font-size:12px;margin-top:5px;color:#4ade80">
+      Selected: —
+    </div>
+  `;
+
+  const table = el("rankingBody");
+  const target = table && table.closest("table");
+
+  if (target && target.parentElement) {
+    target.parentElement.insertBefore(panel, target);
+  } else {
+    document.body.prepend(panel);
+  }
+}
+
+function renderBestMarketRadar(available) {
+  ensureBestMarketRadar();
+
+  const candidates = radarCandidates();
+  const best = candidates[0];
+
+  const put = (id, value) => {
+    const node = el(id);
+    if (node) node.textContent = value;
+  };
+
+  put("radarStatus",
+    candidates.length
+      ? "RADAR ACTIVE — VALID SETUPS FOUND"
+      : "RADAR ACTIVE — NO TRADE"
+  );
+
+  put("radarMarket", best ? best.symbol : "NO QUALIFIED MARKET");
+  put("radarDirection", best
+    ? best.analysis.direction
+    : "WAIT — NO VALID SIGNAL"
+  );
+  put("radarScore", best
+    ? "Analysis score: " + best.analysis.score + " / 100"
+    : "Analysis score: —"
+  );
+  put("radarContract", best
+    ? "Contract: " + best.analysis.contract
+    : "Contract: NO TRADE"
+  );
+  put("radarReason", best
+    ? best.analysis.reason
+    : "No available market currently passes the existing signal safeguards."
+  );
+  put("radarCoverage",
+    available.length + " available markets | " +
+    candidates.length + " valid signals"
+  );
+  put("radarSelected", "Automatically selected: " + selected);
+}
+
+function rankScore(m) {
+  if (!m.analysis) return 0;
+  if (m.analysis.direction === "WAIT") return 0;
+  return m.analysis.score;
+}
+
+function renderRanking() {
+  const available = Object.values(markets)
+    .filter(m => m.available)
+    .sort((a,b) => rankScore(b) - rankScore(a));
+
+  renderBestMarketRadar(available);
+
+  el("marketCount").textContent =
+    available.length + " / " + SYMBOLS.length + " MARKETS FOUND";
+
+  el("rankingBody").innerHTML = "";
+
+  if (!available.length) {
+    el("rankingBody").innerHTML =
+      "<tr><td colspan='5'>Waiting for market data...</td></tr>";
+    return;
+  }
+
+  available.forEach((m,index) => {
+    const a = m.analysis || {};
+    const row = document.createElement("tr");
+
+    row.className = "market" +
+      (m.symbol === selected ? " selected" : "");
+
+    row.innerHTML = `
+      <td>${index + 1}</td>
+      <td>${m.symbol}</td>
+      <td>${a.direction || "WAIT"}</td>
+      <td>${a.score || 0}/100</td>
+      <td>${m.ticks.length} ticks</td>
+    `;
+
+    row.addEventListener("click", () => {
+      selected = m.symbol;
+      el("marketSelect").value = selected;
+      render();
+    });
+
+    el("rankingBody").appendChild(row);
+  });
+}
+
+function renderDigits(m,a) {
+  const grid = el("digitGrid");
+  grid.innerHTML = "";
+
+  if (!a.digits) {
+    grid.innerHTML =
+      "<div class='note'>Verified digit data unavailable. Waiting for valid market precision and sufficient observations.</div>";
+    el("digitQuality").textContent =
+      "Digit analysis disabled until precision is verified and at least 300 observations are available.";
+    return;
+  }
+
+  a.digits.counts.forEach((count,digit) => {
+    const box = document.createElement("div");
+    box.className = "digit";
+
+    box.innerHTML = `
+      <b>${digit}</b>
+      <small>${count} (${percent(count / a.digits.total)})</small>
+    `;
+
+    grid.appendChild(box);
+  });
+
+  el("digitQuality").textContent =
+    a.digits.total + " verified observations. Historical frequencies only; not guaranteed future probabilities.";
+}
+
+function renderHistory() {
+  const total = signalHistory.length;
+  const correct = signalHistory.filter(x => x.correct).length;
+  const wrong = total - correct;
+
+  el("totalSignals").textContent = total;
+  el("correctSignals").textContent = correct;
+  el("wrongSignals").textContent = wrong;
+  el("accuracy").textContent =
+    total ? percent(correct / total) : "—";
+}
+
+function render() {
+  autoSelectBestMarket();
+  const m = markets[selected];
+  if (!m) return;
+
+  const a = m.analysis || analyze(m);
+  m.analysis = a;
+
+  el("selectedMarket").textContent = selected;
+  el("direction").textContent = a.direction;
+  el("directionReason").textContent = a.reason;
+  el("score").textContent = a.score + " / 100";
+  el("scoreBar").style.width = a.score + "%";
+
+  el("tradeStatus").textContent = a.allowed
+    ? "MANUAL REVIEW ONLY — NOT AN AUTOMATIC TRADE"
+    : "NO TRADE — SAFEGUARD ACTIVE";
+
+  el("contract").textContent = a.contract;
+  el("contractReason").textContent = a.contractReason;
+
+  el("overUnder").textContent = a.overUnder;
+  el("overUnderReason").textContent =
+    "Historical digit distribution only.";
+
+  el("evenOdd").textContent = a.evenOdd;
+  el("evenOddReason").textContent =
+    "Historical digit distribution only.";
+
+  el("riseFall").textContent = a.direction;
+  el("riseFallReason").textContent = a.reason;
+
+  el("dataQuality").textContent = a.quality;
+  el("dataReason").textContent =
+    m.ticks.length + " price observations received.";
+
+  if (a.match) {
+    el("matchDigit").textContent = "DIGIT " + a.match.digit;
+    el("matchStats").textContent =
+      "Match: " + a.match.count + "/" + a.match.total +
+      " (" + percent(a.match.rate) + "). " +
+      "95% Wilson interval: " +
+      percent(a.match.low) + "–" + percent(a.match.high) +
+      ". Differ means any other digit.";
+  } else {
+    el("matchDigit").textContent = "—";
+    el("matchStats").textContent =
+      "Need 300 verified observations and confirmed precision.";
+  }
+
+  renderDigits(m,a);
+  renderRanking();
+  renderHistory();
+}
+
+function loadMarket(symbol) {
+  const m = markets[symbol];
+  if (!m || !m.available || m.loading) return;
+
+  m.loading = true;
+
+  send({
+    ticks_history: symbol,
+    count: 500,
+    end: "latest",
+    style: "ticks"
+  });
+
+  send({
+    ticks: symbol,
+    subscribe: 1
+  });
+}
+
+function connect() {
+  clearTimeout(reconnectTimer);
+
+  if (ws) {
+    try { ws.close(); } catch(e) {}
+  }
+
+  setConnection("CONNECTING...");
+
+  try {
+    ws = new WebSocket(WS_URL);
+  } catch (e) {
+    setConnection("CONNECTION ERROR");
+    reconnectTimer = setTimeout(connect,5000);
+    return;
+  }
+
+  ws.onopen = () => {
+    setConnection("CONNECTED — DISCOVERING MARKETS",true);
+
+    send({
+      active_symbols: "brief",
+      req_id: 1
+    });
+  };
+
+  ws.onmessage = event => {
+    let response;
+
+    try {
+      response = JSON.parse(event.data);
+    } catch(e) {
+      return;
+    }
+
+    if (response.error) {
+      console.warn("Deriv API:",response.error);
+      setConnection("DERIV API ERROR: " + response.error.message);
+      return;
+    }
+
+    setConnection(
+      "RECEIVED: " + (response.msg_type || Object.keys(response).join(", ")),
+      true
+    );
+
+    const data = response;
+
+    if (data.msg_type === "active_symbols") {
+      const returned = data.active_symbols || [];
+
+      returned.forEach(info => {
+        const symbol = info.underlying_symbol || info.symbol;
+        const m = markets[symbol];
+
+        if (!m) return;
+
+        m.available = true;
+
+        if (info.pip_size !== undefined) {
+          setPrecision(m,info.pip_size);
+        }
+      });
+
+      const select = el("marketSelect");
+      select.innerHTML = "";
+
+      SYMBOLS.filter(s => markets[s].available)
+        .forEach(symbol => {
+          const option = document.createElement("option");
+          option.value = symbol;
+          option.textContent = symbol;
+          select.appendChild(option);
+        });
+
+      if (!markets[selected].available) {
+        selected = SYMBOLS.find(s => markets[s].available) || "R_10";
+      }
+
+      select.value = selected;
+
+      SYMBOLS.forEach(symbol => loadMarket(symbol));
+
+      setConnection("CONNECTED — LIVE DATA",true);
+      renderRanking();
+      return;
+    }
+
+    if (data.msg_type === "history" && data.echo_req) {
+      const symbol = data.echo_req.ticks_history;
+      const m = markets[symbol];
+
+      if (!m || !data.history) return;
+
+      m.ticks = (data.history.prices || [])
+        .map(Number)
+        .filter(Number.isFinite);
+
+      m.loading = false;
+
+      if (data.history.pip_size !== undefined) {
+        setPrecision(m,data.history.pip_size);
+      }
+
+      m.analysis = analyze(m);
+      recordSignal(m,m.analysis);
+      render();
+      return;
+    }
+
+    if (data.msg_type === "tick" && data.tick) {
+      const tick = data.tick;
+      const m = markets[tick.symbol];
+
+      if (!m) return;
+
+      if (tick.pip_size !== undefined) {
+        setPrecision(m,tick.pip_size);
+      }
+
+      const quote = Number(tick.quote);
+      if (!Number.isFinite(quote)) return;
+
+      resolveSignal(m,quote);
+
+      m.ticks.push(quote);
+
+      if (m.ticks.length > 600) {
+        m.ticks.shift();
+      }
+
+      m.analysis = analyze(m);
+      recordSignal(m,m.analysis);
+
+      render();
+    }
+  };
+
+  ws.onerror = () => {
+    setConnection("CONNECTION ERROR");
+  };
+
+  ws.onclose = () => {
+    setConnection("DISCONNECTED — RECONNECTING");
+    reconnectTimer = setTimeout(connect,5000);
+  };
+}
+
+/* USER CONTROLS */
+
+el("marketSelect").addEventListener("change",event => {
+  selected = event.target.value;
+  render();
+});
+
+el("refreshBtn").addEventListener("click",() => {
+  connect();
+});
+
+el("soundBtn").addEventListener("click",() => {
+  soundEnabled = !soundEnabled;
+  el("soundBtn").textContent =
+    "SOUND: " + (soundEnabled ? "ON" : "OFF");
+
+  if (soundEnabled) {
+    try {
+      audioContext = new (window.AudioContext ||
+        window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      gain.gain.value = 0.02;
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.05);
+    } catch(e) {}
+  }
+});
+
+el("clearHistoryBtn").addEventListener("click",() => {
+  if (!confirm("Clear all saved signal history?")) return;
+
+  signalHistory = [];
+  saveHistory();
+  renderHistory();
+});
+
+el("botBtn").addEventListener("click",() => {
+  window.open("https://bot.deriv.com/","_blank");
+});
+
+el("copyBtn").addEventListener("click",() => {
+  const m = markets[selected];
+  const a = m.analysis || analyze(m);
+
+  const report =
+    "BERUR TRADES V2\n" +
+    "Market: " + selected + "\n" +
+    "Direction: " + a.direction + "\n" +
+    "Score: " + a.score + "/100\n" +
+    "Contract: " + a.contract + "\n" +
+    "Reason: " + a.reason + "\n" +
+    "Ticks: " + m.ticks.length + "\n" +
+    "Execution: MANUAL ONLY\n" +
+    "No signal guarantees a winning trade.";
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(report)
+      .then(() => alert("Analysis copied."))
+      .catch(() => alert(report));
+  } else {
+    alert(report);
+  }
+});
+
+/* START */
+
+renderHistory();
+renderDigits(markets[selected],analyze(markets[selected]));
+connect();
+
+</script>
+</body>
+</html>
+
