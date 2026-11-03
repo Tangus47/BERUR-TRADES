@@ -254,6 +254,28 @@ footer { padding:20px 4px;color:var(--muted);font-size:11px; }
     <p class="note">Historical tracking is not a guarantee of future results.</p>
   </div>
 
+  <div class="section card" id="tradingModePanel">
+    <h3>TRADING MODE</h3>
+    <p class="note">Choose how you want to use the analyzer. Selecting a mode does not place trades.</p>
+    <div class="actions">
+      <button id="manualModeBtn" class="primary">MANUAL MODE</button>
+      <button id="autoModeBtn">AUTO MODE</button>
+      <button id="stopAllTradingBtn">STOP ALL</button>
+    </div>
+    <div class="metrics" style="margin-top:12px">
+      <div>
+        <div class="small">SELECTED MODE</div>
+        <div class="metric" id="activeTradingMode">MANUAL</div>
+      </div>
+      <div>
+        <div class="small">EXECUTION STATUS</div>
+        <div class="metric" id="executionModeStatus">LOCKED</div>
+      </div>
+    </div>
+    <p class="note" id="tradingModeMessage">Manual review only. Trade execution is not enabled.</p>
+    <p class="note">Demo risk settings planned: $0.35 initial stake • +$2 session target • −$4 session limit. These are not active trading controls.</p>
+  </div>
+
   <div class="section card">
     <h3>MANUAL EXECUTION</h3>
     <p class="note">
@@ -1053,6 +1075,51 @@ function connect() {
   };
 }
 
+/* TRADING MODE — SELECTION ONLY; NO ORDER EXECUTION */
+
+let selectedTradingMode = "MANUAL";
+let tradingHalted = true;
+
+function updateTradingModeUI() {
+  const manualBtn = el("manualModeBtn");
+  const autoBtn = el("autoModeBtn");
+
+  manualBtn.classList.toggle("primary", selectedTradingMode === "MANUAL");
+  autoBtn.classList.toggle("primary", selectedTradingMode === "AUTO");
+
+  el("activeTradingMode").textContent = selectedTradingMode;
+  el("executionModeStatus").textContent = "LOCKED";
+
+  el("tradingModeMessage").textContent =
+    selectedTradingMode === "AUTO"
+      ? "Automatic mode selected, but execution is locked. No trades will be placed."
+      : "Manual mode selected. Review analysis and make decisions yourself; no trades will be placed.";
+
+  if (tradingHalted) {
+    el("executionModeStatus").textContent = "STOPPED";
+  }
+}
+
+el("manualModeBtn").addEventListener("click", () => {
+  selectedTradingMode = "MANUAL";
+  updateTradingModeUI();
+});
+
+el("autoModeBtn").addEventListener("click", () => {
+  selectedTradingMode = "AUTO";
+  updateTradingModeUI();
+});
+
+el("stopAllTradingBtn").addEventListener("click", () => {
+  tradingHalted = true;
+  selectedTradingMode = "MANUAL";
+  updateTradingModeUI();
+  el("tradingModeMessage").textContent =
+    "STOP ALL is active. Trading remains locked.";
+});
+
+updateTradingModeUI();
+
 /* USER CONTROLS */
 
 el("marketSelect").addEventListener("change",event => {
@@ -1128,6 +1195,7 @@ renderDigits(markets[selected],analyze(markets[selected]));
 connect();
 
 </script>
-<script src="berur-execution.js"></script></body>
+<script src="berur-execution.js"></script>
+<script src="berur-manual.js"></script></body>
 </html>
 
