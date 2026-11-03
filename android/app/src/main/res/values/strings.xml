@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BERUR TRADES</string>
+    <string name="title_activity_main">BERUR TRADES</string>
+    <string name="package_name">com.vintech.berurtrades</string>
+    <string name="custom_url_scheme">com.vintech.berurtrades</string>
+</resources>
