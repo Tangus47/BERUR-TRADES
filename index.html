@@ -1,3 +1,4 @@
+fo xx
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -310,52 +311,116 @@ function ema(values, period) {
  return result;
 }
 function analyze(m) {
- const p = m.ticks;
+ const p = m.ticks || [];
  const ds = digitsFor(p);
  const counts = Array(10).fill(0);
  ds.forEach(d => counts[d]++);
  const n = ds.length;
- const even = ds.filter(d=>d%2===0).length;
- const odd = n-even;
- const over = ds.filter(d=>d>5).length;
- const under = ds.filter(d=>d<5).length;
- const neutral = ds.filter(d=>d===5).length;
+
+ const even = ds.filter(d => d % 2 === 0).length;
+ const odd = n - even;
+ const over = ds.filter(d => d > 5).length;
+ const under = ds.filter(d => d < 5).length;
+ const neutral = ds.filter(d => d === 5).length;
+
  const hot = counts.indexOf(Math.max(...counts));
  const cold = counts.indexOf(Math.min(...counts));
+
  const recent = p.slice(-40);
- const up = recent.slice(1).filter((v,i)=>v>recent[i]).length;
- const down = recent.slice(1).filter((v,i)=>v<recent[i]).length;
- const directionShare = recent.length>1 ? Math.max(up,down)/(recent.length-1) : 0;
- const fast = ema(p.slice(-80),8);
- const slow = ema(p.slice(-120),21);
- const trend = fast>slow ? "RISE" : fast<slow ? "FALL" : "NEUTRAL";
- const trendStrength = slow ? Math.min(100,Math.abs(fast-slow)/Math.abs(slow)*10000) : 0;
+ const changes = recent.slice(1).map((v, i) => v - recent[i]);
+ const up = changes.filter(v => v > 0).length;
+ const down = changes.filter(v => v < 0).length;
+ const moving = up + down;
+
+ const directionShare = moving ? Math.max(up, down) / moving : 0;
+ const balance = moving ? Math.abs(up - down) / moving : 0;
+
+ const fast = ema(p.slice(-80), 8);
+ const slow = ema(p.slice(-120), 21);
+
+ const trend = fast > slow ? "RISE" :
+               fast < slow ? "FALL" : "NEUTRAL";
+
+ const recentDirection = up > down ? "RISE" :
+                         down > up ? "FALL" : "NEUTRAL";
+
+ const trendStrength = slow
+   ? Math.min(100, Math.abs(fast - slow) / Math.abs(slow) * 10000)
+   : 0;
+
  const digitMax = Math.max(...counts);
  const digitMin = Math.min(...counts);
- const digitEdge = n ? Math.abs(digitMax/n*100-10) : 0;
- let directionScore = Math.round(directionShare*55 + Math.min(25,trendStrength*4) + Math.min(20,Math.abs(up-down)*1.5));
- directionScore = Math.min(95,directionScore);
+ const digitEdge = n ? Math.abs(digitMax / n * 100 - 10) : 0;
+
+ let directionScore = Math.round(
+   directionShare * 35 +
+   balance * 35 +
+   Math.min(30, trendStrength * 3)
+ );
+ directionScore = Math.min(95, directionScore);
+
  let directionSignal = "WAIT";
- if(n>=80 && directionScore>=68 && directionShare>=.60 && trend!=="NEUTRAL") directionSignal=trend;
- const enough = n>=100;
- let digitSignal = "WAIT";
- let digitReason = "Collect at least 100 ticks before assessing digit distributions.";
- if(enough) {
-   const overRate = over/(over+under||1);
-   const evenRate = even/n;
-   const candidates = [
-     {name:overRate>=.5?"OVER 5":"UNDER 5",edge:Math.abs(overRate-.5)*100,detail:`Over 5 ${pct(overRate*100)} of non-5 digits; Under 5 ${pct((1-overRate)*100)}.`},
-     {name:evenRate>=.5?"EVEN":"ODD",edge:Math.abs(evenRate-.5)*100,detail:`Even ${pct(evenRate*100)}; Odd ${pct(100-evenRate*100)}.`}
-   ].sort((a,b)=>b.edge-a.edge);
-   if(candidates[0].edge>=7) {
-     digitSignal=candidates[0].name;
-     digitReason=candidates[0].detail;
-   } else digitReason="No meaningful separation in the observed digit groups.";
+
+ if (
+   n >= 120 &&
+   trend !== "NEUTRAL" &&
+   recentDirection === trend &&
+   directionShare >= 0.58 &&
+   balance >= 0.16 &&
+   directionScore >= 70
+ ) {
+   directionSignal = trend;
  }
- const tradeAllowed = enough && (directionSignal!=="WAIT" || digitSignal!=="WAIT");
- const quality = n>=150 ? "GOOD" : n>=80 ? "MEDIUM" : "LOW";
- return {counts,n,even,odd,over,under,neutral,hot,cold,up,down,trend,directionScore,directionSignal,digitSignal,digitReason,tradeAllowed,quality,digitEdge};
+
+ let digitSignal = "WAIT";
+ let digitReason =
+   "Collect at least 150 ticks before assessing digit frequencies.";
+
+ if (n >= 150) {
+   const nonFive = over + under;
+   const overRate = nonFive ? over / nonFive : 0;
+   const evenRate = n ? even / n : 0;
+
+   const candidates = [
+     {
+       name: overRate >= 0.5 ? "OVER 5" : "UNDER 5",
+       edge: Math.abs(overRate - 0.5) * 100,
+       detail: `Over 5 ${pct(overRate * 100)} of non-5 digits; Under 5 ${pct((1 - overRate) * 100)}.`
+     },
+     {
+       name: evenRate >= 0.5 ? "EVEN" : "ODD",
+       edge: Math.abs(evenRate - 0.5) * 100,
+       detail: `Even ${pct(evenRate * 100)}; Odd ${pct(100 - evenRate * 100)}.`
+     }
+   ].sort((a, b) => b.edge - a.edge);
+
+   if (candidates[0].edge >= 8) {
+     digitSignal = candidates[0].name;
+     digitReason = candidates[0].detail +
+       " Historical frequency only, not a prediction.";
+   } else {
+     digitReason =
+       "No sufficiently strong historical digit imbalance. No digit signal.";
+   }
+ }
+
+ const enough = n >= 150;
+ const tradeAllowed =
+   enough &&
+   (directionSignal !== "WAIT" || digitSignal !== "WAIT");
+
+ const quality = n >= 200 ? "GOOD" :
+                 n >= 120 ? "MEDIUM" : "LOW";
+
+ return {
+   counts, n, even, odd, over, under, neutral,
+   hot, cold, up, down, trend,
+   directionScore, directionSignal,
+   digitSignal, digitReason,
+   tradeAllowed, quality, digitEdge
+ };
 }
+
 function rankScore(m) {
  const a=analyze(m);
  if(a.n<50) return 0;
