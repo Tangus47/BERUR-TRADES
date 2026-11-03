@@ -87,6 +87,18 @@
     }
   }
 
+
+  async function readResponse(response) {
+    const raw = await response.text();
+    try {
+      return JSON.parse(raw);
+    } catch (error) {
+      throw new Error(
+        "Deriv HTTP " + response.status + ": " + raw.slice(0, 180)
+      );
+    }
+  }
+
   async function connectDemo() {
     if (connected) {
       status("Already connected.", "#4ade80");
@@ -114,7 +126,7 @@
         }
       );
 
-      const result = await response.json();
+      const result = await readResponse(response);
 
       if (!response.ok) {
         throw new Error(
@@ -163,7 +175,7 @@
         }
       );
 
-      const otpResult = await otpResponse.json();
+      const otpResult = await readResponse(otpResponse);
 
       if (!otpResponse.ok) {
         throw new Error(
@@ -260,6 +272,5 @@
 
   createPanel();
 
-  createPanel();
 
 })();
