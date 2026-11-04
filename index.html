@@ -215,6 +215,7 @@ a{font-weight:700}
 @media(max-width:600px){#overview>.card{min-height:104px}#homeBestMarketCards>.box{padding:11px}}
 
 .news-mini{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:11px 13px;margin:10px 0;border:1px solid #35506b;border-radius:12px;background:linear-gradient(120deg,rgba(31,75,100,.35),rgba(14,31,51,.9));font-size:12px}.news-mini b{color:#9fe7d2;letter-spacing:.04em}.news-mini span{color:var(--text)}.news-mini.news-hot{border-color:#a84d60;background:linear-gradient(120deg,rgba(116,35,54,.35),rgba(24,28,47,.9))}.news-mini.news-hot b{color:#ff8a9c}.news-mini.news-stale{border-color:#856b3b}.news-mini.news-stale b{color:#ffd17a}.news-impact{display:inline-block;padding:4px 7px;border-radius:6px;font-size:10px;font-weight:900;letter-spacing:.04em}.news-impact.high{color:#ffdce2;background:#762e40}.news-impact.medium{color:#ffe5b1;background:#6b4b1c}.news-impact.low{color:#c9d9ed;background:#30445d}.news-impact.holiday{color:#d5d5e8;background:#45435d}.news-count{color:#9fe7d2;font-size:11px;margin-top:4px}.news-moved{font-size:9px;color:#ffd17a;font-weight:900}.news-ok{color:#9fe7d2!important;border-color:#287d68!important}.news-warn{color:#ffd17a!important;border-color:#856b3b!important}#economic-news-centre .radar-head{align-items:center;gap:10px;flex-wrap:wrap}#economic-news-centre .box{min-width:0}#economic-news-centre table{min-width:1120px}#economic-news-centre td{vertical-align:top;line-height:1.45}@media(max-width:600px){.news-mini{align-items:flex-start;flex-direction:column}#economic-news-centre .radar-head button{width:100%}}
+.dxy-chart-wrap{position:relative;width:100%;height:390px;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:#07111f}.dxy-chart-wrap iframe{width:100%;height:100%;border:0}@media(max-width:600px){.dxy-chart-wrap{height:330px}}
 </style>
 </head>
 <body>
@@ -488,6 +489,25 @@ a{font-weight:700}
       <div class="box"><b>UPDATE INTERVAL</b><div class="large">15 min</div><div class="note">Feed refreshes automatically while the page is visible.</div></div>
       <div class="box"><b>TRADING MODE</b><div class="large">ADVISORY</div><div class="note">Warnings only. No automatic trade direction or execution.</div></div>
     </div>
+    <section class="box dxy-monitor" aria-label="US Dollar Index monitor" style="margin:14px 0;padding:14px">
+      <div class="radar-head"><div><span class="eyebrow">USD BROAD-STRENGTH BENCHMARK</span><h3 class="section-title">US DOLLAR INDEX — DXY</h3><p class="note">Track the US dollar against its major-currency basket and compare its movement with the selected USD pair.</p></div><span class="pill">TVC:DXY · LIVE CHART</span></div>
+      <div class="dxy-chart-wrap"><iframe title="TradingView US Dollar Index DXY chart" src="https://www.tradingview.com/widgetembed/?frameElementId=berurDxyChart&symbol=TVC%3ADXY&interval=60&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=07111f&theme=dark&style=1&timezone=Etc%2FUTC&withdateranges=1&hideideas=1&locale=en" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allowtransparency="true"></iframe></div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin-top:12px">
+        <div class="box"><b>DXY RISING</b><div class="note">Often supports USD strength: EUR/USD, GBP/USD, AUD/USD and NZD/USD may face downward pressure; USD/JPY, USD/CHF and USD/CAD may receive upward pressure.</div></div>
+        <div class="box"><b>DXY FALLING</b><div class="note">Often the reverse: USD-quoted major pairs may strengthen while several USD-base pairs may weaken. Confirm with each pair's own chart.</div></div>
+        <div class="box"><b>DXY RANGE / MIXED</b><div class="note">Treat the dollar as lacking a clear broad direction. Avoid forcing a USD bias from a flat or conflicting index.</div></div>
+      </div>
+      <h4 class="section-title" style="margin-top:14px">DXY RELATIONSHIP BY INSTRUMENT</h4>
+      <div class="tablewrap"><table style="min-width:700px"><thead><tr><th>INSTRUMENT</th><th>COMMON DXY RELATIONSHIP</th><th>USD BIAS IF DXY RISES</th><th>CONFIRMATION</th></tr></thead><tbody>
+        <tr><td>EUR/USD</td><td>Usually inverse</td><td>Downward pressure</td><td>Check EUR-specific news and price structure</td></tr>
+        <tr><td>GBP/USD</td><td>Often inverse</td><td>Downward pressure</td><td>Check GBP-specific news and price structure</td></tr>
+        <tr><td>AUD/USD · NZD/USD</td><td>Often inverse</td><td>Downward pressure</td><td>Check risk sentiment and local data</td></tr>
+        <tr><td>USD/JPY</td><td>Often positive, but rate-sensitive</td><td>Upward pressure</td><td>Compare US/Japan yields and BOJ news</td></tr>
+        <tr><td>USD/CHF · USD/CAD</td><td>Often positive</td><td>Upward pressure</td><td>Check CHF safe-haven flows and oil/CAD drivers</td></tr>
+        <tr><td>XAU/USD</td><td>Often inverse</td><td>Downward pressure on gold</td><td>Check real yields and safe-haven demand</td></tr>
+      </tbody></table></div>
+      <p class="note">Important: DXY itself includes EUR, JPY, GBP, CAD and CHF in its currency basket. It is therefore not independent confirmation for several pairs above. These are typical relationships, not fixed correlations or trade signals. The embedded chart is supplied by TradingView; if it does not load, use the direct <a href="https://www.tradingview.com/symbols/TVC-DXY/" target="_blank" rel="noopener">DXY chart</a>.</p>
+    </section>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0">
       <label class="box">Instrument / pair filter<select id="newsPairFilter" style="width:100%;margin-top:7px"><option value="ALL">All tracked pairs</option><option value="EUR/USD">EUR/USD</option><option value="GBP/USD">GBP/USD</option><option value="USD/JPY">USD/JPY</option><option value="AUD/USD">AUD/USD</option><option value="USD/CAD">USD/CAD</option><option value="USD/CHF">USD/CHF</option><option value="NZD/USD">NZD/USD</option><option value="XAU/USD">XAU/USD (Gold)</option></select></label>
       <label class="box">Impact filter<select id="newsImpactFilter" style="width:100%;margin-top:7px"><option value="all">High + Medium + Low</option><option value="high">High impact only</option><option value="medium">Medium impact only</option><option value="low">Low impact only</option></select></label>
