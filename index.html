@@ -553,7 +553,7 @@ let cfdCategoryFilter = "ALL";
 const markets = {};
 SYMBOLS.forEach(s => markets[s] = {
  symbol:s, prices:[], ticks:[], tickPoints:[], quote:null, updated:null,
- available:false, loading:false, error:""
+ available:false, loading:false, error:"", timeframes:{}, requestedCandleTf:null
 });
 
 let socket = null;
@@ -682,6 +682,7 @@ function refreshSignalValidity(signal, score, sample) {
   const signature = selected + "|" + signal;
   if (!signal || signal === "WAIT") {
     activeSignal = null;
+    window.dispatchEvent(new CustomEvent("berur:signal-update",{detail:{signalId:"",tradeAllowed:false}}));
     $("signalCountdown").textContent = "—";
     $("signalGeneratedAt").textContent = "Generated: —";
     $("signalExpiresAt").textContent = "Valid until: —";
@@ -698,6 +699,11 @@ function refreshSignalValidity(signal, score, sample) {
   $("signalExpiresAt").textContent = "Valid until: " + formatLocalTime(activeSignal.expiresAt);
   $("signalTimezone").textContent = "Timezone: " + localZone;
   updateSignalClock();
+  const current=markets[selected]?analyze(markets[selected]):null;
+  const ou=String(signal).match(/^(OVER|UNDER) ([0-9])$/);
+  const contract=ou?(ou[1]==="OVER"?"DIGITOVER":"DIGITUNDER"):signal==="EVEN"?"DIGITEVEN":signal==="ODD"?"DIGITODD":signal==="RISE"?"CALL":signal==="FALL"?"PUT":"";
+  const detail={symbol:selected,signal,contract,barrier:ou?Number(ou[2]):undefined,duration:signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,evidenceScore:score,sample,tradeAllowed:!!current?.tradeAllowed,reason:ou?(current?.digitReason||""):current?.directionReason||"BERUR technical analysis signal",generatedAt:activeSignal.generatedAt,expiresAt:activeSignal.expiresAt,signalId:signature+"|"+activeSignal.generatedAt};
+  window.dispatchEvent(new CustomEvent("berur:signal-update",{detail}));
 }
 
 const $ = id => document.getElementById(id);
@@ -795,6 +801,11 @@ function connect() {
          m.loading = false;m.updated = Date.now();render();
        }
      }
+     delete requestMap[data.req_id];
+   }
+   if(data.msg_type==="candles" && info && info.type==="market-candles"){
+     const m=markets[info.symbol],granularity=Number(info.granularity||candleTimeframe);
+     if(m){m.timeframes=m.timeframes||{};m.timeframes[granularity]=(data.candles||[]).map(c=>({time:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})).filter(c=>c.time>0&&[c.open,c.high,c.low,c.close].every(Number.isFinite));m.requestedCandleTf=granularity;render();}
      delete requestMap[data.req_id];
    }
    if(data.msg_type==="candles" && info && String(info.type).startsWith("cfd-tf-")){
@@ -1050,10 +1061,22 @@ function updateCfdLotLabels(){
    node.textContent=lot!==null&&Number.isFinite(lot)?(lot<0.01?"Below 0.01 lot — do not round up":lot.toFixed(2)+" lots"):"—";
  });
 }
+function requestMarketCandles(symbol,granularity=candleTimeframe){
+ const m=markets[symbol];
+ if(!m||!running||!socket||socket.readyState!==WebSocket.OPEN)return;
+ m.timeframes=m.timeframes||{};
+ if(m.timeframes[granularity]?.length||m.requestedCandleTf===granularity)return;
+ m.requestedCandleTf=granularity;
+ const sent=request({ticks_history:symbol,count:120,end:"latest",style:"candles",granularity},"market-candles",symbol);
+ const id=Object.keys(requestMap).find(key=>requestMap[key]?.type==="market-candles"&&requestMap[key]?.symbol===symbol);
+ if(id)requestMap[id].granularity=granularity;
+ if(!sent)m.requestedCandleTf=null;
+}
 function loadMarket(symbol) {
  request({
    ticks_history:symbol,count:200,end:"latest",style:"ticks"
  },"history",symbol);
+ if(symbol===selected)requestMarketCandles(symbol,candleTimeframe);
  request({ticks:symbol,subscribe:1},"tick",symbol);
 }
 function stop() {
@@ -1227,10 +1250,16 @@ let candleTimeframe=60;
 function drawCandles(m){
  const svg=$("candleChart");if(!svg)return;
  $("candleSymbol").textContent=marketName(m.symbol);
+ const brokerCandles=(m.timeframes&&m.timeframes[candleTimeframe]||[]).filter(c=>[c.open,c.high,c.low,c.close].every(Number.isFinite));
  const points=(m.tickPoints||[]).filter(p=>Number.isFinite(p.price)&&Number.isFinite(p.time));
- if(!points.length){svg.innerHTML='<text x="500" y="150" text-anchor="middle" fill="#91a4bd" font-size="16">Waiting for tick history</text>';$("candleInfo").textContent="No timestamped ticks";return;}
+ if(!brokerCandles.length&&!points.length){svg.innerHTML='<text x="500" y="150" text-anchor="middle" fill="#91a4bd" font-size="16">Waiting for live candle history</text>';$("candleInfo").textContent="No candle data yet";return;}
  const buckets=new Map();
- points.forEach(p=>{const t=Math.floor(p.time/(candleTimeframe*1000))*candleTimeframe*1000;let c=buckets.get(t);if(!c){c={time:t,open:p.price,high:p.price,low:p.price,close:p.price};buckets.set(t,c);}else{c.high=Math.max(c.high,p.price);c.low=Math.min(c.low,p.price);c.close=p.price;}});
+ if(brokerCandles.length){
+   brokerCandles.forEach(c=>buckets.set(c.time*1000,{time:c.time*1000,open:c.open,high:c.high,low:c.low,close:c.close}));
+   if(points.length){const p=points[points.length-1],t=Math.floor(p.time/(candleTimeframe*1000))*candleTimeframe*1000;let c=buckets.get(t);if(!c){c={time:t,open:p.price,high:p.price,low:p.price,close:p.price};buckets.set(t,c);}else{c.high=Math.max(c.high,p.price);c.low=Math.min(c.low,p.price);c.close=p.price;}}
+ }else{
+   points.forEach(p=>{const t=Math.floor(p.time/(candleTimeframe*1000))*candleTimeframe*1000;let c=buckets.get(t);if(!c){c={time:t,open:p.price,high:p.price,low:p.price,close:p.price};buckets.set(t,c);}else{c.high=Math.max(c.high,p.price);c.low=Math.min(c.low,p.price);c.close=p.price;}});
+ }
  const candles=Array.from(buckets.values()).sort((a,b)=>a.time-b.time).slice(-55);
  $("candleClose").textContent=fmt(candles[candles.length-1].close);
  $("candleInfo").textContent=candles.length+" candles • "+({60:"1 minute",300:"5 minutes",900:"15 minutes",3600:"1 hour",14400:"4 hours",86400:"1 day"}[candleTimeframe]);
@@ -1242,7 +1271,7 @@ function drawCandles(m){
  out+='<text x="40" y="290" fill="#91a4bd" font-size="10">'+new Date(candles[0].time).toLocaleTimeString()+'</text><text x="960" y="290" text-anchor="end" fill="#91a4bd" font-size="10">'+new Date(candles[candles.length-1].time).toLocaleTimeString()+'</text>';
  svg.innerHTML=out;
 }
-document.addEventListener("click",e=>{const b=e.target.closest("[data-candle-tf]");if(!b)return;candleTimeframe=Number(b.dataset.candleTf)||60;document.querySelectorAll("[data-candle-tf]").forEach(x=>x.classList.toggle("active",x===b));drawCandles(markets[selected]);});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-candle-tf]");if(!b)return;candleTimeframe=Number(b.dataset.candleTf)||60;document.querySelectorAll("[data-candle-tf]").forEach(x=>x.classList.toggle("active",x===b));const m=markets[selected];if(m){m.requestedCandleTf=null;requestMarketCandles(selected,candleTimeframe);drawCandles(m);}});
 
 let marketAlertSoundOn=false,marketAlertAudio=null,marketAlertPrimed=false;
 const marketAlertPrevious={},marketAlertLog=[];
@@ -1539,6 +1568,7 @@ function render() {
  $("overProbabilityTitle").textContent="OVER CONTRACTS — 5 TO 8 • MARKET: "+probabilityMarketName;
  $("underProbabilityTitle").textContent="UNDER CONTRACTS — 5 TO 1 • MARKET: "+probabilityMarketName;
  updatePriceTrace(m);
+ requestMarketCandles(m.symbol,candleTimeframe);
  drawCandles(m);
  const bestEligible = eligible[0];
  const state = m.ticks.length >= learningTarget ? "READY" : "LEARNING";
