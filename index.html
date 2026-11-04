@@ -1550,7 +1550,7 @@ function setupAppTabs(){
  if(Object.values(anchors).some(x=>!x))return;
  const children=Array.from(content.children),idx=Object.fromEntries(Object.entries(anchors).map(([k,v])=>[k,children.indexOf(v)]));
  const ranges={home:[idx.home,idx.markets],markets:[idx.markets,idx.analysis],analysis:[idx.analysis,idx.execution],execution:[idx.execution,idx.radar],radar:[idx.radar,children.length]};
- const extra={digits:["market-ou-ranking","market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],boomcrash:["boom-crash-centre"]};
+ const extra={digits:["probability","market-ou-ranking","market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],boomcrash:["boom-crash-centre"]};
  const extraNodes=Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean);
  const allContent=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
  function activate(name){
@@ -1561,7 +1561,7 @@ function setupAppTabs(){
   }else{
    children.forEach(node=>{if(allContent.includes(node))node.dataset.appTabHidden="true";});
   }
-  extraNodes.forEach(node=>{node.hidden=!external.includes(node.id);});
+  extraNodes.forEach(node=>{const isExternal=external.includes(node.id);if(isExternal){node.hidden=false;delete node.dataset.appTabHidden;}else if(!allContent.includes(node)){node.hidden=true;}else{node.hidden=false;}});
   nav.querySelectorAll("[data-tab]").forEach(btn=>{const active=btn.dataset.tab===name;btn.classList.toggle("active",active);btn.setAttribute("aria-selected",active?"true":"false");});
   try{sessionStorage.setItem("berur-active-tab",name);}catch{}
   if(name==="markets"&&typeof render==="function")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));
