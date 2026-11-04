@@ -5,7 +5,7 @@ This folder contains the secure Deriv OAuth 2.0 + PKCE Worker for the existing B
 ## Important
 - This backend uses Cloudflare KV for short-lived PKCE sessions and one-time login tickets.
 - It does not permanently store Deriv access tokens.
-- The access token is returned once to the BERUR TRADES browser after a one-time ticket redemption, so the browser can authenticate its Deriv trading WebSocket. Keep the token in memory; do not commit it, log it, or put it in a URL.
+- The Deriv access token remains in Cloudflare KV behind a short-lived opaque browser session. The browser receives only the random session ID; account-list and OTP requests are proxied through the Worker. The short-lived OTP WebSocket URL is passed to the browser because the browser must open the authenticated trading socket.
 - The Worker requests only the `trade` OAuth scope, which Deriv documents as sufficient for the Options accounts endpoint and trading operations. Keep the app permissions limited to what the app actually needs.
 - Do not enable real-money order execution until the demo connection, balance display, proposal flow, buy flow, and risk checks have been separately tested.
 
@@ -30,7 +30,9 @@ The callback URL must remain registered exactly in the Deriv Developer Dashboard
 - `GET /health` — health check.
 - `GET /oauth/start` — starts Deriv OAuth with fresh PKCE and state.
 - `GET /oauth/callback` — validates state and exchanges the authorization code server-side.
-- `POST /oauth/redeem` — redeems a short-lived, one-use ticket from the allowed GitHub Pages origin.
+- `POST /oauth/redeem` — redeems a short-lived, one-use ticket into an opaque server-side session.
+- `GET /api/accounts` — securely proxies the user's Options account list.
+- `POST /api/accounts/{accountId}/otp` — securely proxies OTP creation for the selected account.
 
 ## Frontend integration still required
-The main `index.html` must add a separate Deriv account login action, redeem the `oauth_ticket` fragment through `POST /oauth/redeem`, remove the fragment immediately, keep the access token in memory only, and authenticate the trading WebSocket. Do not treat the existing public market-data connection as an authenticated account connection.
+The existing `index.html` loads `deriv-trader.js`. The script redeems the OAuth ticket, removes it from the URL, uses the opaque session ID for Worker-proxied account and OTP requests, and opens a separate authenticated WebSocket. The public market-data socket on the analysis dashboard is not an authenticated account connection. The new execution desk is demo-only pending end-to-end testing; XML must be imported and validated in Deriv Bot before use.
