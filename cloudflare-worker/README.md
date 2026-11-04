@@ -6,7 +6,7 @@ This folder contains the secure Deriv OAuth 2.0 + PKCE Worker for the existing B
 - This backend uses Cloudflare KV for short-lived PKCE sessions and one-time login tickets.
 - It does not permanently store Deriv access tokens.
 - The access token is returned once to the BERUR TRADES browser after a one-time ticket redemption, so the browser can authenticate its Deriv trading WebSocket. Keep the token in memory; do not commit it, log it, or put it in a URL.
-- OAuth scopes requested are `trade account_manage`. Ensure those scopes are enabled for the Deriv OAuth app.
+- The Worker requests only the `trade` OAuth scope, which Deriv documents as sufficient for the Options accounts endpoint and trading operations. Keep the app permissions limited to what the app actually needs.
 - Do not enable real-money order execution until the demo connection, balance display, proposal flow, buy flow, and risk checks have been separately tested.
 
 ## Deploy from a laptop
