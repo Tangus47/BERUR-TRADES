@@ -36,3 +36,23 @@ The callback URL must remain registered exactly in the Deriv Developer Dashboard
 
 ## Frontend integration still required
 The existing `index.html` loads `deriv-trader.js`. The script redeems the OAuth ticket, removes it from the URL, uses the opaque session ID for Worker-proxied account and OTP requests, and opens a separate authenticated WebSocket. The public market-data socket on the analysis dashboard is not an authenticated account connection. The new execution desk is demo-only pending end-to-end testing; XML must be imported and validated in Deriv Bot before use.
+
+
+## BERUR TRADES subscriptions and payment approval
+
+The membership API supports the proposed plans:
+- Weekly: KES 150 / 7 days
+- Monthly: KES 500 / 30 days
+- Yearly: KES 4,000 / 365 days
+
+Payment destination displayed in the app: Safaricom M-PESA Till 8341306. Customers submit their email, plan and M-PESA transaction reference. The administrator must independently verify the payment in the Till statement before approving. Approval creates or extends the email subscription in KV.
+
+Before deploying, set a strong private Worker secret named `BERUR_ADMIN_KEY` using Wrangler or Cloudflare Worker Settings > Variables and Secrets. Do not put this key in GitHub or share it with customers. The administrator enters it in the app's Membership panel to load requests and approve payments.
+
+Subscription API routes:
+- `POST /api/subscription/request` — customer payment request.
+- `GET /api/subscription/access?email=...` — checks active subscription and expiry.
+- `GET /api/subscription/admin/list` — admin-key protected payment request list.
+- `POST /api/subscription/admin/approve` — admin-key protected approval and expiry calculation.
+
+Important deployment/security note: this is the first membership and manual-payment-approval implementation. Before publicly selling access, finish server-side entitlement enforcement on every paid feature and trade execution path, bind the authenticated customer identity to the subscription email, add payment-reference duplicate detection, audit logs and admin-key rotation. The present access lookup and membership screen alone must not be treated as a complete anti-bypass paywall. No automatic M-PESA confirmation is enabled; admin verifies each Till payment manually.
