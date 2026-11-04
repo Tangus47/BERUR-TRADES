@@ -353,6 +353,7 @@ a{font-weight:700}
   <section class="section card" id="market-ou-ranking">
     <div class="radar-head"><div><h2 class="section-title">STRONGEST OVER / UNDER — MARKET RANKING</h2><p class="note">Each market gets its own strongest Over and strongest Under candidate, ranked by positive historical deviation from the uniform-digit baseline.</p></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button id="marketAlertToggle" type="button" class="btn">Enable sound alerts</button><span id="marketAlertState" class="pill">SOUND OFF</span></div></div><div id="marketAlertToast" class="note" role="status" aria-live="polite" style="margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:10px">Alerts appear here when a new qualified market setup is detected.</div><div id="marketAlertLog" class="note" style="margin-bottom:10px">No new alerts yet.</div>
     <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Market</th><th>Strongest Over</th><th>Observed / Baseline</th><th>Strength</th><th>Strongest Under</th><th>Observed / Baseline</th><th>Strength</th><th>Sample</th></tr></thead><tbody id="marketOURankingRows"><tr><td colspan="8">Collecting independent market samples…</td></tr></tbody></table></div>
+<div style="margin-top:16px"><h3 class="section-title">LIVE MARKET DATA FRESHNESS</h3><p class="note">A feed is marked stale after 20 seconds without a received tick update. This is a connection-health warning, not a trading signal.</p><div class="tablewrap"><table style="min-width:560px"><thead><tr><th>Market</th><th>Feed status</th><th>Last update</th><th>Age</th></tr></thead><tbody id="marketFeedHealthRows"><tr><td colspan="4">Waiting for market data…</td></tr></tbody></table></div><div id="marketFeedHealthSummary" class="note" aria-live="polite">Feed health will appear as markets connect.</div></div>
     <div style="margin-top:16px"><h3 class="section-title">LIVE SIGNAL STRENGTH &amp; EXPIRY MONITOR</h3><p class="note">Trend uses recent strength readings. A signal stays fresh only while new market ticks continue to confirm it; expiry is a review timer, not a prediction.</p><div class="tablewrap"><table style="min-width:700px"><thead><tr><th>Market / Side</th><th>Contract</th><th>Strength trend</th><th>Last confirmed</th><th>Review countdown</th></tr></thead><tbody id="marketSignalMonitorRows"><tr><td colspan="5">Waiting for qualified signals…</td></tr></tbody></table></div></div>
     <p class="note">“Strongest” means the largest positive standardized historical deviation (z-score) within that market and contract side. WATCH means the deviation is below 2.00; even a higher score is historical evidence only, not a prediction or guarantee. No candidate is displayed as qualified when its deviation is not positive.</p>
   </section>
@@ -757,6 +758,10 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-candle-tf]
 let marketAlertSoundOn=false,marketAlertAudio=null,marketAlertPrimed=false;
 const marketAlertPrevious={},marketAlertLog=[];
 let marketAlertLastAt=0;
+function marketInvalidationBeep(){
+ if(!marketAlertSoundOn||!marketAlertAudio)return;
+ try{const now=marketAlertAudio.currentTime;[0,0.18,0.36].forEach((offset,i)=>{const osc=marketAlertAudio.createOscillator(),gain=marketAlertAudio.createGain();osc.type="triangle";osc.frequency.value=[880,660,440][i];gain.gain.setValueAtTime(0.0001,now+offset);gain.gain.exponentialRampToValueAtTime(0.13,now+offset+0.02);gain.gain.exponentialRampToValueAtTime(0.0001,now+offset+0.14);osc.connect(gain);gain.connect(marketAlertAudio.destination);osc.start(now+offset);osc.stop(now+offset+0.15);});}catch(e){}
+}
 function marketAlertBeep(){
  if(!marketAlertSoundOn||!marketAlertAudio)return;
  try{const now=marketAlertAudio.currentTime;[0,0.22].forEach((offset,i)=>{const osc=marketAlertAudio.createOscillator(),gain=marketAlertAudio.createGain();osc.type="sine";osc.frequency.value=i?1046:784;gain.gain.setValueAtTime(0.0001,now+offset);gain.gain.exponentialRampToValueAtTime(0.16,now+offset+0.02);gain.gain.exponentialRampToValueAtTime(0.0001,now+offset+0.16);osc.connect(gain);gain.connect(marketAlertAudio.destination);osc.start(now+offset);osc.stop(now+offset+0.17);});}catch(e){}
@@ -787,7 +792,27 @@ function updateMarketSignalMonitor(symbol,side,candidate){
   if(!item||item.label!==candidate.label){item=marketSignalMonitor[key]={label:candidate.label,history:[],lastSampleAt:0,lastConfirmed:now};}
   if(now-item.lastSampleAt>=15000||!item.history.length){item.history.push(candidate.strength);item.history=item.history.slice(-5);item.lastSampleAt=now;item.lastConfirmed=now;}
   item.strength=candidate.strength;item.active=true;
- }else if(item&&item.active){item.active=false;item.invalidatedAt=now;}
+ }else if(item&&item.active){item.active=false;item.invalidatedAt=now;item.invalidationNotified=true;const toast=$("marketAlertToast");if(toast)toast.textContent="SIGNAL INVALIDATED — "+key.replace("|"," · ")+" "+item.label+" · "+new Date(now).toLocaleTimeString();marketInvalidationBeep();}
+}
+const marketFeedWarnings={};
+function renderMarketFeedHealth(){
+ const host=$("marketFeedHealthRows");if(!host)return;
+ const now=Date.now(),stale=[];
+ host.innerHTML=SYMBOLS.map(symbol=>{
+  const m=markets[symbol],age=m.updated?Math.max(0,Math.floor((now-m.updated)/1000)):null;
+  const status=!m.available?"NOT LISTED":!m.updated?(m.loading?"LOADING":"WAITING"):age>=20?"STALE":age>=10?"SLOW":"LIVE";
+  if(status==="STALE"||status==="SLOW")stale.push(symbol+" "+status.toLowerCase());
+  if(status==="STALE"&&!marketFeedWarnings[symbol]){
+   marketFeedWarnings[symbol]=true;
+   const msg="MARKET DATA STALE — "+symbol+" · last update "+age+"s ago";
+   const toast=$("marketAlertToast");if(toast)toast.textContent=msg;
+   marketInvalidationBeep();
+  }else if(status!=="STALE"){marketFeedWarnings[symbol]=false;}
+  const cls=status==="LIVE"?"green":status==="STALE"?"bad":status==="SLOW"?"gold":"";
+  return '<tr><td><b>'+symbol+'</b></td><td><span class="pill '+cls+'">'+status+'</span></td><td>'+(m.updated?new Date(m.updated).toLocaleTimeString():"—")+'</td><td>'+(age===null?"—":age+"s")+'</td></tr>';
+ }).join("");
+ const summary=$("marketFeedHealthSummary");
+ if(summary)summary.textContent=stale.length?"Attention: "+stale.join(", ")+". Check the connection before relying on analysis.":"No stale feeds detected among the listed markets.";
 }
 function renderMarketSignalMonitor(){
  const host=$("marketSignalMonitorRows");if(!host)return;
@@ -834,6 +859,7 @@ function render() {
  setupMarketAlerts();
  renderMarketOURanking();
  renderMarketSignalMonitor();
+ renderMarketFeedHealth();
  renderMarketOUBoard();
  const available = SYMBOLS.filter(s=>markets[s].available).length;
  const loaded = SYMBOLS.filter(s=>markets[s].ticks.length>=50).length;
@@ -971,6 +997,7 @@ $("copyBtn").addEventListener("click",()=>{
 });
 render();
 setInterval(updateSignalClock,250);
+setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
 })();
 </script>
 <script src="./deriv-trader.js"></script>
