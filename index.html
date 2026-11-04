@@ -355,6 +355,12 @@ a{font-weight:700}
   <section class="section card" id="market-ou-ranking">
     <div class="radar-head"><div><h2 class="section-title">STRONGEST OVER / UNDER — MARKET RANKING</h2><p class="note">Each market gets its own strongest Over and strongest Under candidate, ranked by positive historical deviation from the uniform-digit baseline.</p></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button id="marketAlertToggle" type="button" class="btn">Enable sound alerts</button><span id="marketAlertState" class="pill">SOUND OFF</span></div></div><div id="marketAlertToast" class="note" role="status" aria-live="polite" style="margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:10px">Alerts appear here when a new qualified market setup is detected.</div><div id="marketAlertLog" class="note" style="margin-bottom:10px">No new alerts yet.</div>
     <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Market</th><th>Strongest Over</th><th>Observed / Baseline</th><th>Strength</th><th>Strongest Under</th><th>Observed / Baseline</th><th>Strength</th><th>Sample</th></tr></thead><tbody id="marketOURankingRows"><tr><td colspan="8">Collecting independent market samples…</td></tr></tbody></table></div>
+    <div style="margin-top:18px" id="best-contract-markets">
+      <h3 class="section-title">BEST MARKET — INDEPENDENT CONTRACT RANKINGS</h3>
+      <p class="note">Each contract family is ranked independently across all 13 Volatility markets. Different contracts may select different markets. Historical evidence only; no market is guaranteed to remain strongest.</p>
+      <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>CONTRACT TYPE</th><th>BEST MARKET</th><th>STRONGEST CONTRACT</th><th>OBSERVED</th><th>BASELINE</th><th>STRENGTH</th><th>SAMPLE</th><th>ASSESSMENT</th></tr></thead><tbody id="bestContractMarketRows"><tr><td colspan="8">Collecting independent market samples…</td></tr></tbody></table></div>
+      <p class="note" id="bestContractMarketNote">Each category needs sufficient independent observations. Strength is a historical deviation score, not a forecast or win probability.</p>
+    </div>
 <div style="margin-top:16px"><h3 class="section-title">LIVE MARKET DATA FRESHNESS</h3><p class="note">A feed is marked stale after 20 seconds without a received tick update. This is a connection-health warning, not a trading signal.</p><div class="tablewrap"><table style="min-width:560px"><thead><tr><th>Market</th><th>Feed status</th><th>Last update</th><th>Age</th></tr></thead><tbody id="marketFeedHealthRows"><tr><td colspan="4">Waiting for market data…</td></tr></tbody></table></div><div id="marketFeedHealthSummary" class="note" aria-live="polite">Feed health will appear as markets connect.</div></div>
     <div style="margin-top:16px"><h3 class="section-title">LIVE SIGNAL STRENGTH &amp; EXPIRY MONITOR</h3><p class="note">Trend uses recent strength readings. A signal stays fresh only while new market ticks continue to confirm it; expiry is a review timer, not a prediction.</p><div class="tablewrap"><table style="min-width:700px"><thead><tr><th>Market / Side</th><th>Contract</th><th>Strength trend</th><th>Last confirmed</th><th>Review countdown</th></tr></thead><tbody id="marketSignalMonitorRows"><tr><td colspan="5">Waiting for qualified signals…</td></tr></tbody></table></div></div>
     <p class="note">“Strongest” means the largest positive standardized historical deviation (z-score) within that market and contract side. WATCH means the deviation is below 2.00; even a higher score is historical evidence only, not a prediction or guarantee. No candidate is displayed as qualified when its deviation is not positive.</p>
@@ -894,6 +900,45 @@ function renderMarketOURanking(){
   return '<tr><td><b>'+symbol+'</b></td><td>'+show(over)+'</td><td>'+rate(over)+'</td><td>'+score(over)+'</td><td>'+show(under)+'</td><td>'+rate(under)+'</td><td>'+score(under)+'</td><td>'+a.n+'/150</td></tr>';
  }).join("");
 }
+function renderBestContractMarkets(){
+ const body=$("bestContractMarketRows");if(!body)return;
+ const names={R_10:"Volatility 10",R_25:"Volatility 25",R_50:"Volatility 50",R_75:"Volatility 75",R_100:"Volatility 100","1HZ10V":"Volatility 10 (1s)","1HZ25V":"Volatility 25 (1s)","1HZ50V":"Volatility 50 (1s)","1HZ75V":"Volatility 75 (1s)","1HZ100V":"Volatility 100 (1s)","1HZ150V":"Volatility 150 (1s)","1HZ250V":"Volatility 250 (1s)","1HZ300V":"Volatility 300 (1s)"};
+ const candidates=[];
+ const add=(type,symbol,label,count,observed,expected,n)=>{
+  if(n<150||!count||expected<=0||expected>=1)return;
+  const se=Math.sqrt(expected*(1-expected)/n),z=se?(observed-expected)/se:0;
+  if(observed>expected)candidates.push({type,symbol,label,count,observed,expected,n,strength:z});
+ };
+ SYMBOLS.forEach(symbol=>{
+  const m=markets[symbol],a=analyze(m),ds=digitsFor(m.ticks||[]),n=ds.length;
+  if(n>=150){
+   const over=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.deviation>0&&x.strength>0).sort((x,y)=>y.strength-x.strength)[0];
+   const under=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.deviation>0&&x.strength>0).sort((x,y)=>y.strength-x.strength)[0];
+   if(over)add("OVER",symbol,over.label,over.count,over.observed,over.expected,over.validN);
+   if(under)add("UNDER",symbol,under.label,under.count,under.observed,under.expected,under.validN);
+   const even=ds.filter(d=>d%2===0).length,odd=n-even;
+   add("EVEN",symbol,"EVEN",even,even/n,.5,n);add("ODD",symbol,"ODD",odd,odd/n,.5,n);
+   for(let digit=0;digit<=9;digit++){
+    const matches=ds.filter(d=>d===digit).length;
+    add("MATCH",symbol,"MATCH "+digit,matches,matches/n,.1,n);
+    add("DIFFERS",symbol,"DIFFERS "+digit,n-matches,(n-matches)/n,.9,n);
+   }
+   const changes=(m.ticks||[]).slice(1).map((v,i)=>v-(m.ticks||[])[i]).filter(v=>v!==0);
+   const up=changes.filter(v=>v>0).length,down=changes.length-up,cn=changes.length;
+   if(cn>=150){add("RISE",symbol,"RISE",up,up/cn,.5,cn);add("FALL",symbol,"FALL",down,down/cn,.5,cn);}
+  }
+ });
+ const types=["OVER","UNDER","ODD","EVEN","DIFFERS","MATCH","RISE","FALL"];
+ const rows=types.map(type=>{
+  const list=candidates.filter(x=>x.type===type).sort((a,b)=>b.strength-a.strength);
+  const best=list[0];if(!best)return '<tr><td><b>'+type+'</b></td><td colspan="7">WAIT — collecting at least 150 observations per market</td></tr>';
+  const status=best.strength>=2?'<span class="green">ELEVATED HISTORICAL DEVIATION</span>':'<span class="gold">WATCH — WEAK EVIDENCE</span>';
+  return '<tr><td><b>'+type+'</b></td><td><b>'+names[best.symbol]+'</b><br><span class="small">'+best.symbol+'</span></td><td>'+best.label+'</td><td>'+pct(best.observed*100)+'</td><td>'+pct(best.expected*100)+'</td><td>'+best.strength.toFixed(2)+' z</td><td>'+best.n+'</td><td>'+status+'</td></tr>';
+ }).join("");
+ body.innerHTML=rows;
+ const ready=SYMBOLS.filter(symbol=>(markets[symbol].ticks||[]).length>=150).length;
+ $("bestContractMarketNote").textContent="Markets with at least 150 ticks: "+ready+"/13. Rise/Fall use non-flat consecutive price changes and need at least 150 such changes. Differ/Match and Over/Under select their own best barrier/digit. All rankings are historical and can change as new ticks arrive; they are not predictions.";
+}
 function renderMarketOUBoard(){
  const host=$("marketOUCards");if(!host)return;
  const marketNames={R_10:"Volatility 10",R_25:"Volatility 25",R_50:"Volatility 50",R_75:"Volatility 75",R_100:"Volatility 100","1HZ10V":"Volatility 10 (1s)","1HZ25V":"Volatility 25 (1s)","1HZ50V":"Volatility 50 (1s)","1HZ75V":"Volatility 75 (1s)","1HZ100V":"Volatility 100 (1s)","1HZ150V":"Volatility 150 (1s)","1HZ250V":"Volatility 250 (1s)","1HZ300V":"Volatility 300 (1s)"};
@@ -916,6 +961,7 @@ function renderMarketOUBoard(){
 function render() {
  setupMarketAlerts();
  renderMarketOURanking();
+ renderBestContractMarkets();
  renderMarketSignalMonitor();
  renderMarketFeedHealth();
  renderTradeQualityFilter();
