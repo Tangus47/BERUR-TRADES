@@ -62,6 +62,7 @@ footer{padding:20px 4px;color:var(--muted);font-size:10px;line-height:1.6}
 .risk-grid label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
 .risk-grid input{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:9px}
 @media(max-width:600px){.risk-grid{grid-template-columns:1fr 1fr}}
+.probability-panels{grid-template-columns:1fr 1fr;align-items:start}.probability-card{min-width:0}.probability-card table{min-width:490px}@media(max-width:800px){.probability-panels{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -133,14 +134,24 @@ footer{padding:20px 4px;color:var(--muted);font-size:10px;line-height:1.6}
     </section>
   </div>
 
-  <section class="section card">
-    <h3 class="section-title">OVER / UNDER DIGIT SCANNER — 0 TO 9</h3>
-    <p class="note">Every threshold is evaluated separately. Over X wins when the digit is greater than X; Under X wins when it is less than X. The exact X is a loss and remains in the sample. Rankings compare observed results with the theoretical baseline; they do not predict future digits.</p>
-    <div class="tablewrap">
-      <table style="min-width:680px">
-        <thead><tr><th>RANK</th><th>CONTRACT</th><th>OBSERVED</th><th>BASELINE</th><th>DEVIATION</th><th>VALID SAMPLES</th><th>ASSESSMENT</th></tr></thead>
-        <tbody id="ouRows"><tr><td colspan="7">Connect and collect at least 150 ticks.</td></tr></tbody>
-      </table>
+  <section class="section">
+    <h3 class="section-title">SEPARATE OVER / UNDER PROBABILITY RADAR</h3>
+    <p class="note">Each row shows the historical hit rate in the selected market's recent tick sample, alongside the uniform-digit theoretical baseline. This is descriptive frequency, not a forecast or guaranteed chance on the next tick. Exact barrier digits are losses and remain in the denominator.</p>
+    <div class="two probability-panels">
+      <section class="card probability-card">
+        <h3 class="section-title green">OVER CONTRACTS — 5 TO 8</h3>
+        <div class="tablewrap"><table style="min-width:490px">
+          <thead><tr><th>CONTRACT</th><th>HIT RATE</th><th>BASELINE</th><th>STRENGTH</th><th>SAMPLES</th></tr></thead>
+          <tbody id="overProbabilityRows"><tr><td colspan="5">Connect and collect at least 150 ticks.</td></tr></tbody>
+        </table></div>
+      </section>
+      <section class="card probability-card">
+        <h3 class="section-title gold">UNDER CONTRACTS — 5 TO 1</h3>
+        <div class="tablewrap"><table style="min-width:490px">
+          <thead><tr><th>CONTRACT</th><th>HIT RATE</th><th>BASELINE</th><th>STRENGTH</th><th>SAMPLES</th></tr></thead>
+          <tbody id="underProbabilityRows"><tr><td colspan="5">Connect and collect at least 150 ticks.</td></tr></tbody>
+        </table></div>
+      </section>
     </div>
     <p class="small" id="ouBestSummary">No Over/Under contract assessed yet.</p>
   </section>
@@ -611,16 +622,18 @@ function render() {
  $("duration").textContent=a.n>=100?(a.directionScore>=80?"3 ticks":a.directionScore>=70?"5 ticks":"10 ticks"):"—";
  $("contract").textContent=a.digitSignal;
  $("contractReason").textContent=a.digitReason;
- const rankedOU = a.ouCandidates.slice().sort((x,y)=>y.strength-x.strength);
- $("ouRows").innerHTML = rankedOU.map((x,i)=>{
-   const observed = pct(x.observed*100), baseline = pct(x.expected*100);
-   const dev = (x.deviation>=0?"+":"")+(x.deviation*100).toFixed(1)+" pp";
-   let assessment = x.impossible ? "IMPOSSIBLE" : x.validN<100 ? "LOW SAMPLE" : x.deviation<=0 ? "BELOW BASELINE" : x.strength>=2 ? "EVIDENCE TO REVIEW" : "WEAK — WAIT";
-   const cls = x.impossible || x.deviation<=0 ? "red" : x.strength>=2 ? "green" : "gold";
-   return "<tr><td>"+(i+1)+"</td><td><b>"+x.label+"</b></td><td>"+observed+"</td><td>"+baseline+"</td><td class='"+cls+"'>"+dev+" (z "+x.strength.toFixed(2)+")</td><td>"+x.validN+"</td><td class='"+cls+"'>"+assessment+"</td></tr>";
- }).join("");
- const bestOU = rankedOU.find(x=>!x.impossible&&!x.guaranteed&&x.validN>=100&&x.deviation>0);
- $("ouBestSummary").textContent = bestOU ? "Strongest historical deviation: "+bestOU.label+" • "+pct(bestOU.observed*100)+" observed vs "+pct(bestOU.expected*100)+" baseline. This is not a probability forecast." : "No qualifying Over/Under recommendation. Keep waiting.";
+ const overRows = a.ouCandidates.filter(x=>x.side==="OVER" && x.barrier>=5 && x.barrier<=8).sort((x,y)=>x.barrier-y.barrier);
+ const underRows = a.ouCandidates.filter(x=>x.side==="UNDER" && x.barrier>=1 && x.barrier<=5).sort((x,y)=>y.barrier-x.barrier);
+ const renderProbabilityRows = rows => rows.length ? rows.map(x=>{
+   const cls = x.validN<150 ? "gold" : x.deviation>0 && x.strength>=2 ? "green" : x.deviation<0 ? "red" : "gold";
+   const strength = x.validN<150 ? "COLLECTING" : x.deviation>0 && x.strength>=2.5 ? "STRONG EVIDENCE" : x.deviation>0 && x.strength>=1.5 ? "MODERATE" : "WEAK / WAIT";
+   const bar = Math.max(0,Math.min(100,x.observed*100));
+   return "<tr><td><b>"+x.label+"</b></td><td class='"+cls+"'>"+pct(x.observed*100)+"</td><td>"+pct(x.expected*100)+"</td><td class='"+cls+"'>"+strength+"<div class='bar'><i style='width:"+bar+"%;background:var(--"+(cls==="green"?"green":cls==="red"?"red":"gold")+")'></i></div></td><td>"+x.validN+"</td></tr>";
+ }).join("") : '<tr><td colspan="5">Collect at least 150 ticks to calculate empirical hit rates.</td></tr>';
+ $("overProbabilityRows").innerHTML = renderProbabilityRows(overRows);
+ $("underProbabilityRows").innerHTML = renderProbabilityRows(underRows);
+ const bestOU = a.ouCandidates.filter(x=>!x.impossible && x.validN>=150 && x.deviation>0).sort((x,y)=>y.strength-x.strength)[0];
+ $("ouBestSummary").textContent = bestOU ? "Largest positive historical deviation: "+bestOU.label+" • "+pct(bestOU.observed*100)+" observed hit rate vs "+pct(bestOU.expected*100)+" theoretical baseline (z "+bestOU.strength.toFixed(2)+"). Historical evidence only; not a next-tick prediction." : "No Over/Under contract has enough positive evidence. Keep waiting.";
  const halfOdds = [
    {label:"OVER 4",count:a.counts.slice(5,10).reduce((s,v)=>s+v,0)},
    {label:"UNDER 5",count:a.counts.slice(0,5).reduce((s,v)=>s+v,0)},
