@@ -507,8 +507,10 @@ function connect() {
    if (data.msg_type === "history" && info) {
      const m = markets[info.symbol];
      const prices = data.history && data.history.prices ? data.history.prices : [];
+     const times = data.history && data.history.times ? data.history.times : [];
      m.prices = prices.map(Number).filter(Number.isFinite).slice(-250);
      m.ticks = m.prices.slice();
+     m.tickPoints = m.prices.map((price,i)=>({price,time:Number(times[i])>0?Number(times[i])*1000:Date.now()-((m.prices.length-i)*1000)})).slice(-250);
      m.loading = false;
      m.updated = Date.now();
      render();
@@ -524,7 +526,9 @@ function connect() {
      m.updated = Date.now();
      if (!m.ticks.length || m.ticks[m.ticks.length-1] !== q) {
        m.ticks.push(q);
+       m.tickPoints.push({price:q,time:Number(data.tick.epoch)>0?Number(data.tick.epoch)*1000:Date.now()});
        if (m.ticks.length > 250) m.ticks.shift();
+       if (m.tickPoints.length > 250) m.tickPoints.shift();
      }
      render();
    }
@@ -751,6 +755,7 @@ function render() {
  $("bestScore").textContent = best && best.ticks.length>=50 ? `Technical score ${rankScore(best)}/100` : "Waiting for sufficient ticks";
  const m=markets[selected];
  updatePriceTrace(m);
+ drawCandles(m);
  const bestEligible = eligible[0];
  const state = m.ticks.length >= learningTarget ? "READY" : "LEARNING";
  $("learningState").textContent = state;
