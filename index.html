@@ -358,8 +358,8 @@ a{font-weight:700}
     <div style="margin-top:18px" id="best-contract-markets">
       <h3 class="section-title">BEST MARKET — INDEPENDENT CONTRACT RANKINGS</h3>
       <p class="note">Each contract family is ranked independently across all 13 Volatility markets. Different contracts may select different markets. Historical evidence only; no market is guaranteed to remain strongest.</p>
-      <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>CONTRACT TYPE</th><th>BEST MARKET</th><th>STRONGEST CONTRACT</th><th>OBSERVED</th><th>BASELINE</th><th>STRENGTH</th><th>SAMPLE</th><th>ASSESSMENT</th></tr></thead><tbody id="bestContractMarketRows"><tr><td colspan="8">Collecting independent market samples…</td></tr></tbody></table></div>
-      <p class="note" id="bestContractMarketNote">Each category needs sufficient independent observations. Strength is a historical deviation score, not a forecast or win probability.</p>
+      <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>CONTRACT TYPE</th><th>BEST MARKET</th><th>STRONGEST CONTRACT</th><th>OBSERVED</th><th>BASELINE</th><th>STRENGTH</th><th>SAMPLE</th><th>AI TICK DURATION</th><th>ASSESSMENT</th></tr></thead><tbody id="bestContractMarketRows"><tr><td colspan="9">Collecting independent market samples…</td></tr></tbody></table></div>
+      <p class="note" id="bestContractMarketNote">Each contract family selects its own market. Digit contracts are set to 1 tick; Rise/Fall duration is selected from trend alignment and directional strength on that specific market. These are research suggestions, not guaranteed profitable durations.</p>
     </div>
 <div style="margin-top:16px"><h3 class="section-title">LIVE MARKET DATA FRESHNESS</h3><p class="note">A feed is marked stale after 20 seconds without a received tick update. This is a connection-health warning, not a trading signal.</p><div class="tablewrap"><table style="min-width:560px"><thead><tr><th>Market</th><th>Feed status</th><th>Last update</th><th>Age</th></tr></thead><tbody id="marketFeedHealthRows"><tr><td colspan="4">Waiting for market data…</td></tr></tbody></table></div><div id="marketFeedHealthSummary" class="note" aria-live="polite">Feed health will appear as markets connect.</div></div>
     <div style="margin-top:16px"><h3 class="section-title">LIVE SIGNAL STRENGTH &amp; EXPIRY MONITOR</h3><p class="note">Trend uses recent strength readings. A signal stays fresh only while new market ticks continue to confirm it; expiry is a review timer, not a prediction.</p><div class="tablewrap"><table style="min-width:700px"><thead><tr><th>Market / Side</th><th>Contract</th><th>Strength trend</th><th>Last confirmed</th><th>Review countdown</th></tr></thead><tbody id="marketSignalMonitorRows"><tr><td colspan="5">Waiting for qualified signals…</td></tr></tbody></table></div></div>
@@ -931,13 +931,23 @@ function renderBestContractMarkets(){
  const types=["OVER","UNDER","ODD","EVEN","DIFFERS","MATCH","RISE","FALL"];
  const rows=types.map(type=>{
   const list=candidates.filter(x=>x.type===type).sort((a,b)=>b.strength-a.strength);
-  const best=list[0];if(!best)return '<tr><td><b>'+type+'</b></td><td colspan="7">WAIT — collecting at least 150 observations per market</td></tr>';
+  const best=list[0];if(!best)return '<tr><td><b>'+type+'</b></td><td colspan="8">WAIT — collecting at least 150 observations per market</td></tr>';
+  const marketAnalysis=analyze(markets[best.symbol]);
+  const isDigit=["OVER","UNDER","ODD","EVEN","DIFFERS","MATCH"].includes(type);
+  let duration=isDigit?"1 tick": "WAIT — directional confirmation needed";
+  let durationReason=isDigit?"Digit contracts use a one-tick outcome.": "No aligned directional confirmation on this market.";
+  if(type==="RISE"||type==="FALL"){
+    const aligned=marketAnalysis.trend===type&&marketAnalysis.directionSignal===type;
+    if(aligned&&marketAnalysis.directionScore>=85){duration="3 ticks";durationReason="Strong aligned trend on this market.";}
+    else if(aligned&&marketAnalysis.directionScore>=70){duration="5 ticks";durationReason="Moderate aligned trend on this market.";}
+    else if(aligned){duration="10 ticks";durationReason="Trend aligned, but directional evidence is weaker; use caution.";}
+  }
   const status=best.strength>=2?'<span class="green">ELEVATED HISTORICAL DEVIATION</span>':'<span class="gold">WATCH — WEAK EVIDENCE</span>';
-  return '<tr><td><b>'+type+'</b></td><td><b>'+names[best.symbol]+'</b><br><span class="small">'+best.symbol+'</span></td><td>'+best.label+'</td><td>'+pct(best.observed*100)+'</td><td>'+pct(best.expected*100)+'</td><td>'+best.strength.toFixed(2)+' z</td><td>'+best.n+'</td><td>'+status+'</td></tr>';
+  return '<tr><td><b>'+type+'</b></td><td><b>'+names[best.symbol]+'</b><br><span class="small">'+best.symbol+'</span></td><td>'+best.label+'</td><td>'+pct(best.observed*100)+'</td><td>'+pct(best.expected*100)+'</td><td>'+best.strength.toFixed(2)+' z</td><td>'+best.n+'</td><td><b>'+duration+'</b><br><span class="small">'+durationReason+'</span></td><td>'+status+'</td></tr>';
  }).join("");
  body.innerHTML=rows;
  const ready=SYMBOLS.filter(symbol=>(markets[symbol].ticks||[]).length>=150).length;
- $("bestContractMarketNote").textContent="Markets with at least 150 ticks: "+ready+"/13. Rise/Fall use non-flat consecutive price changes and need at least 150 such changes. Differ/Match and Over/Under select their own best barrier/digit. All rankings are historical and can change as new ticks arrive; they are not predictions.";
+ $("bestContractMarketNote").textContent="Markets with at least 150 ticks: "+ready+"/13. Rise/Fall use non-flat consecutive price changes and need at least 150 such changes. Differ/Match and Over/Under select their own best barrier/digit. All rankings are historical and can change as new ticks arrive; they are not predictions. Digit contracts use 1-tick suggestions; Rise/Fall suggestions use the selected market’s own directional alignment and strength.";
 }
 function renderMarketOUBoard(){
  const host=$("marketOUCards");if(!host)return;
