@@ -159,6 +159,10 @@ a{font-weight:700}
 .trace-foot{display:flex;justify-content:space-between;gap:8px;margin-top:8px;color:#8198b5;font-size:9px;letter-spacing:.1em;font-weight:800}
 @media(max-width:600px){.trace-chart svg{height:135px}.trace-quote strong{font-size:19px}}
 
+
+/* Candlestick chart workspace */
+.candle-controls{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.candle-controls button{padding:8px 12px;min-height:34px;font-size:11px}.candle-controls button.active{background:linear-gradient(135deg,#36e0a3,#19b982);color:#041a13;border-color:transparent}.candle-chart{width:100%;height:300px;display:block;background:linear-gradient(180deg,rgba(8,20,34,.9),rgba(8,20,34,.35));border:1px solid rgba(125,164,208,.12);border-radius:12px}.candle-legend{display:flex;gap:14px;flex-wrap:wrap;color:#91a9c6;font-size:10px;margin-top:8px}.candle-legend span:before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--green)}.candle-legend .down:before{background:var(--red)}
+@media(max-width:600px){.candle-chart{height:230px}}
 </style>
 </head>
 <body>
@@ -196,6 +200,14 @@ a{font-weight:700}
     <div class="trace-head"><div><span class="eyebrow">LIVE MARKET VIEW</span><h3 class="section-title">PRICE TRACE <span class="pill" id="traceSymbol">R_10</span></h3><p class="note">Recent tick-by-tick quote movement for the selected market. This is a live price trace, not a candlestick chart.</p></div><div class="trace-quote"><span class="small">LATEST QUOTE</span><strong id="traceQuote">—</strong><span class="small" id="traceRange">Awaiting market data</span></div></div>
     <div class="trace-chart"><svg id="priceTrace" viewBox="0 0 1000 220" role="img" aria-label="Recent selected market price trace"><defs><linearGradient id="traceFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#35e0a2" stop-opacity=".28"/><stop offset="100%" stop-color="#35e0a2" stop-opacity="0"/></linearGradient></defs><path d="M0 45H1000 M0 95H1000 M0 145H1000 M0 195H1000" stroke="#29415d" stroke-width="1" stroke-dasharray="4 8" fill="none"/><path id="traceArea" d="" fill="url(#traceFill)"/><path id="traceLine" d="" fill="none" stroke="#35e0a2" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><circle id="tracePoint" cx="0" cy="0" r="6" fill="#35e0a2" stroke="#eafff6" stroke-width="2"/></svg></div>
     <div class="trace-foot"><span>OLDER TICKS</span><span id="traceSamples">0 observations</span><span>NEWER TICKS</span></div>
+  </section>
+
+
+  <section class="section card" id="candleWorkspace" aria-label="Synthetic market candlestick chart">
+    <div class="trace-head"><div><span class="eyebrow">PRICE ACTION WORKSPACE</span><h3 class="section-title">LIVE CANDLESTICK CHART <span class="pill" id="candleSymbol">R_10</span></h3><p class="note">Candles are aggregated from received Deriv tick history and live ticks. Longer timeframes need enough observations; this is not a full broker candle feed.</p></div><div class="trace-quote"><span class="small">LATEST CLOSE</span><strong id="candleClose">—</strong><span class="small" id="candleInfo">Waiting for market data</span></div></div>
+    <div class="candle-controls" role="group" aria-label="Chart timeframe"><button type="button" data-candle-tf="60" class="active">1M</button><button type="button" data-candle-tf="300">5M</button><button type="button" data-candle-tf="900">15M</button><button type="button" data-candle-tf="3600">1H</button><button type="button" data-candle-tf="14400">4H</button><button type="button" data-candle-tf="86400">1D</button></div>
+    <svg id="candleChart" class="candle-chart" viewBox="0 0 1000 300" role="img" aria-label="Aggregated OHLC candlestick chart"><text x="500" y="150" text-anchor="middle" fill="#91a4bd" font-size="16">Connect to load candles</text></svg>
+    <div class="candle-legend"><span>UP CANDLE</span><span class="down">DOWN CANDLE</span><span>OHLC aggregated from tick observations</span></div>
   </section>
 
   <section class="section card" id="markets">
@@ -356,7 +368,7 @@ const SYMBOLS = [
 const WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
 const markets = {};
 SYMBOLS.forEach(s => markets[s] = {
- symbol:s, prices:[], ticks:[], quote:null, updated:null,
+ symbol:s, prices:[], ticks:[], tickPoints:[], quote:null, updated:null,
  available:false, loading:false, error:""
 });
 
@@ -703,6 +715,28 @@ function updatePriceTrace(m) {
  point.setAttribute("cx",pts[pts.length-1].x.toFixed(1));point.setAttribute("cy",pts[pts.length-1].y.toFixed(1));point.setAttribute("opacity","1");
  $("traceRange").textContent=fmt(min)+" — "+fmt(max);
 }
+
+let candleTimeframe=60;
+function drawCandles(m){
+ const svg=$("candleChart");if(!svg)return;
+ $("candleSymbol").textContent=m.symbol;
+ const points=(m.tickPoints||[]).filter(p=>Number.isFinite(p.price)&&Number.isFinite(p.time));
+ if(!points.length){svg.innerHTML='<text x="500" y="150" text-anchor="middle" fill="#91a4bd" font-size="16">Waiting for tick history</text>';$("candleInfo").textContent="No timestamped ticks";return;}
+ const buckets=new Map();
+ points.forEach(p=>{const t=Math.floor(p.time/(candleTimeframe*1000))*candleTimeframe*1000;let c=buckets.get(t);if(!c){c={time:t,open:p.price,high:p.price,low:p.price,close:p.price};buckets.set(t,c);}else{c.high=Math.max(c.high,p.price);c.low=Math.min(c.low,p.price);c.close=p.price;}});
+ const candles=Array.from(buckets.values()).sort((a,b)=>a.time-b.time).slice(-55);
+ $("candleClose").textContent=fmt(candles[candles.length-1].close);
+ $("candleInfo").textContent=candles.length+" candles • "+({60:"1 minute",300:"5 minutes",900:"15 minutes",3600:"1 hour",14400:"4 hours",86400:"1 day"}[candleTimeframe]);
+ if(candles.length<2){svg.innerHTML='<text x="500" y="150" text-anchor="middle" fill="#91a4bd" font-size="16">Collecting more ticks for this timeframe</text>';return;}
+ const lo=Math.min(...candles.map(c=>c.low)),hi=Math.max(...candles.map(c=>c.high)),pad=(hi-lo)*.08||Math.max(Math.abs(hi)*.00001,0.00001),min=lo-pad,max=hi+pad,span=max-min;
+ const y=v=>260-(v-min)/span*220,step=960/candles.length,w=Math.max(4,Math.min(14,step*.58));
+ let out='';for(let g=0;g<5;g++){const yy=30+g*55;out+='<line x1="35" y1="'+yy+'" x2="975" y2="'+yy+'" stroke="#29415d" stroke-dasharray="4 7"/>';}
+ candles.forEach((c,i)=>{const x=40+(i+.5)*step,up=c.close>=c.open,color=up?'#35e0a2':'#ff7188',top=y(Math.max(c.open,c.close)),bottom=y(Math.min(c.open,c.close)),body=Math.max(2,bottom-top);out+='<line x1="'+x.toFixed(1)+'" y1="'+y(c.high).toFixed(1)+'" x2="'+x.toFixed(1)+'" y2="'+y(c.low).toFixed(1)+'" stroke="'+color+'" stroke-width="2"/><rect x="'+(x-w/2).toFixed(1)+'" y="'+top.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+body.toFixed(1)+'" rx="1" fill="'+color+'"/>';});
+ out+='<text x="40" y="290" fill="#91a4bd" font-size="10">'+new Date(candles[0].time).toLocaleTimeString()+'</text><text x="960" y="290" text-anchor="end" fill="#91a4bd" font-size="10">'+new Date(candles[candles.length-1].time).toLocaleTimeString()+'</text>';
+ svg.innerHTML=out;
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-candle-tf]");if(!b)return;candleTimeframe=Number(b.dataset.candleTf)||60;document.querySelectorAll("[data-candle-tf]").forEach(x=>x.classList.toggle("active",x===b));drawCandles(markets[selected]);});
+
 function render() {
  const available = SYMBOLS.filter(s=>markets[s].available).length;
  const loaded = SYMBOLS.filter(s=>markets[s].ticks.length>=50).length;
