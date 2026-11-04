@@ -22,7 +22,7 @@ public class MainActivity extends Activity {
     return true;
    }
   });
-  if(state==null) web.loadUrl(APP_URL+"?app=android"); else web.restoreState(state);
+  if(state==null) web.loadUrl(APP_URL+"?app=android&distribution="+BuildConfig.DISTRIBUTION); else web.restoreState(state);
  }
  @Override protected void onSaveInstanceState(Bundle b){if(web!=null)web.saveState(b);super.onSaveInstanceState(b);}
  @Override public void onBackPressed(){if(web!=null&&web.canGoBack())web.goBack();else super.onBackPressed();}
