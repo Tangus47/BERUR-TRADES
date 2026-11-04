@@ -752,7 +752,7 @@ function connect() {
  }
  socket.onopen = () => {
    setStatus("Connected — discovering markets","green");
-   send({active_symbols:"brief",req_id:1});
+   send({active_symbols:"full",req_id:1});
    clearInterval(heartbeatTimer);
    heartbeatTimer = setInterval(() => send({ping:1}),25000);
  };
@@ -763,6 +763,8 @@ function connect() {
      const info = requestMap[data.req_id];
      if (info && markets[info.symbol]) markets[info.symbol].error = data.error.message || "Request error";
      if (info && cfdMarkets[info.symbol]) cfdMarkets[info.symbol].error = data.error.message || "Request error";
+     const cfdNote=$("cfdCentreNote");if(cfdNote&&info&&String(info.type||"").startsWith("cfd-"))cfdNote.textContent="Deriv rejected a Forex/CFD data request for "+info.symbol+": "+(data.error.message||"Request error")+". Other discovered instruments will continue scanning.";
+     if(data.req_id)delete requestMap[data.req_id];
      renderCfdCentre();
      render();
      return;
@@ -784,7 +786,7 @@ function connect() {
      });
      const discoveredCfd = active.map(classifyCfdInstrument).filter(Boolean)
        .sort((a,b)=>cfdPriority(a.category)-cfdPriority(b.category))
-       .slice(0,24);
+       .slice(0,30);
      discoveredCfd.forEach((item,index)=>{
        if(!cfdMarkets[item.symbol]) cfdMarkets[item.symbol]={...item,ticks:[],quote:null,updated:null,loading:true,error:"",signalState:null,timeframes:{}};
        setTimeout(()=>loadCfdMarket(item.symbol),index*180);
@@ -1796,6 +1798,9 @@ window.addEventListener("berur-news-risk-update",event=>{
 });
 render();
 renderBoomCrashCentre();
+// Start public market-data discovery automatically; no manual Connect click required.
+setTimeout(()=>{if(!running)connect();},500);
+setInterval(()=>{if(running&&socket&&socket.readyState===WebSocket.OPEN){renderCfdCentre();renderBoomCrashCentre();}},3000);
 setInterval(updateCfdSignalClocks,1000);
 $("botSessionStart").addEventListener("click",startBotSessionTimer);
 $("botSessionReset").addEventListener("click",resetBotSessionTimer);
