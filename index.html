@@ -566,7 +566,7 @@ function renderBotSessionClock() {
   if(!clock||!status||!progress)return;
   const remaining=botSessionRunning?Math.max(0,botSessionEndsAt-Date.now()):(botSessionFinished?0:botSessionTotalMs);
   const seconds=Math.ceil(remaining/1000);
-  clock.textContent=String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");
+  clock.textContent=(!botSessionRunning&&!botSessionFinished&&botSessionRecommendedMinutes===0)?"—":String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");
   progress.style.width=(botSessionTotalMs?Math.max(0,Math.min(100,remaining/botSessionTotalMs*100)):0)+"%";
   if(botSessionFinished){
     status.textContent=botSessionEndReason==="signal"?"SIGNAL EXPIRED OR CHANGED — STOP DERIV BOT MANUALLY NOW.":"RECOMMENDED REVIEW WINDOW COMPLETE — STOP DERIV BOT MANUALLY AND REASSESS.";
@@ -579,6 +579,7 @@ function renderBotSessionClock() {
     return;
   }
   status.style.color="var(--muted)";
+  if(!botSessionRunning&&botSessionRecommendedMinutes===0){status.textContent="No qualifying signal. WAIT — no session duration recommended.";return;}
   status.textContent=botSessionRunning?(remaining<=60000?"ONE MINUTE OR LESS — prepare to stop Deriv Bot.":"Session timer running. Keep Deriv Bot open and monitor risk."):"Timer ready. Start Deriv Bot separately, then press START TIMER.";
 }
 function startBotSessionTimer(){
