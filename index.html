@@ -216,6 +216,17 @@ a{font-weight:700}
 
 .news-mini{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:11px 13px;margin:10px 0;border:1px solid #35506b;border-radius:12px;background:linear-gradient(120deg,rgba(31,75,100,.35),rgba(14,31,51,.9));font-size:12px}.news-mini b{color:#9fe7d2;letter-spacing:.04em}.news-mini span{color:var(--text)}.news-mini.news-hot{border-color:#a84d60;background:linear-gradient(120deg,rgba(116,35,54,.35),rgba(24,28,47,.9))}.news-mini.news-hot b{color:#ff8a9c}.news-mini.news-stale{border-color:#856b3b}.news-mini.news-stale b{color:#ffd17a}.news-impact{display:inline-block;padding:4px 7px;border-radius:6px;font-size:10px;font-weight:900;letter-spacing:.04em}.news-impact.high{color:#ffdce2;background:#762e40}.news-impact.medium{color:#ffe5b1;background:#6b4b1c}.news-impact.low{color:#c9d9ed;background:#30445d}.news-impact.holiday{color:#d5d5e8;background:#45435d}.news-count{color:#9fe7d2;font-size:11px;margin-top:4px}.news-moved{font-size:9px;color:#ffd17a;font-weight:900}.news-ok{color:#9fe7d2!important;border-color:#287d68!important}.news-warn{color:#ffd17a!important;border-color:#856b3b!important}#economic-news-centre .radar-head{align-items:center;gap:10px;flex-wrap:wrap}#economic-news-centre .box{min-width:0}#economic-news-centre table{min-width:1120px}#economic-news-centre td{vertical-align:top;line-height:1.45}@media(max-width:600px){.news-mini{align-items:flex-start;flex-direction:column}#economic-news-centre .radar-head button{width:100%}}
 .dxy-chart-wrap{position:relative;width:100%;height:390px;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:#07111f}.dxy-chart-wrap iframe{width:100%;height:100%;border:0}@media(max-width:600px){.dxy-chart-wrap{height:330px}}
+
+/* Local-time welcome and VinTech contact strip */
+.welcome-panel{margin:0 0 14px;padding:18px;border:1px solid rgba(65,177,255,.32);border-radius:16px;background:linear-gradient(120deg,rgba(13,39,68,.98),rgba(20,31,58,.96) 58%,rgba(46,32,75,.94));box-shadow:0 12px 30px rgba(0,0,0,.2)}
+.welcome-panel h2{margin:0 0 6px;color:#f5f8ff;font-size:clamp(19px,3vw,27px)}
+.welcome-panel p{margin:0;color:#b9cce3}
+.welcome-panel .welcome-brand{color:#64d8ff;font-weight:800}
+.welcome-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:13px}
+.welcome-actions a{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 13px;border-radius:10px;text-decoration:none;font-weight:750;font-size:13px;color:#f8fbff;border:1px solid rgba(132,190,255,.35);background:rgba(10,24,43,.72)}
+.welcome-actions a.whatsapp{background:#126b4b;border-color:#26b77c}
+@media(max-width:520px){.welcome-panel{padding:15px}.welcome-actions a{flex:1 1 135px}}
+
 </style>
 </head>
 <body>
@@ -242,6 +253,17 @@ a{font-weight:700}
     <div class="sidebar-foot"><span class="pulse-dot"></span> Deriv public feed</div>
   </aside>
   <div class="terminal-content">
+  <section class="welcome-panel" aria-label="Welcome to Berur Trades">
+    <h2 id="traderGreeting">Welcome, Trader!</h2>
+    <p>Welcome to <span class="welcome-brand">BERUR TRADES by VinTech</span>. Analyse the markets carefully and trade responsibly.</p>
+    <div class="welcome-actions" aria-label="Contact VinTech">
+      <a href="tel:+254702730630" aria-label="Call VinTech">☎ Call</a>
+      <a href="sms:+254702730630" aria-label="Send a text message to VinTech">✉ Message</a>
+      <a class="whatsapp" href="https://wa.me/254702730630" target="_blank" rel="noopener noreferrer" aria-label="Contact VinTech on WhatsApp">WhatsApp</a>
+    </div>
+    <p class="small" style="margin-top:10px">VinTech support: +254 702 730 630</p>
+  </section>
+
   <div class="grid" id="overview">
     <div class="card"><h3>MARKETS SCANNED</h3><div class="metric" id="scanned">0 / 13</div><div class="small">Selected synthetic indices</div></div>
     <div class="card"><h3>BEST RANKED MARKET</h3><div class="metric" id="bestMarket">—</div><div class="small" id="bestScore">Waiting for data</div></div>
@@ -1837,5 +1859,14 @@ setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
 <script src="./signal-intelligence.js"></script>
 <script src="./economic-news.js"></script>
 <script src="./deriv-trader.js"></script>
+<script>
+(function(){
+  const greeting=document.getElementById("traderGreeting");
+  if(!greeting)return;
+  const hour=new Date().getHours();
+  const message=hour>=5&&hour<12?"Good Morning Trader":hour>=12&&hour<17?"Good Afternoon Trader":hour>=17&&hour<21?"Good Evening Trader":"Good Night Trader";
+  greeting.textContent=message;
+})();
+</script>
 </body>
 </html>
