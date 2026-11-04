@@ -967,7 +967,7 @@ function cfdUsdMacroScore(m,a){
  const newsLabel=active?"HIGH-IMPACT WINDOW":soon?"HIGH-IMPACT EVENT SOON":usdNewsRiskState.received?"No matching high-impact event":"News feed unverified";
  const technical=a.timeframes&&a.timeframes.ready&&a.timeframes.aligned&&a.signal!=="WAIT"?a.strength:Math.min(a.strength,45);
  const score=Math.round(technical*.55+dxyScore*.25+newsScore*.20);
- let label=active?"NEWS RISK — REVIEW":score>=80?"STRONG AGREEMENT":score>=65?"PARTIAL AGREEMENT":"WEAK / CONFLICTING";
+ let label=active?"NEWS RISK — REVIEW":soon?"HIGH-IMPACT EVENT APPROACHING":score>=80?"STRONG AGREEMENT":score>=65?"PARTIAL AGREEMENT":"WEAK / CONFLICTING";
  if(dxy==="UNKNOWN"||!usdNewsRiskState.received)label="INCOMPLETE DATA · "+label;
  return {score,label,dxy:dxyLabel,news:newsLabel,pair:pair.label};
 }
