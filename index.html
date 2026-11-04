@@ -214,6 +214,7 @@ a{font-weight:700}
 .pill.bad,.pill.red{background:rgba(255,130,152,.12);border-color:rgba(255,130,152,.3);color:#ff9bad}
 @media(max-width:600px){#overview>.card{min-height:104px}#homeBestMarketCards>.box{padding:11px}}
 
+.news-mini{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:11px 13px;margin:10px 0;border:1px solid #35506b;border-radius:12px;background:linear-gradient(120deg,rgba(31,75,100,.35),rgba(14,31,51,.9));font-size:12px}.news-mini b{color:#9fe7d2;letter-spacing:.04em}.news-mini span{color:var(--text)}.news-mini.news-hot{border-color:#a84d60;background:linear-gradient(120deg,rgba(116,35,54,.35),rgba(24,28,47,.9))}.news-mini.news-hot b{color:#ff8a9c}.news-mini.news-stale{border-color:#856b3b}.news-mini.news-stale b{color:#ffd17a}.news-impact{display:inline-block;padding:4px 7px;border-radius:6px;font-size:10px;font-weight:900;letter-spacing:.04em}.news-impact.high{color:#ffdce2;background:#762e40}.news-impact.medium{color:#ffe5b1;background:#6b4b1c}.news-impact.low{color:#c9d9ed;background:#30445d}.news-impact.holiday{color:#d5d5e8;background:#45435d}.news-count{color:#9fe7d2;font-size:11px;margin-top:4px}.news-moved{font-size:9px;color:#ffd17a;font-weight:900}.news-ok{color:#9fe7d2!important;border-color:#287d68!important}.news-warn{color:#ffd17a!important;border-color:#856b3b!important}#economic-news-centre .radar-head{align-items:center;gap:10px;flex-wrap:wrap}#economic-news-centre .box{min-width:0}#economic-news-centre table{min-width:1120px}#economic-news-centre td{vertical-align:top;line-height:1.45}@media(max-width:600px){.news-mini{align-items:flex-start;flex-direction:column}#economic-news-centre .radar-head button{width:100%}}
 </style>
 </head>
 <body>
@@ -221,7 +222,7 @@ a{font-weight:700}
   <div class="brand">BERUR <span>TRADES</span></div>
   <div class="sub">DERIV MARKET INTELLIGENCE • LIVE ANALYSIS • MANUAL EXECUTION</div>
 </header>
-<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="digits">Digit Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="quality">Quality</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="forex">Forex &amp; CFDs</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="boomcrash">Boom &amp; Crash</button></nav>
+<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="digits">Digit Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="quality">Quality</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="forex">Forex &amp; CFDs</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="boomcrash">Boom &amp; Crash</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="news">Economic News</button></nav>
 
 <main class="wrap">
   <div class="topline">
@@ -458,6 +459,7 @@ a{font-weight:700}
   </section>
 
   <section class="section card" id="forex-cfd-centre" hidden>
+    <div id="newsForexBanner"></div>
     <div class="radar-head"><div><h2 class="section-title">FOREX & CFD INTELLIGENCE CENTRE</h2><p class="note">Live Deriv instruments discovered from the active-symbol feed. Tick-derived technical analysis; signal strength is an evidence score, not a win probability.</p></div><span class="pill">MANUAL REVIEW ONLY</span></div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
       <div class="box"><b>DISCOVERED INSTRUMENTS</b><div class="large" id="cfdDiscovered">0</div></div>
@@ -477,6 +479,26 @@ a{font-weight:700}
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px"><div class="box"><b>BOOM / CRASH MARKETS</b><div class="large" id="bcDiscovered">0</div></div><div class="box"><b>CONFIRMED SIGNALS</b><div class="large" id="bcQualified">0</div></div><div class="box"><b>TOP LIVE SETUP</b><div class="large" id="bcLeader">—</div><div class="note" id="bcLeaderInfo">Waiting for market feed</div></div></div>
     <div class="tablewrap"><table style="min-width:1350px"><thead><tr><th>MARKET</th><th>STRENGTH</th><th>SIGNAL</th><th>1 MIN</th><th>5 MIN</th><th>15 MIN</th><th>1 HOUR</th><th>ENTRY</th><th>STOP LOSS</th><th>TAKE PROFIT</th><th>R:R</th><th>VALIDITY</th></tr></thead><tbody id="bcSignalRows"><tr><td colspan="12">Connect to Deriv to discover Boom and Crash markets.</td></tr></tbody></table></div>
     <p class="note">Timeframe values are EMA trend readings from Deriv candle history. A confirmed signal requires sufficient candles and directional agreement on all four timeframes. Stops/targets are estimates. This panel does not place trades.</p>
+  </section>
+  <section class="section card" id="economic-news-centre" hidden>
+    <div class="radar-head"><div><span class="eyebrow">MACROECONOMIC RISK MONITOR</span><h2 class="section-title">ECONOMIC NEWS &amp; MARKET IMPACT</h2><p class="note">Upcoming and recently released macro events mapped to the Forex pairs and Gold instruments tracked by this dashboard.</p></div><span class="pill news-warn" id="newsFeedStatus">WAITING FOR FIRST UPDATE</span></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin:12px 0">
+      <div class="box"><b>CALENDAR COVERAGE</b><div class="large">9 currencies</div><div class="note">USD · EUR · GBP · JPY · AUD · NZD · CAD · CHF · CNY</div></div>
+      <div class="box"><b>UPDATE INTERVAL</b><div class="large">15 min</div><div class="note">Feed refreshes automatically while the page is visible.</div></div>
+      <div class="box"><b>TRADING MODE</b><div class="large">ADVISORY</div><div class="note">Warnings only. No automatic trade direction or execution.</div></div>
+    </div>
+    <div id="newsHomeBanner"></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0">
+      <label class="box">Instrument / pair filter<select id="newsPairFilter" style="width:100%;margin-top:7px"><option value="ALL">All tracked pairs</option><option value="EUR/USD">EUR/USD</option><option value="GBP/USD">GBP/USD</option><option value="USD/JPY">USD/JPY</option><option value="AUD/USD">AUD/USD</option><option value="USD/CAD">USD/CAD</option><option value="USD/CHF">USD/CHF</option><option value="NZD/USD">NZD/USD</option><option value="XAU/USD">XAU/USD (Gold)</option></select></label>
+      <label class="box">Impact filter<select id="newsImpactFilter" style="width:100%;margin-top:7px"><option value="all">High + Medium + Low</option><option value="high">High impact only</option><option value="medium">Medium impact only</option><option value="low">Low impact only</option></select></label>
+      <label class="box">Pause before high impact (minutes)<input id="newsBefore" type="number" min="0" max="180" value="15" style="width:100%;margin-top:7px"></label>
+      <label class="box">Pause after high impact (minutes)<input id="newsAfter" type="number" min="0" max="180" value="15" style="width:100%;margin-top:7px"></label>
+    </div>
+    <div class="radar-head"><div><h3 class="section-title">UPCOMING EVENTS &amp; AFFECTED PAIRS</h3><p class="note" id="newsClockNote">Calendar time and local display timezone will appear after the first update.</p></div><button type="button" id="newsRefreshBtn">REFRESH NEWS</button></div>
+    <p class="note" id="newsResultSummary">Waiting for calendar data…</p>
+    <div class="tablewrap"><table style="min-width:1120px"><thead><tr><th>IMPACT</th><th>CCY</th><th>EVENT</th><th>LOCAL TIME / COUNTDOWN</th><th>AFFECTED PAIRS</th><th>ACTUAL</th><th>FORECAST</th><th>PREVIOUS</th><th>RISK WINDOW</th></tr></thead><tbody id="economicNewsRows"><tr><td colspan="9">Waiting for economic calendar feed…</td></tr></tbody></table></div>
+    <div class="box" style="margin-top:12px"><b>HOW TO USE THE WARNING</b><p class="note">A high-impact event inside your selected before/after window is flagged as NEWS WINDOW. Treat it as a reason to review spreads, slippage, volatility and existing exposure—not as a buy or sell signal. Actual-versus-forecast differences do not automatically establish direction; compare the release with market expectations and price action.</p><p class="note" id="newsSyntheticNotice">Synthetic Volatility indices, Boom and Crash are excluded from macroeconomic news warnings.</p></div>
+    <p class="note">Calendar provider: <a href="https://showmytrades.com/tools/economic-calendar" target="_blank" rel="noopener">ShowMyTrades Economic Calendar</a> · <a href="https://showmytrades.com/docs/api/economic-calendar" target="_blank" rel="noopener">API documentation</a>. Events may be revised, moved or incomplete. Verify important releases against the official publisher before trading.</p>
   </section>
   <footer>
     BERUR TRADES • Independent analysis tool.<br>
@@ -1550,7 +1572,7 @@ function setupAppTabs(){
  if(Object.values(anchors).some(x=>!x))return;
  const children=Array.from(content.children),idx=Object.fromEntries(Object.entries(anchors).map(([k,v])=>[k,children.indexOf(v)]));
  const ranges={home:[idx.home,idx.markets],markets:[idx.markets,idx.analysis],analysis:[idx.analysis,idx.execution],execution:[idx.execution,idx.radar],radar:[idx.radar,children.length]};
- const extra={digits:["probability","market-ou-ranking","market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],boomcrash:["boom-crash-centre"]};
+ const extra={digits:["probability","market-ou-ranking","market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],boomcrash:["boom-crash-centre"],news:["economic-news-centre"]};
  const extraNodes=Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean);
  const allContent=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
  function activate(name){
@@ -1594,6 +1616,7 @@ setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
 })();
 </script>
 <script src="./signal-intelligence.js"></script>
+<script src="./economic-news.js"></script>
 <script src="./deriv-trader.js"></script>
 </body>
 </html>
