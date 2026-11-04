@@ -692,7 +692,8 @@ function connect() {
    if (data.error) {
      const info = requestMap[data.req_id];
      if (info && markets[info.symbol]) markets[info.symbol].error = data.error.message || "Request error";
-     if (info && cfdMarkets[info.symbol]) cfdMarkets[info.symbol].error = data.error.message || "Request error";\n     renderCfdCentre();
+     if (info && cfdMarkets[info.symbol]) cfdMarkets[info.symbol].error = data.error.message || "Request error";
+     renderCfdCentre();
      render();
      return;
    }
