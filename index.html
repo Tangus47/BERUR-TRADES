@@ -260,7 +260,8 @@ a{font-weight:700}
 
   <section class="section" id="probability">
     <h3 class="section-title">SEPARATE OVER / UNDER PROBABILITY RADAR</h3>
-    <p class="note">Each row shows the historical hit rate in the selected market's recent tick sample, alongside the uniform-digit theoretical baseline. This is descriptive frequency, not a forecast or guaranteed chance on the next tick. Exact barrier digits are losses and remain in the denominator.</p>
+    <div id="probabilityMarketLabel" class="pill" style="display:inline-flex;margin:5px 0 10px;font-weight:800">CURRENT MARKET: —</div>
+    <p class="note">Both panels below use only the selected volatility market shown above. Switch markets to refresh the Over and Under hit rates, baselines, strength and sample counts. Historical frequency is descriptive, not a forecast or guaranteed chance on the next tick. Exact barrier digits are losses and remain in the denominator.</p>
     <div class="two probability-panels">
       <section class="card probability-card">
         <h3 class="section-title green">OVER CONTRACTS — 5 TO 8</h3>
@@ -933,6 +934,7 @@ function render() {
  const m=markets[selected];
  const marketDisplayNames={R_10:"Volatility 10",R_25:"Volatility 25",R_50:"Volatility 50",R_75:"Volatility 75",R_100:"Volatility 100","1HZ10V":"Volatility 10 (1s)","1HZ25V":"Volatility 25 (1s)","1HZ50V":"Volatility 50 (1s)","1HZ75V":"Volatility 75 (1s)","1HZ100V":"Volatility 100 (1s)","1HZ150V":"Volatility 150 (1s)","1HZ250V":"Volatility 250 (1s)","1HZ300V":"Volatility 300 (1s)"};
  $("contractMarketName").textContent="ANALYSIS MARKET: "+(marketDisplayNames[selected]||selected)+" ("+selected+")";
+ $("probabilityMarketLabel").textContent="CURRENT MARKET: "+(marketDisplayNames[selected]||selected)+" ("+selected+")";
  updatePriceTrace(m);
  drawCandles(m);
  const bestEligible = eligible[0];
