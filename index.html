@@ -573,6 +573,18 @@ let selected = "R_10";
 let running = false;
 let reconnectTimer = null;
 let heartbeatTimer = null;
+let reconnectAttempts = 0;
+let reconnectDelayMs = 2000;
+const MAX_RECONNECT_DELAY_MS = 30000;
+function scheduleDerivReconnect(reason) {
+ if (!running || reconnectTimer) return;
+ clearInterval(heartbeatTimer);
+ const delay=Math.min(MAX_RECONNECT_DELAY_MS,reconnectDelayMs);
+ reconnectDelayMs=Math.min(MAX_RECONNECT_DELAY_MS,Math.round(reconnectDelayMs*1.8));
+ reconnectAttempts++;
+ setStatus((reason||"Connection lost")+" - retry "+reconnectAttempts+" in "+Math.ceil(delay/1000)+"s","gold");
+ reconnectTimer=setTimeout(()=>{reconnectTimer=null;if(running)connect();},delay);
+}
 let learningTarget = 150;
 let autoSelectBest = true;
 let activeSignal = null;
@@ -739,6 +751,7 @@ function connect() {
    setStatus("Connection already active"); return;
  }
  clearTimeout(reconnectTimer);
+ reconnectTimer = null;
  running = true;
  $("connectBtn").disabled = true;
  $("stopBtn").disabled = false;
@@ -746,12 +759,15 @@ function connect() {
  try {
    socket = new WebSocket(WS_URL);
  } catch(e) {
-   setStatus("Could not create connection","red");
+   setStatus("Could not create connection - automatic retry scheduled","red");
    $("connectBtn").disabled = false;
+   scheduleDerivReconnect("Connection could not start");
    return;
  }
  socket.onopen = () => {
-   setStatus("Connected — discovering markets","green");
+   reconnectAttempts=0;
+   reconnectDelayMs=2000;
+   setStatus("Connected — discovering all markets and starting live analysis","green");
    send({active_symbols:"full",req_id:1});
    clearInterval(heartbeatTimer);
    heartbeatTimer = setInterval(() => send({ping:1}),25000);
@@ -848,16 +864,16 @@ function connect() {
      render();
    }
  };
- socket.onerror = () => setStatus("Connection error — check internet","red");
+ socket.onerror = () => {
+   setStatus("Connection error — recovering automatically","red");
+   try { if(socket && socket.readyState!==WebSocket.CLOSED) socket.close(); } catch(e) {}
+ };
  socket.onclose = () => {
    clearInterval(heartbeatTimer);
-   if (running) {
-     setStatus("Connection closed — reconnecting","gold");
-     $("connectBtn").disabled = false;
-     reconnectTimer = setTimeout(connect,4000);
-   } else {
-     setStatus("Disconnected","gold");
-     $("connectBtn").disabled = false;
+   $("connectBtn").disabled = false;
+   if (running) scheduleDerivReconnect("Connection closed");
+   else {
+     setStatus("Stopped","gold");
      $("stopBtn").disabled = true;
    }
  };
@@ -1095,6 +1111,9 @@ function loadMarket(symbol) {
 function stop() {
  running = false;
  clearTimeout(reconnectTimer);
+ reconnectTimer = null;
+ reconnectAttempts=0;
+ reconnectDelayMs=2000;
  clearInterval(heartbeatTimer);
  if (socket) {
    try { socket.close(); } catch(e) {}
@@ -1798,8 +1817,13 @@ window.addEventListener("berur-news-risk-update",event=>{
 });
 render();
 renderBoomCrashCentre();
-// Start public market-data discovery automatically; no manual Connect click required.
-setTimeout(()=>{if(!running)connect();},500);
+// Automatic application startup and recovery. The user may still explicitly Stop the feed.
+function startAutomaticSystem() {
+ if(!running && (!socket || (socket.readyState!==WebSocket.OPEN && socket.readyState!==WebSocket.CONNECTING))) connect();
+}
+window.addEventListener("online",()=>{if(running)startAutomaticSystem();});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden && running && (!socket || socket.readyState===WebSocket.CLOSED))startAutomaticSystem();});
+setTimeout(startAutomaticSystem,350);
 setInterval(()=>{if(running&&socket&&socket.readyState===WebSocket.OPEN){renderCfdCentre();renderBoomCrashCentre();}},3000);
 setInterval(updateCfdSignalClocks,1000);
 $("botSessionStart").addEventListener("click",startBotSessionTimer);
