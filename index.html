@@ -360,7 +360,7 @@ a{font-weight:700}
 
   <section class="section card" id="trade-quality-filter">
     <div class="radar-head"><div><h2 class="section-title">TRADE QUALITY FILTER — PRE-TRADE CHECK</h2><p class="note">Screens the strongest Over and Under candidate in each market. A pass means manual review only; no trade is labelled ready until a live Deriv proposal confirms payout and price.</p></div><span class="pill">NO AUTO-EXECUTION</span></div>
-    <div class="tablewrap"><table style="min-width:850px"><thead><tr><th>Market</th><th>Contract</th><th>Evidence</th><th>Feed age</th><th>Signal freshness</th><th>Payout check</th><th>Decision</th></tr></thead><tbody id="tradeQualityRows"><tr><td colspan="7">Collecting independent market evidence…</td></tr></tbody></table></div>
+    <div class="tablewrap"><table style="min-width:850px"><thead><tr><th>Market</th><th>Contract</th><th>Evidence</th><th>Feed age</th><th>Signal freshness</th><th>Live payout / break-even check</th><th>Decision</th></tr></thead><tbody id="tradeQualityRows"><tr><td colspan="7">Collecting independent market evidence…</td></tr></tbody></table></div>
     <p class="note" id="tradeQualitySummary">A live quote/payout is required before any contract can be considered trade-ready. Historical hit rate is not expected profit.</p>
   </section>
 
@@ -833,6 +833,7 @@ function renderMarketSignalMonitor(){
   return '<tr><td><b>'+key.replace("|"," · ")+'</b></td><td>'+x.label+'</td><td>'+trend+' · '+x.strength.toFixed(2)+'</td><td>'+new Date(x.lastConfirmed).toLocaleTimeString()+'</td><td>'+(x.active?freshness:'<span class="gold">INVALIDATED</span>')+'</td></tr>';
  }).join("");
 }
+const qualityQuoteResults = new Map();
 function renderTradeQualityFilter(){
  const host=$("tradeQualityRows");if(!host)return;
  const now=Date.now(),rows=[];let reviewCount=0,blockedCount=0;
@@ -859,11 +860,25 @@ function renderTradeQualityFilter(){
  host.innerHTML=rows.length?rows.map(x=>{
   const c=x.candidate,ev=c.strength>=2?'<span class="green">QUALIFIED · '+c.strength.toFixed(2)+'</span>':'<span class="gold">WATCH · '+c.strength.toFixed(2)+'</span>';
   const why=x.failed.length?x.failed.map(v=>v.label).join(" · "):"All data/evidence checks passed";
-  return '<tr><td><b>'+x.symbol+'</b></td><td>'+x.side+' '+c.barrier+'</td><td>'+ev+'</td><td>'+(x.feedAge===null?"—":x.feedAge+"s")+'</td><td>'+(x.signalAge===null?"—":x.signalAge+"s")+'</td><td><span class="gold">NOT VERIFIED — LIVE QUOTE REQUIRED</span></td><td><b class="'+(x.failed.length?"gold":"green")+'">'+x.decision+'</b><div class="note">'+why+'</div></td></tr>';
+  const qkey=x.symbol+"|"+x.side+"|"+c.barrier,qr=qualityQuoteResults.get(qkey);
+  const quoteCell=qr?'<div class="good"><b>LIVE QUOTE RECEIVED</b></div><div class="note">Observed '+(c.observed*100).toFixed(1)+'% · Break-even '+qr.breakEven.toFixed(1)+'%<br>Ask '+qr.ask.toFixed(2)+' '+qr.currency+' · Payout '+qr.payout.toFixed(2)+' '+qr.currency+' · Net '+qr.net.toFixed(2)+' '+qr.currency+'<br>Quoted '+new Date(qr.at).toLocaleTimeString()+'</div>':'<button type="button" data-quality-quote="'+qkey+'" data-symbol="'+x.symbol+'" data-side="'+x.side+'" data-barrier="'+c.barrier+'">GET LIVE QUOTE</button><div class="note">Historical rate is descriptive only</div>';
+  return '<tr><td><b>'+x.symbol+'</b></td><td>'+x.side+' '+c.barrier+'</td><td>'+ev+'<div class="note">Observed '+(c.observed*100).toFixed(1)+'% · '+c.validN+' ticks</div></td><td>'+(x.feedAge===null?"—":x.feedAge+"s")+'</td><td>'+(x.signalAge===null?"—":x.signalAge+"s")+'</td><td>'+quoteCell+'</td><td><b class="'+(x.failed.length?"gold":"green")+'">'+x.decision+'</b><div class="note">'+why+'</div></td></tr>';
  }).join(""):'<tr><td colspan="7">No candidates yet. Waiting for sufficient independent market history.</td></tr>';
  const summary=$("tradeQualitySummary");
  if(summary)summary.textContent=reviewCount+" candidate(s) passed the historical-evidence and feed checks for manual review; "+blockedCount+" blocked. Payout is not available in the tick-history feed, so every candidate still requires a live Deriv proposal and payout comparison. No trade is automatically approved.";
 }
+window.addEventListener("berur:quality-quote-result",event=>{
+ const d=event.detail||{};
+ if(!d.key||!Number.isFinite(d.ask)||!Number.isFinite(d.payout)||d.payout<=0)return;
+ qualityQuoteResults.set(d.key,{ask:d.ask,payout:d.payout,net:d.payout-d.ask,breakEven:d.ask/d.payout*100,currency:d.currency||"",at:d.at||Date.now()});
+ renderTradeQualityFilter();
+});
+document.addEventListener("click",event=>{
+ const btn=event.target.closest("[data-quality-quote]");
+ if(!btn)return;
+ const detail={key:btn.dataset.qualityQuote,symbol:btn.dataset.symbol,side:btn.dataset.side,barrier:Number(btn.dataset.barrier)};
+ window.dispatchEvent(new CustomEvent("berur:request-quality-quote",{detail}));
+});
 function renderMarketOURanking(){
  const body=$("marketOURankingRows");if(!body)return;
  const pick=(a,side)=>a.n>=150?(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=150&&x.deviation>0).sort((x,y)=>y.strength-x.strength)[0]||null:null;
