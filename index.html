@@ -758,8 +758,10 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-candle-tf]
 let marketAlertSoundOn=false,marketAlertAudio=null,marketAlertPrimed=false;
 const marketAlertPrevious={},marketAlertLog=[];
 let marketAlertLastAt=0;
+let marketInvalidationLastChime=0;
 function marketInvalidationBeep(){
- if(!marketAlertSoundOn||!marketAlertAudio)return;
+ if(!marketAlertSoundOn||!marketAlertAudio||Date.now()-marketInvalidationLastChime<3000)return;
+ marketInvalidationLastChime=Date.now();
  try{const now=marketAlertAudio.currentTime;[0,0.18,0.36].forEach((offset,i)=>{const osc=marketAlertAudio.createOscillator(),gain=marketAlertAudio.createGain();osc.type="triangle";osc.frequency.value=[880,660,440][i];gain.gain.setValueAtTime(0.0001,now+offset);gain.gain.exponentialRampToValueAtTime(0.13,now+offset+0.02);gain.gain.exponentialRampToValueAtTime(0.0001,now+offset+0.14);osc.connect(gain);gain.connect(marketAlertAudio.destination);osc.start(now+offset);osc.stop(now+offset+0.15);});}catch(e){}
 }
 function marketAlertBeep(){
