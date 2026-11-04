@@ -228,6 +228,18 @@ a{font-weight:700}
 @media(max-width:520px){.welcome-panel{padding:15px}.welcome-actions a{flex:1 1 135px}}
 
 </style>
+<script>
+(function(){
+  try { if(new URLSearchParams(location.search).get("distribution")==="play") document.documentElement.classList.add("play-store-build"); } catch(e) {}
+})();
+</script>
+<style>
+.play-store-build .app-tab[data-tab="execution"],
+.play-store-build #execution,
+.play-store-build #bt-desk,
+.play-store-build #bt-membership { display:none !important; }
+.play-store-build #play-store-notice { display:block; }
+</style>
 </head>
 <body>
 <header>
