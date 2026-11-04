@@ -28,7 +28,7 @@ function corsHeaders(origin) {
   return {
     "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Admin-Key",
     "Access-Control-Max-Age": "600",
     "Vary": "Origin"
   };
@@ -149,6 +149,55 @@ export default {
       const destination = new URL("/", APP_ORIGIN);
       destination.hash = new URLSearchParams({ oauth_ticket: ticket }).toString();
       return redirect(destination.toString());
+    }
+
+    if (url.pathname.startsWith("/api/subscription/")) {
+      if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) });
+      if (origin !== ALLOWED_ORIGIN) return json({ error: "Origin not allowed" }, 403);
+      const plans = { weekly: { days: 7, price: 150 }, monthly: { days: 30, price: 500 }, yearly: { days: 365, price: 4000 } };
+      if (url.pathname === "/api/subscription/request" && request.method === "POST") {
+        const body = await request.json().catch(() => null);
+        const email = String(body?.email || "").trim().toLowerCase();
+        const name = String(body?.name || "").trim().slice(0, 100);
+        const plan = String(body?.plan || "");
+        const reference = String(body?.mpesa_reference || "").trim().toUpperCase();
+        if (!/^\S+@\S+\.\S+$/.test(email) || !plans[plan] || !/^[A-Z0-9]{8,16}$/.test(reference)) return json({ error: "Enter a valid email, plan and M-PESA transaction reference." }, 400, corsHeaders(origin));
+        const id = randomHex(12);
+        const record = { id, email, name, plan, amount_kes: plans[plan].price, mpesa_reference: reference, status: "pending", created_at: new Date().toISOString() };
+        await env.BERUR_SESSIONS.put("subrequest:" + id, JSON.stringify(record), { expirationTtl: 7776000 });
+        return json({ ok: true, request_id: id, message: "Payment request submitted for administrator verification." }, 201, corsHeaders(origin));
+      }
+      if (url.pathname === "/api/subscription/access" && request.method === "GET") {
+        const email = String(url.searchParams.get("email") || "").trim().toLowerCase();
+        if (!/^\S+@\S+\.\S+$/.test(email)) return json({ active: false, error: "Valid email required." }, 400, corsHeaders(origin));
+        const sub = await env.BERUR_SESSIONS.get("subscription:" + email, "json");
+        const active = !!sub && sub.status === "active" && Date.parse(sub.expires_at) > Date.now();
+        return json({ active, subscription: active ? { plan: sub.plan, expires_at: sub.expires_at } : null }, 200, corsHeaders(origin));
+      }
+      if (url.pathname === "/api/subscription/admin/list" && request.method === "GET") {
+        if (!env.BERUR_ADMIN_KEY || request.headers.get("X-Admin-Key") !== env.BERUR_ADMIN_KEY) return json({ error: "Administrator authentication failed." }, 401, corsHeaders(origin));
+        const listed = await env.BERUR_SESSIONS.list({ prefix: "subrequest:", limit: 100 });
+        const rows = await Promise.all(listed.keys.map(k => env.BERUR_SESSIONS.get(k.name, "json")));
+        return json({ requests: rows.filter(Boolean) }, 200, corsHeaders(origin));
+      }
+      if (url.pathname === "/api/subscription/admin/approve" && request.method === "POST") {
+        if (!env.BERUR_ADMIN_KEY || request.headers.get("X-Admin-Key") !== env.BERUR_ADMIN_KEY) return json({ error: "Administrator authentication failed." }, 401, corsHeaders(origin));
+        const body = await request.json().catch(() => null);
+        const id = String(body?.request_id || "");
+        const requestKey = "subrequest:" + id;
+        const record = await env.BERUR_SESSIONS.get(requestKey, "json");
+        if (!record || record.status !== "pending") return json({ error: "Pending payment request not found." }, 404, corsHeaders(origin));
+        const plan = plans[record.plan];
+        if (!plan) return json({ error: "Unknown plan." }, 400, corsHeaders(origin));
+        const previous = await env.BERUR_SESSIONS.get("subscription:" + record.email, "json");
+        const base = previous?.status === "active" && Date.parse(previous.expires_at) > Date.now() ? Date.parse(previous.expires_at) : Date.now();
+        const subscription = { email: record.email, plan: record.plan, status: "active", starts_at: new Date().toISOString(), expires_at: new Date(base + plan.days * 86400000).toISOString(), payment_reference: record.mpesa_reference, approved_at: new Date().toISOString() };
+        await env.BERUR_SESSIONS.put("subscription:" + record.email, JSON.stringify(subscription), { expirationTtl: plan.days * 86400 + 86400 });
+        record.status = "approved"; record.approved_at = new Date().toISOString();
+        await env.BERUR_SESSIONS.put(requestKey, JSON.stringify(record), { expirationTtl: 7776000 });
+        return json({ ok: true, subscription }, 200, corsHeaders(origin));
+      }
+      return json({ error: "Not found" }, 404, corsHeaders(origin));
     }
 
     if (url.pathname.startsWith("/api/")) {
