@@ -53,6 +53,16 @@ a{color:var(--blue);text-decoration:none}
 footer{padding:20px 4px;color:var(--muted);font-size:10px;line-height:1.6}
 @media(max-width:800px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}}
 @media(max-width:420px){.wrap{padding:10px}.card{padding:11px}.metric{font-size:19px}.digits{gap:3px}.digit{padding:7px 1px}.digit b{font-size:14px}}
+.radar-panel{margin-top:13px;border:1px solid #28785e;background:#10251f}
+.radar-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.radar-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.radar-controls label{font-size:12px;color:var(--muted)}
+.radar-controls input{width:78px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:8px}
+.radar-status{font-weight:800;color:var(--gold)}
+.risk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.risk-grid label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
+.risk-grid input{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:9px}
+@media(max-width:600px){.risk-grid{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -141,6 +151,38 @@ footer{padding:20px 4px;color:var(--muted);font-size:10px;line-height:1.6}
     <p class="note" id="copyStatus"></p>
   </section>
 
+  <section class="section card radar-panel">
+    <div class="radar-head">
+      <div>
+        <h3 class="section-title">BERUR SMART RADAR & LEARNING ENGINE</h3>
+        <div class="small">Continuous market scanning, best eligible market selection and sample tracking.</div>
+      </div>
+      <span class="radar-status" id="learningState">LEARNING</span>
+    </div>
+    <div class="grid section">
+      <div><div class="small">BEST ELIGIBLE MARKET</div><div class="metric" id="radarMarket">WAIT</div></div>
+      <div><div class="small">SIGNAL / CONTRACT</div><div class="metric" id="radarSignal">NO TRADE</div></div>
+      <div><div class="small">RADAR REASON</div><div class="small" id="radarReason">Waiting for market evidence.</div></div>
+    </div>
+    <div class="radar-controls">
+      <label><input type="checkbox" id="autoSelect" checked> Auto-select best eligible market</label>
+      <label>Learning sample <input type="number" id="learningTarget" min="6" max="500" step="1" value="150"> ticks</label>
+      <span class="small" id="learningProgress">0 / 150 observations</span>
+    </div>
+    <div class="small" id="learningNote">The learning target controls readiness only. Signal safeguards still require larger samples before a setup can be marked for manual review.</div>
+  </section>
+
+  <section class="section card">
+    <h3 class="section-title">RISK GUARD — SETTINGS ONLY</h3>
+    <p class="note">These limits are a planning checklist. BERUR TRADES does not place orders or enforce limits inside a Deriv account. Keep live execution disabled until a separately authorized and tested trading connection is implemented.</p>
+    <div class="risk-grid">
+      <div><label for="maxStake">Maximum stake (account currency)</label><input id="maxStake" type="number" min="0.35" step="0.01" value="0.35"></div>
+      <div><label for="sessionLoss">Session loss limit</label><input id="sessionLoss" type="number" min="0" step="0.01" value="2.00"></div>
+      <div><label for="sessionProfit">Session take-profit target</label><input id="sessionProfit" type="number" min="0" step="0.01" value="2.00"></div>
+    </div>
+    <div class="small" id="riskGuardStatus">Risk settings are advisory only. No trades are being placed.</div>
+  </section>
+
   <footer>
     BERUR TRADES • Independent analysis tool.<br>
     Market data is supplied by Deriv's public market-data WebSocket. Technical indicators use historical observations and cannot predict future prices. Digital options and synthetic indices involve substantial risk. Never trade solely from an indicator.
@@ -170,6 +212,8 @@ let selected = "R_10";
 let running = false;
 let reconnectTimer = null;
 let heartbeatTimer = null;
+let learningTarget = 150;
+let autoSelectBest = true;
 
 const $ = id => document.getElementById(id);
 const fmt = n => Number.isFinite(n) ? n.toFixed(5).replace(/0+$/,"").replace(/\.$/,"") : "—";
@@ -432,10 +476,24 @@ function render() {
  const loaded = SYMBOLS.filter(s=>markets[s].ticks.length>=50).length;
  $("scanned").textContent = `${loaded} / ${available}`;
  const sorted = SYMBOLS.map(s=>markets[s]).filter(m=>m.available).sort((a,b)=>rankScore(b)-rankScore(a));
- const best=sorted[0];
+ const eligible = sorted.filter(x => analyze(x).tradeAllowed);
+ const best=eligible[0] || sorted[0];
+ if (autoSelectBest && eligible.length && selected !== eligible[0].symbol) {
+   selected = eligible[0].symbol;
+ }
  $("bestMarket").textContent = best && best.ticks.length>=50 ? best.symbol : "—";
  $("bestScore").textContent = best && best.ticks.length>=50 ? `Technical score ${rankScore(best)}/100` : "Waiting for sufficient ticks";
  const m=markets[selected];
+ const bestEligible = eligible[0];
+ const state = m.ticks.length >= learningTarget ? "READY" : "LEARNING";
+ $("learningState").textContent = state;
+ $("learningState").style.color = state === "READY" ? "var(--green)" : "var(--gold)";
+ $("learningProgress").textContent = Math.min(m.ticks.length,learningTarget) + " / " + learningTarget + " observations";
+ $("radarMarket").textContent = bestEligible ? bestEligible.symbol : "NO QUALIFIED MARKET";
+ $("radarSignal").textContent = bestEligible ? (analyze(bestEligible).directionSignal !== "WAIT" ? analyze(bestEligible).directionSignal : analyze(bestEligible).digitSignal) : "WAIT";
+ $("radarReason").textContent = bestEligible ? "Highest-ranked market that passed the existing analysis safeguards. Manual review only." : "No market has passed the existing evidence filters. Keep waiting.";
+ $("learningNote").textContent = state === "READY" ? "Learning sample reached. This does not itself create a trade signal; the separate 120/150-tick analysis safeguards remain active." : "Collecting observations. The learning target controls readiness only; signal safeguards still require larger samples before manual review.";
+ $("riskGuardStatus").textContent = "Advisory limits: max stake " + $("maxStake").value + " • session loss " + $("sessionLoss").value + " • take-profit " + $("sessionProfit").value + ". Not enforced by Deriv.";
  $("selectedMarket").textContent=selected;
  $("analysisSymbol").textContent=selected;
  $("selectedPrice").textContent=m.quote!==null ? `Live: ${fmt(m.quote)}` : "Waiting for live price";
@@ -477,6 +535,19 @@ function render() {
  $("quality").textContent=a.quality;
  $("qualityDetail").textContent=`${a.n} observations • ${a.n>=100?"Minimum sample reached":"Need at least 100 for digit review"}`;
 }
+$("autoSelect").addEventListener("change",event => {
+ autoSelectBest = event.target.checked;
+ render();
+});
+$("learningTarget").addEventListener("change",event => {
+ const value = Number(event.target.value);
+ learningTarget = Number.isFinite(value) ? Math.max(6,Math.min(500,Math.floor(value))) : 150;
+ event.target.value = learningTarget;
+ render();
+});
+["maxStake","sessionLoss","sessionProfit"].forEach(id => {
+ $(id).addEventListener("change",() => render());
+});
 $("connectBtn").addEventListener("click",connect);
 $("stopBtn").addEventListener("click",stop);
 $("botBtn").addEventListener("click",()=>window.open("https://bot.deriv.com/","_blank","noopener"));
