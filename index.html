@@ -785,8 +785,8 @@ function updateMarketSignalMonitor(symbol,side,candidate){
  const key=symbol+"|"+side,now=Date.now();let item=marketSignalMonitor[key];
  if(candidate&&candidate.strength>=2){
   if(!item||item.label!==candidate.label){item=marketSignalMonitor[key]={label:candidate.label,history:[],lastSampleAt:0,lastConfirmed:now};}
-  if(now-item.lastSampleAt>=15000||!item.history.length){item.history.push(candidate.strength);item.history=item.history.slice(-5);item.lastSampleAt=now;}
-  item.lastConfirmed=now;item.strength=candidate.strength;item.active=true;
+  if(now-item.lastSampleAt>=15000||!item.history.length){item.history.push(candidate.strength);item.history=item.history.slice(-5);item.lastSampleAt=now;item.lastConfirmed=now;}
+  item.strength=candidate.strength;item.active=true;
  }else if(item&&item.active){item.active=false;item.invalidatedAt=now;}
 }
 function renderMarketSignalMonitor(){
