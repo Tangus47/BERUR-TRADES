@@ -366,6 +366,17 @@ a{font-weight:700}
     <p class="note">“Strongest” means the largest positive standardized historical deviation (z-score) within that market and contract side. WATCH means the deviation is below 2.00; even a higher score is historical evidence only, not a prediction or guarantee. No candidate is displayed as qualified when its deviation is not positive.</p>
   </section>
 
+  <section class="section card" id="all-market-command-centre">
+    <div class="radar-head"><div><h2 class="section-title">ALL-MARKET INTELLIGENCE COMMAND CENTRE</h2><p class="note">Side-by-side view of each market's strongest historical candidate by contract family. Grades describe evidence quality, not probability of winning.</p></div><span class="pill">13-MARKET SCAN</span></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+      <div class="box"><b>LEADING MARKET</b><div id="intelLeader" class="large">—</div><div id="intelLeaderType" class="note">Collecting evidence</div></div>
+      <div class="box"><b>MARKETS WITH 150+ TICKS</b><div id="intelReadyCount" class="large">0 / 13</div></div>
+      <div class="box"><b>ROTATION WATCH</b><div id="intelRotation" class="note">Waiting for enough evidence</div></div>
+    </div>
+    <div class="tablewrap"><table style="min-width:1050px"><thead><tr><th>MARKET</th><th>OVER / UNDER</th><th>ODD / EVEN</th><th>MATCH / DIFFERS</th><th>RISE / FALL</th><th>BEST EVIDENCE GRADE</th><th>MARKET STATUS</th></tr></thead><tbody id="allMarketIntelRows"><tr><td colspan="7">Waiting for independent market samples…</td></tr></tbody></table></div>
+    <p class="note">A/B/C grades summarize sample depth, historical deviation and feed freshness. WAIT means insufficient evidence or stale data. A higher grade does not establish a profitable edge; payout and actual demo results must also be checked.</p>
+  </section>
+
   <section class="section card" id="trade-quality-filter">
     <div class="radar-head"><div><h2 class="section-title">TRADE QUALITY FILTER — PRE-TRADE CHECK</h2><p class="note">Screens the strongest Over and Under candidate in each market. A pass means manual review only; no trade is labelled ready until a live Deriv proposal confirms payout and price.</p></div><span class="pill">NO AUTO-EXECUTION</span></div>
     <div class="tablewrap"><table style="min-width:850px"><thead><tr><th>Market</th><th>Contract</th><th>Evidence</th><th>Feed age</th><th>Signal freshness</th><th>Live payout / break-even check</th><th>Decision</th></tr></thead><tbody id="tradeQualityRows"><tr><td colspan="7">Collecting independent market evidence…</td></tr></tbody></table></div>
@@ -968,6 +979,51 @@ function renderMarketOUBoard(){
    return '<article class="box" style="min-width:0;border-top:3px solid #36c5bd"><div class="radar-head"><div><div style="font-size:18px;font-weight:800;letter-spacing:.2px">'+(marketNames[symbol]||symbol)+'</div></div><span class="pill">'+status+'</span></div><div class="note" style="margin:7px 0 9px">Analysis source: '+(marketNames[symbol]||symbol)+' • Independent sample: '+a.n+' ticks • Latest: '+(market.quote===null?"—":fmt(market.quote))+'</div><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:9px">'+table("OVER — 5 TO 8","OVER",[5,6,7,8])+table("UNDER — 5 TO 1","UNDER",[5,4,3,2,1])+'</div><div class="note" style="margin-top:8px">Rate is historical frequency; strength is absolute z-score versus the contract baseline, not probability of winning. Minimum 150 ticks per market. '+(ready?"Each contract is calculated from this market only.":"No strength rating until this market reaches 150 ticks.")+'</div></article>';
  }).join("");
 }
+let previousIntelLeader="";
+function renderAllMarketIntelligence(){
+ const host=$("allMarketIntelRows");if(!host)return;
+ const names={R_10:"Volatility 10",R_25:"Volatility 25",R_50:"Volatility 50",R_75:"Volatility 75",R_100:"Volatility 100","1HZ10V":"Volatility 10 (1s)","1HZ25V":"Volatility 25 (1s)","1HZ50V":"Volatility 50 (1s)","1HZ75V":"Volatility 75 (1s)","1HZ100V":"Volatility 100 (1s)","1HZ150V":"Volatility 150 (1s)","1HZ250V":"Volatility 250 (1s)","1HZ300V":"Volatility 300 (1s)"};
+ const ready=SYMBOLS.filter(sym=>(markets[sym].ticks||[]).length>=150).length;
+ $("intelReadyCount").textContent=ready+" / "+SYMBOLS.length;
+ const all=[];
+ const rows=SYMBOLS.map(sym=>{
+  const m=markets[sym],a=analyze(m),ds=digitsFor(m.ticks||[]),n=ds.length,age=m.updated?Math.floor((Date.now()-m.updated)/1000):null;
+  const top=(type)=>all.filter(x=>x.symbol===sym&&x.type===type).sort((x,y)=>y.z-x.z)[0];
+  const add=(type,label,count,base,total)=>{
+   if(total<150||!base||base>=1)return;
+   const rate=count/total,z=(rate-base)/Math.sqrt(base*(1-base)/total);
+   if(rate>base)all.push({symbol:sym,type,label,z,n:total,rate,base});
+  };
+  if(n>=150){
+   const ov=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.validN>=150&&x.deviation>0).sort((x,y)=>y.strength-x.strength)[0];
+   const un=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.validN>=150&&x.deviation>0).sort((x,y)=>y.strength-x.strength)[0];
+   if(ov)all.push({symbol:sym,type:"OVER",label:ov.label,z:ov.strength,n:ov.validN,rate:ov.observed,base:ov.expected});
+   if(un)all.push({symbol:sym,type:"UNDER",label:un.label,z:un.strength,n:un.validN,rate:un.observed,base:un.expected});
+   const even=ds.filter(d=>d%2===0).length;add("ODD","ODD",n-even,.5,n);add("EVEN","EVEN",even,.5,n);
+   for(let d=0;d<=9;d++){const c=ds.filter(v=>v===d).length;add("MATCH","MATCH "+d,c,.1,n);add("DIFFERS","DIFFERS "+d,n-c,.9,n);}
+   const changes=(m.ticks||[]).slice(1).map((v,i)=>v-(m.ticks||[])[i]).filter(v=>v!==0),up=changes.filter(v=>v>0).length;
+   if(changes.length>=150){add("RISE","RISE",up,.5,changes.length);add("FALL","FALL",changes.length-up,.5,changes.length);}
+  }
+  const family=(types)=>types.map(t=>top(t)).filter(Boolean).sort((x,y)=>y.z-x.z)[0];
+  const picks=[family(["OVER","UNDER"]),family(["ODD","EVEN"]),family(["MATCH","DIFFERS"]),family(["RISE","FALL"])];
+  const best=picks.filter(Boolean).sort((x,y)=>y.z-x.z)[0];
+  const fresh=m.available&&age!==null&&age<20;
+  let grade="WAIT";
+  if(best&&n>=150&&fresh)grade=best.z>=3&&n>=500?"A":best.z>=2&&n>=250?"B":"C";
+  const cell=x=>x?'<b>'+x.label+'</b><div class="note">'+(x.z.toFixed(2))+' z · '+x.n+' obs</div>':'<span class="note">WAIT · insufficient evidence</span>';
+  const marketStatus=!m.available?"UNAVAILABLE":age===null?"NO FEED":age>=20?"STALE FEED":n<150?"COLLECTING": "LIVE";
+  if(best&&grade!=="WAIT")all.push({...best,grade});
+  return '<tr><td><b>'+names[sym]+'</b><div class="note">'+sym+'</div></td><td>'+cell(picks[0])+'</td><td>'+cell(picks[1])+'</td><td>'+cell(picks[2])+'</td><td>'+cell(picks[3])+'</td><td><b>'+grade+'</b>'+(best?'<div class="note">'+best.type+' · '+best.z.toFixed(2)+' z</div>':'')+'</td><td>'+marketStatus+(age!==null?'<div class="note">'+age+'s since tick</div>':'')+'</td></tr>';
+ }).join("");
+ host.innerHTML=rows;
+ const leaders=all.filter(x=>x.grade&&x.grade!=="WAIT").sort((x,y)=>y.z-x.z);
+ const lead=leaders[0];
+ $("intelLeader").textContent=lead?names[lead.symbol]:"—";
+ $("intelLeaderType").textContent=lead?lead.type+" · "+lead.label+" · "+lead.z.toFixed(2)+" z":"No candidate has passed evidence and freshness checks";
+ const sig=lead?lead.symbol+"|"+lead.type+"|"+lead.label:"";
+ $("intelRotation").textContent=!previousIntelLeader?"Building baseline":sig&&sig!==previousIntelLeader?"LEADER CHANGED — review new candidate":sig?"Leader unchanged":"No qualified leader";
+ if(sig)previousIntelLeader=sig;
+}
 function render() {
  setupMarketAlerts();
  renderMarketOURanking();
@@ -976,6 +1032,7 @@ function render() {
  renderMarketFeedHealth();
  renderTradeQualityFilter();
  renderMarketOUBoard();
+ renderAllMarketIntelligence();
  const available = SYMBOLS.filter(s=>markets[s].available).length;
  const loaded = SYMBOLS.filter(s=>markets[s].ticks.length>=50).length;
  $("scanned").textContent = `${loaded} / ${available}`;
