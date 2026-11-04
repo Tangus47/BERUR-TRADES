@@ -221,7 +221,7 @@ a{font-weight:700}
   <div class="brand">BERUR <span>TRADES</span></div>
   <div class="sub">DERIV MARKET INTELLIGENCE • LIVE ANALYSIS • MANUAL EXECUTION</div>
 </header>
-<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="digits">Digit Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="quality">Quality</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button></nav>
+<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="digits">Digit Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="quality">Quality</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="forex">Forex &amp; CFDs</button></nav>
 
 <main class="wrap">
   <div class="topline">
@@ -457,6 +457,21 @@ a{font-weight:700}
     <div id="marketOUCards" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px"><div class="box">Waiting for market data…</div></div>
   </section>
 
+  <section class="section card" id="forex-cfd-centre" hidden>
+    <div class="radar-head"><div><h2 class="section-title">FOREX & CFD INTELLIGENCE CENTRE</h2><p class="note">Live Deriv instruments discovered from the active-symbol feed. Tick-derived technical analysis; signal strength is an evidence score, not a win probability.</p></div><span class="pill">MANUAL REVIEW ONLY</span></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+      <div class="box"><b>DISCOVERED INSTRUMENTS</b><div class="large" id="cfdDiscovered">0</div></div>
+      <div class="box"><b>QUALIFIED SETUPS</b><div class="large" id="cfdQualified">0</div></div>
+      <div class="box"><b>LEADING SIGNAL</b><div class="large" id="cfdLeader">—</div><div class="note" id="cfdLeaderInfo">Waiting for live feed</div></div>
+    </div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0">
+      <label class="box">Account balance <input id="cfdBalance" type="number" min="0" step="any" placeholder="Enter balance" style="width:100%;margin-top:7px"></label>
+      <label class="box">Risk per trade (%) <input id="cfdRiskPct" type="number" min="0.1" max="5" step="0.1" value="1" style="width:100%;margin-top:7px"></label>
+      <label class="box">Instrument filter <select id="cfdCategoryFilter" style="width:100%;margin-top:7px"><option value="ALL">All discovered CFDs</option><option value="METALS">Metals (Gold / Silver)</option><option value="FOREX">Forex pairs</option><option value="INDICES">Stock indices</option><option value="COMMODITIES">Other commodities</option><option value="CRYPTO">Crypto CFDs</option></select></label>
+    </div>
+    <div class="tablewrap"><table style="min-width:1250px"><thead><tr><th>INSTRUMENT</th><th>STRENGTH</th><th>SIGNAL</th><th>LIVE ENTRY</th><th>POTENTIAL STOP LOSS</th><th>POTENTIAL TAKE PROFIT</th><th>R:R</th><th>VALIDITY</th><th>VALUE / 1.00 MOVE / LOT</th><th>SUGGESTED LOT</th></tr></thead><tbody id="cfdSignalRows"><tr><td colspan="10">Connect to Deriv and discover available Forex / CFD instruments.</td></tr></tbody></table></div>
+    <p class="note" id="cfdCentreNote">Lot size requires your account balance and the verified monetary value of a 1.00 price move per 1.00 lot for each instrument. Do not guess contract specifications. Stops and targets are technical estimates, not guaranteed fill prices. This panel does not place trades.</p>
+  </section>
   <footer>
     BERUR TRADES • Independent analysis tool.<br>
     Market data is supplied by Deriv's public market-data WebSocket. Technical indicators use historical observations and cannot predict future prices. Digital options and synthetic indices involve substantial risk. Never trade solely from an indicator.
@@ -476,6 +491,11 @@ const MARKET_NAMES={R_10:"Volatility 10",R_25:"Volatility 25",R_50:"Volatility 5
 const marketName=symbol=>MARKET_NAMES[symbol]||symbol;
 window.BERUR_MARKET_NAME=marketName;
 const WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
+const cfdMarkets = {};
+const cfdRiskInputs = {};
+let cfdAccountBalance = null;
+let cfdRiskPercent = 1;
+let cfdCategoryFilter = "ALL";
 const markets = {};
 SYMBOLS.forEach(s => markets[s] = {
  symbol:s, prices:[], ticks:[], tickPoints:[], quote:null, updated:null,
@@ -671,7 +691,7 @@ function connect() {
    try { data = JSON.parse(event.data); } catch(e) { return; }
    if (data.error) {
      const info = requestMap[data.req_id];
-     if (info && markets[info.symbol]) markets[info.symbol].error = data.error.message || "Request error";
+     if (info && markets[info.symbol]) markets[info.symbol].error = data.error.message || "Request error";\n     if (info && cfdMarkets[info.symbol]) cfdMarkets[info.symbol].error = data.error.message || "Request error";\n     renderCfdCentre();
      render();
      return;
    }
@@ -690,28 +710,49 @@ function connect() {
          m.error = "Not listed as active";
        }
      });
+     const discoveredCfd = active.map(classifyCfdInstrument).filter(Boolean)
+       .sort((a,b)=>cfdPriority(a.category)-cfdPriority(b.category))
+       .slice(0,36);
+     discoveredCfd.forEach((item,index)=>{
+       if(!cfdMarkets[item.symbol]) cfdMarkets[item.symbol]={...item,ticks:[],quote:null,updated:null,loading:true,error:"",signalState:null};
+       setTimeout(()=>loadCfdMarket(item.symbol),index*90);
+     });
+     renderCfdCentre();
      setStatus(`Connected — ${found} of ${SYMBOLS.length} markets available`,found ? "green":"red");
      render();
    }
    const info = requestMap[data.req_id];
    if (data.msg_type === "history" && info) {
-     const m = markets[info.symbol];
      const prices = data.history && data.history.prices ? data.history.prices : [];
      const times = data.history && data.history.times ? data.history.times : [];
-     m.prices = prices.map(Number).filter(Number.isFinite).slice(-250);
-     m.ticks = m.prices.slice();
-     m.tickPoints = m.prices.map((price,i)=>({price,time:Number(times[i])>0?Number(times[i])*1000:Date.now()-((m.prices.length-i)*1000)})).slice(-250);
-     m.loading = false;
-     m.updated = Date.now();
-     render();
+     if(info.type==="cfd-history" && cfdMarkets[info.symbol]){
+       const m=cfdMarkets[info.symbol];
+       m.ticks=prices.map(Number).filter(Number.isFinite).slice(-250);
+       m.tickTimes=times.map(Number).slice(-250);
+       m.loading=false;m.updated=Date.now();renderCfdCentre();
+     }else{
+       const m = markets[info.symbol];
+       if(m){
+         m.prices = prices.map(Number).filter(Number.isFinite).slice(-250);
+         m.ticks = m.prices.slice();
+         m.tickPoints = m.prices.map((price,i)=>({price,time:Number(times[i])>0?Number(times[i])*1000:Date.now()-((m.prices.length-i)*1000)})).slice(-250);
+         m.loading = false;m.updated = Date.now();render();
+       }
+     }
      delete requestMap[data.req_id];
    }
    if (data.msg_type === "tick" && data.tick) {
      const symbol = data.tick.symbol;
-     const m = markets[symbol];
-     if (!m) return;
      const q = Number(data.tick.quote);
      if (!Number.isFinite(q)) return;
+     const fx=cfdMarkets[symbol];
+     if(fx){
+       fx.quote=q;fx.updated=Date.now();
+       if(!fx.ticks.length||fx.ticks[fx.ticks.length-1]!==q){fx.ticks.push(q);if(fx.ticks.length>250)fx.ticks.shift();}
+       renderCfdCentre();return;
+     }
+     const m = markets[symbol];
+     if (!m) return;
      m.quote = q;
      m.updated = Date.now();
      if (!m.ticks.length || m.ticks[m.ticks.length-1] !== q) {
@@ -736,6 +777,110 @@ function connect() {
      $("stopBtn").disabled = true;
    }
  };
+}
+function classifyCfdInstrument(item){
+ const symbol=String(item.symbol||"");
+ if(!symbol||SYMBOLS.includes(symbol)||symbol.startsWith("R_")||symbol.startsWith("1HZ"))return null;
+ const labels=[item.market,item.market_display_name,item.submarket,item.submarket_display_name,item.display_name,item.symbol].join(" ").toLowerCase();
+ if(labels.includes("derived")||labels.includes("synthetic"))return null;
+ let category=null;
+ if(/xau|xag|gold|silver|metal/.test(labels))category="METALS";
+ else if(symbol.startsWith("frx")||labels.includes("forex")||labels.includes("currency"))category="FOREX";
+ else if(labels.includes("stock index")||labels.includes("indices")||labels.includes("index"))category="INDICES";
+ else if(labels.includes("commodity")||labels.includes("oil")||labels.includes("energy"))category="COMMODITIES";
+ else if(labels.includes("crypto"))category="CRYPTO";
+ if(!category)return null;
+ return {symbol,name:item.display_name||item.symbol,category};
+}
+function cfdPriority(category){return ({METALS:0,FOREX:1,INDICES:2,COMMODITIES:3,CRYPTO:4})[category]??9;}
+function loadCfdMarket(symbol){
+ if(!cfdMarkets[symbol]||!socket||socket.readyState!==WebSocket.OPEN)return;
+ request({ticks_history:symbol,count:200,end:"latest",style:"ticks"},"cfd-history",symbol);
+ request({ticks:symbol,subscribe:1},"cfd-tick",symbol);
+}
+function cfdEscape(value){return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
+function cfdAnalyze(m){
+ const p=m.ticks||[],n=p.length,entry=Number(m.quote??p[p.length-1]);
+ if(n<120||!Number.isFinite(entry))return {signal:"WAIT",strength:0,reason:"Collecting at least 120 live observations",entry};
+ const fast=ema(p.slice(-80),9),slow=ema(p.slice(-150),21),recent=p.slice(-31);
+ const changes=recent.slice(1).map((v,i)=>v-recent[i]).filter(Number.isFinite);
+ const vol=changes.length?changes.reduce((sum,v)=>sum+Math.abs(v),0)/changes.length:0;
+ if(!vol)return {signal:"WAIT",strength:0,reason:"Insufficient price movement",entry};
+ const up=changes.filter(v=>v>0).length,down=changes.filter(v=>v<0).length,moving=up+down;
+ const momentum=(recent[recent.length-1]-recent[0])/(vol*Math.max(1,changes.length));
+ const trend=fast>slow?"BUY":fast<slow?"SELL":"WAIT";
+ const aligned=trend==="BUY"?up:trend==="SELL"?down:0;
+ const consistency=moving?aligned/moving:0;
+ const gap=Math.min(1,Math.abs(fast-slow)/(vol*12));
+ const mom=Math.min(1,Math.abs(momentum)/1.8);
+ const rsiChanges=changes.slice(-14),gains=rsiChanges.filter(x=>x>0).reduce((a,b)=>a+b,0),losses=Math.abs(rsiChanges.filter(x=>x<0).reduce((a,b)=>a+b,0));
+ const rsi=losses===0?100:100-(100/(1+gains/losses));
+ const rsiAligned=trend==="BUY"?(rsi>=50&&rsi<=75):(trend==="SELL"?(rsi>=25&&rsi<=50):false);
+ const strength=Math.max(0,Math.min(95,Math.round(25+gap*25+mom*20+consistency*20+(rsiAligned?10:0))));
+ const directionOk=(trend==="BUY"&&momentum>0&&rsi>=50&&rsi<=75)||(trend==="SELL"&&momentum<0&&rsi>=25&&rsi<=50);
+ const feedAge=m.updated?Date.now()-m.updated:Infinity;
+ const signal=feedAge>90000||!directionOk||strength<72?"WAIT":trend;
+ const tail=p.slice(-40),swingLow=Math.min(...tail),swingHigh=Math.max(...tail);
+ let stop=null,target=null,rr=2;
+ if(signal==="BUY"){stop=Math.min(swingLow,entry-vol*2);const dist=entry-stop;target=entry+dist*rr;}
+ if(signal==="SELL"){stop=Math.max(swingHigh,entry+vol*2);const dist=stop-entry;target=entry-dist*rr;}
+ const reason=feedAge>90000?"Feed stale":signal==="WAIT"?"Trend, momentum and RSI are not sufficiently aligned":"EMA trend + momentum + RSI alignment; "+n+" observations";
+ return {signal,strength,reason,entry,stop,target,rr,vol,rsi,n,feedAge};
+}
+function cfdSignalState(m,a){
+ if(a.signal==="WAIT"){m.signalState={signal:"WAIT",expiresAt:0,generatedAt:0};return m.signalState;}
+ if(!m.signalState||m.signalState.signal!==a.signal){
+   const now=Date.now(),duration=a.strength>=88?120000:(a.strength>=80?90000:60000);
+   m.signalState={signal:a.signal,generatedAt:now,expiresAt:now+duration};
+ }
+ return m.signalState;
+}
+function cfdLotEstimate(m,a){
+ const cfg=cfdRiskInputs[m.symbol]||{},value=Number(cfg.valuePerMove);
+ if(!(cfdAccountBalance>0)||!(value>0)||!a.stop||!a.entry)return null;
+ const stopDistance=Math.abs(a.entry-a.stop),riskCash=cfdAccountBalance*cfdRiskPercent/100;
+ if(!(stopDistance>0))return null;
+ return Math.floor((riskCash/(stopDistance*value))*100)/100;
+}
+function renderCfdCentre(){
+ const body=$("cfdSignalRows");if(!body)return;
+ const list=Object.values(cfdMarkets).filter(m=>cfdCategoryFilter==="ALL"||m.category===cfdCategoryFilter);
+ const analysed=list.map(m=>({m,a:cfdAnalyze(m)}));
+ const qualified=analysed.filter(x=>x.a.signal!=="WAIT").sort((x,y)=>y.a.strength-x.a.strength);
+ $("cfdDiscovered").textContent=Object.keys(cfdMarkets).length;
+ $("cfdQualified").textContent=qualified.length;
+ $("cfdLeader").textContent=qualified[0]?qualified[0].m.name:"—";
+ $("cfdLeaderInfo").textContent=qualified[0]?qualified[0].a.signal+" · "+qualified[0].a.strength+"/100":"No qualified live setup";
+ if(!analysed.length){body.innerHTML='<tr><td colspan="10">No Forex / CFD instruments discovered from this Deriv feed yet. Confirm the account API exposes CFD symbols.</td></tr>';return;}
+ body.innerHTML=analysed.sort((x,y)=>y.a.strength-x.a.strength).map(({m,a})=>{
+   const state=cfdSignalState(m,a),key=m.symbol.replace(/[^a-z0-9]/gi,""),expired=state.expiresAt&&Date.now()>=state.expiresAt;
+   const signal=expired?"EXPIRED":a.signal,cls=signal==="BUY"?"good":signal==="SELL"?"bad":"warn";
+   const cfg=cfdRiskInputs[m.symbol]||{},lot=cfdLotEstimate(m,a),dist=a.stop&&a.entry?Math.abs(a.entry-a.stop):0;
+   return '<tr><td><b>'+cfdEscape(m.name)+'</b><div class="note">'+cfdEscape(m.category)+' · '+cfdEscape(m.symbol)+'</div></td>'+
+    '<td><b>'+a.strength+'/100</b><div class="note">'+cfdEscape(a.reason)+'</div></td>'+
+    '<td><span class="pill '+cls+'">'+signal+'</span></td>'+
+    '<td>'+ (Number.isFinite(a.entry)?a.entry.toFixed(5):"—")+'</td>'+
+    '<td>'+(a.stop?a.stop.toFixed(5):"—")+'</td><td>'+(a.target?a.target.toFixed(5):"—")+'</td>'+
+    '<td>'+(dist?"1 : "+a.rr.toFixed(1):"—")+'</td>'+
+    '<td><span id="cfd-valid-'+key+'">'+(expired?"00:00":state.expiresAt?Math.max(0,Math.ceil((state.expiresAt-Date.now())/1000))+"s":"—")+'</span></td>'+
+    '<td><input aria-label="Value per 1 price move per lot for '+cfdEscape(m.name)+'" data-cfd-value="'+cfdEscape(m.symbol)+'" type="number" min="0" step="any" placeholder="Verified value" value="'+(cfg.valuePerMove||"")+'" style="width:125px"></td>'+
+    '<td><b id="cfd-lot-'+key+'">'+(lot!==null&&Number.isFinite(lot)?lot.toFixed(2)+" lots":"—")+'</b></td></tr>';
+ }).join("");
+}
+function updateCfdSignalClocks(){
+ Object.values(cfdMarkets).forEach(m=>{
+   const state=m.signalState;if(!state||!state.expiresAt)return;
+   const key=m.symbol.replace(/[^a-z0-9]/gi,""),node=$("cfd-valid-"+key);
+   if(node)node.textContent=Date.now()>=state.expiresAt?"EXPIRED":Math.ceil((state.expiresAt-Date.now())/1000)+"s";
+ });
+}
+function updateCfdLotLabels(){
+ Object.values(cfdMarkets).forEach(m=>{
+   const key=m.symbol.replace(/[^a-z0-9]/gi,""),node=$("cfd-lot-"+key);
+   if(!node)return;
+   const a=cfdAnalyze(m),lot=cfdLotEstimate(m,a);
+   node.textContent=lot!==null&&Number.isFinite(lot)?lot.toFixed(2)+" lots":"—";
+ });
 }
 function loadMarket(symbol) {
  request({
@@ -1191,6 +1336,7 @@ function renderAllMarketIntelligence(){
  if(sig)previousIntelLeader=sig;
 }
 function render() {
+ renderCfdCentre();
  setupMarketAlerts();
  renderMarketOURanking();
  renderBestContractMarkets();
@@ -1350,7 +1496,7 @@ function setupAppTabs(){
  if(Object.values(anchors).some(x=>!x))return;
  const children=Array.from(content.children),idx=Object.fromEntries(Object.entries(anchors).map(([k,v])=>[k,children.indexOf(v)]));
  const ranges={home:[idx.home,idx.markets],markets:[idx.markets,idx.analysis],analysis:[idx.analysis,idx.execution],execution:[idx.execution,idx.radar],radar:[idx.radar,children.length]};
- const extra={digits:["market-ou-ranking","market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"]};
+ const extra={digits:["market-ou-ranking","market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"]};
  const extraNodes=Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean);
  const allContent=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
  function activate(name){
@@ -1364,14 +1510,24 @@ function setupAppTabs(){
   extraNodes.forEach(node=>{node.hidden=!external.includes(node.id);});
   nav.querySelectorAll("[data-tab]").forEach(btn=>{const active=btn.dataset.tab===name;btn.classList.toggle("active",active);btn.setAttribute("aria-selected",active?"true":"false");});
   try{sessionStorage.setItem("berur-active-tab",name);}catch{}
-  if(name==="markets"&&typeof render==="function")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));
+  if(name==="markets"&&typeof render==="function")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));\n  if(name==="forex")renderCfdCentre();
  }
  nav.addEventListener("click",e=>{const btn=e.target.closest("[data-tab]");if(btn)activate(btn.dataset.tab);});
  let initial="home";try{const saved=sessionStorage.getItem("berur-active-tab");if(saved&&[...Object.keys(ranges),...Object.keys(extra)].includes(saved))initial=saved;}catch{}
  activate(initial);
 }
 setupAppTabs();
+const cfdPanel=$("forex-cfd-centre");
+if(cfdPanel){
+ cfdPanel.addEventListener("input",e=>{
+  if(e.target.id==="cfdBalance"){const v=Number(e.target.value);cfdAccountBalance=v>0?v:null;updateCfdLotLabels();}
+  if(e.target.id==="cfdRiskPct"){const v=Number(e.target.value);cfdRiskPercent=Math.max(.1,Math.min(5,v||1));updateCfdLotLabels();}
+  if(e.target.dataset.cfdValue){const symbol=e.target.dataset.cfdValue;cfdRiskInputs[symbol]={valuePerMove:e.target.value};updateCfdLotLabels();}
+ });
+ cfdPanel.addEventListener("change",e=>{if(e.target.id==="cfdCategoryFilter"){cfdCategoryFilter=e.target.value;renderCfdCentre();}});
+}
 render();
+setInterval(updateCfdSignalClocks,1000);
 $("botSessionStart").addEventListener("click",startBotSessionTimer);
 $("botSessionReset").addEventListener("click",resetBotSessionTimer);
 renderBotSessionClock();
