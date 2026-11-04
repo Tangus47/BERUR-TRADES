@@ -158,7 +158,7 @@ export default {
       if (origin !== ALLOWED_ORIGIN) {
         return json({ error: "Origin not allowed" }, 403);
       }
-      const sessionId = (request.headers.get("Authorization") || "").replace(/^Bearer\\s+/i, "");
+      const sessionId = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
       if (!/^[a-f0-9]{64}$/.test(sessionId)) {
         return json({ error: "Session expired. Connect Deriv again." }, 401, corsHeaders(origin));
       }
@@ -171,7 +171,7 @@ export default {
       if (url.pathname === "/api/accounts" && method === "GET") {
         upstreamUrl = "https://api.derivws.com/trading/v1/options/accounts";
       } else {
-        const match = url.pathname.match(/^\\/api\\/accounts\\/([A-Za-z0-9_-]+)\\/otp$/);
+        const match = url.pathname.match(/^\/api\/accounts\/([A-Za-z0-9_-]+)\/otp$/);
         if (!match || method !== "POST") return json({ error: "Not found" }, 404, corsHeaders(origin));
         upstreamUrl = "https://api.derivws.com/trading/v1/options/accounts/" + encodeURIComponent(match[1]) + "/otp";
       }
