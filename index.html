@@ -111,6 +111,13 @@ footer{padding:20px 4px;color:var(--muted);font-size:10px;line-height:1.6}
       <div class="small">SUGGESTED DURATION</div>
       <div class="metric" id="duration">—</div>
       <div class="small">Suggested duration is a research parameter, not a guarantee.</div>
+      <hr style="border:0;border-top:1px solid var(--line);margin:15px 0">
+      <div class="small">SIGNAL VALIDITY — DEVICE LOCAL TIME</div>
+      <div class="metric" id="signalCountdown">—</div>
+      <div class="small" id="signalGeneratedAt">Generated: —</div>
+      <div class="small" id="signalExpiresAt">Valid until: —</div>
+      <div class="small" id="signalTimezone">Timezone: detecting…</div>
+      <div style="margin-top:9px"><span class="pill warn" id="signalValidityStatus">NO ACTIVE SIGNAL</span></div>
     </section>
 
     <section class="card">
@@ -215,6 +222,60 @@ let reconnectTimer = null;
 let heartbeatTimer = null;
 let learningTarget = 150;
 let autoSelectBest = true;
+let activeSignal = null;
+const localTimeFormatter = new Intl.DateTimeFormat(undefined,{
+  year:"numeric",month:"2-digit",day:"2-digit",
+  hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false
+});
+const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Device local time";
+function formatLocalTime(ms) {
+  return localTimeFormatter.format(new Date(ms)) + " (" + localZone + ")";
+}
+function signalDurationMs(signal, score, sample) {
+  // Signal freshness is independent of the purchased contract duration.
+  const base = signal === "RISE" || signal === "FALL" ? 60000 : 30000;
+  const strengthAdjustment = score >= 85 ? 15000 : score < 75 ? -10000 : 0;
+  const sampleAdjustment = sample >= 200 ? 5000 : 0;
+  return Math.max(20000, Math.min(90000, base + strengthAdjustment + sampleAdjustment));
+}
+function updateSignalClock() {
+  if (!activeSignal) return;
+  const remaining = activeSignal.expiresAt - Date.now();
+  if (remaining <= 0) {
+    activeSignal.expired = true;
+    $("signalCountdown").textContent = "00:00";
+    $("signalValidityStatus").textContent = "EXPIRED — DO NOT TRADE";
+    $("signalValidityStatus").className = "pill bad";
+    $("executionHandoffStatus").textContent = "Signal expired. Wait for a fresh Radar signal before requesting a quote.";
+    return;
+  }
+  const seconds = Math.ceil(remaining / 1000);
+  $("signalCountdown").textContent = String(Math.floor(seconds / 60)).padStart(2,"0") + ":" + String(seconds % 60).padStart(2,"0");
+  const urgent = remaining <= 10000;
+  $("signalValidityStatus").textContent = urgent ? "EXPIRING SOON" : "ACTIVE — FRESH SIGNAL";
+  $("signalValidityStatus").className = "pill " + (urgent ? "warn" : "good");
+}
+function refreshSignalValidity(signal, score, sample) {
+  const signature = selected + "|" + signal;
+  if (!signal || signal === "WAIT") {
+    activeSignal = null;
+    $("signalCountdown").textContent = "—";
+    $("signalGeneratedAt").textContent = "Generated: —";
+    $("signalExpiresAt").textContent = "Valid until: —";
+    $("signalTimezone").textContent = "Timezone: " + localZone;
+    $("signalValidityStatus").textContent = "NO ACTIVE SIGNAL";
+    $("signalValidityStatus").className = "pill warn";
+    return;
+  }
+  if (!activeSignal || activeSignal.signature !== signature || activeSignal.expired) {
+    const generatedAt = Date.now();
+    activeSignal = {signature,signal,generatedAt,expiresAt:generatedAt + signalDurationMs(signal,score,sample),expired:false};
+  }
+  $("signalGeneratedAt").textContent = "Generated: " + formatLocalTime(activeSignal.generatedAt);
+  $("signalExpiresAt").textContent = "Valid until: " + formatLocalTime(activeSignal.expiresAt);
+  $("signalTimezone").textContent = "Timezone: " + localZone;
+  updateSignalClock();
+}
 
 const $ = id => document.getElementById(id);
 const fmt = n => Number.isFinite(n) ? n.toFixed(5).replace(/0+$/,"").replace(/\.$/,"") : "—";
@@ -511,6 +572,8 @@ function render() {
  }).join("") || '<tr><td colspan="6">No markets discovered yet.</td></tr>';
  document.querySelectorAll("tr[data-symbol]").forEach(row=>row.addEventListener("click",()=>{selected=row.dataset.symbol;render();}));
  const a=analyze(m);
+ const activeRecommendation = a.digitSignal !== "WAIT" ? a.digitSignal : a.directionSignal;
+ refreshSignalValidity(activeRecommendation, a.directionScore, a.n);
  $("direction").textContent=a.directionSignal;
  $("direction").className="signal "+(a.directionSignal==="RISE"?"green":a.directionSignal==="FALL"?"red":"gold");
  $("directionReason").textContent=a.directionSignal==="WAIT"?"No directional setup meets the evidence rules.":`EMA trend ${a.trend}; recent directional balance ${Math.round(Math.max(a.up,a.down)/Math.max(1,a.up+a.down)*100)}%.`;
@@ -551,7 +614,7 @@ $("learningTarget").addEventListener("change",event => {
 });
 $("connectBtn").addEventListener("click",connect);
 $("stopBtn").addEventListener("click",stop);
-$("sendAnalysisBtn").addEventListener("click",()=>{const m=markets[selected],a=analyze(m);let contract="";if(a.digitSignal==="OVER 5")contract="DIGITOVER";else if(a.digitSignal==="UNDER 5")contract="DIGITUNDER";else if(a.digitSignal==="EVEN")contract="DIGITEVEN";else if(a.digitSignal==="ODD")contract="DIGITODD";else if(a.directionSignal==="RISE")contract="CALL";else if(a.directionSignal==="FALL")contract="PUT";if(!a.tradeAllowed||!contract){$("executionHandoffStatus").textContent="NO TRADE: analysis has not produced a supported contract signal.";return;}const detail={symbol:selected,contract,duration:a.directionSignal!=="WAIT"?(a.directionScore>=80?3:a.directionScore>=70?5:10):1,evidenceScore:a.directionScore,sample:a.n,reason:a.digitSignal!=="WAIT"?a.digitReason:"Directional trend "+a.trend+" confirmed by recent tick balance.",signal:a.digitSignal!=="WAIT"?a.digitSignal:a.directionSignal};window.dispatchEvent(new CustomEvent("berur:analysis-ready",{detail}));$("executionHandoffStatus").textContent="Sent "+detail.signal+" on "+selected+" to execution desk. Review the quote and approve manually.";});
+$("sendAnalysisBtn").addEventListener("click",()=>{const m=markets[selected],a=analyze(m);if(!activeSignal||activeSignal.expired||Date.now()>=activeSignal.expiresAt){$("executionHandoffStatus").textContent="NO TRADE: signal is missing or expired. Wait for a fresh Radar signal.";return;}let contract="";if(a.digitSignal==="OVER 5")contract="DIGITOVER";else if(a.digitSignal==="UNDER 5")contract="DIGITUNDER";else if(a.digitSignal==="EVEN")contract="DIGITEVEN";else if(a.digitSignal==="ODD")contract="DIGITODD";else if(a.directionSignal==="RISE")contract="CALL";else if(a.directionSignal==="FALL")contract="PUT";if(!a.tradeAllowed||!contract){$("executionHandoffStatus").textContent="NO TRADE: analysis has not produced a supported contract signal.";return;}const detail={symbol:selected,contract,duration:a.directionSignal!=="WAIT"?(a.directionScore>=80?3:a.directionScore>=70?5:10):1,evidenceScore:a.directionScore,sample:a.n,reason:a.digitSignal!=="WAIT"?a.digitReason:"Directional trend "+a.trend+" confirmed by recent tick balance.",signal:a.digitSignal!=="WAIT"?a.digitSignal:a.directionSignal};window.dispatchEvent(new CustomEvent("berur:analysis-ready",{detail}));$("executionHandoffStatus").textContent="Sent "+detail.signal+" on "+selected+" to execution desk. Review the quote and approve manually.";});
 $("botBtn").addEventListener("click",()=>window.open("https://bot.deriv.com/","_blank","noopener"));
 $("copyBtn").addEventListener("click",()=>{
  const m=markets[selected],a=analyze(m);
@@ -561,6 +624,7 @@ $("copyBtn").addEventListener("click",()=>{
  } else $("copyStatus").textContent="Clipboard unavailable in this browser.";
 });
 render();
+setInterval(updateSignalClock,250);
 })();
 </script>
 <script src="./deriv-trader.js"></script>
