@@ -223,7 +223,7 @@ a{font-weight:700}
   <div class="brand">BERUR <span>TRADES</span></div>
   <div class="sub">DERIV MARKET INTELLIGENCE • LIVE ANALYSIS • MANUAL EXECUTION</div>
 </header>
-<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="digits">Digit Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="quality">Quality</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="forex">Forex &amp; CFDs</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="boomcrash">Boom &amp; Crash</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="news">Economic News</button></nav>
+<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="digits">Digit Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="ou">OVER / UNDER</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="quality">Quality</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="forex">Forex &amp; CFDs</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="boomcrash">Boom &amp; Crash</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="news">Economic News</button></nav>
 
 <main class="wrap">
   <div class="topline">
@@ -456,7 +456,7 @@ a{font-weight:700}
 
   <section class="section card" id="market-ou-board">
     <div class="radar-head"><div><h2 class="section-title">INDIVIDUAL MARKET — DIGIT OVER / UNDER BOARD</h2><p class="note">Each synthetic market is analysed independently using only its own received tick history. No cross-market pooling.</p></div><span class="pill">PER-MARKET ANALYSIS</span></div>
-    <div class="note" style="margin:10px 0 14px">Each market shows Over 5, 6, 7, 8 separately from Under 5, 4, 3, 2, 1, with observed rate and strength for every contract. Historical frequency is descriptive, not a forecast or guaranteed win probability. Minimum evidence sample: 150 ticks per market.</div>
+    <div class="note" style="margin:10px 0 14px">Every volatility market is shown separately. All Over 5–8 and Under 5–1 thresholds are displayed with observed hit rate, theoretical baseline, z-score strength and sample count. No contract is hidden just because its observed rate is below 40%. Historical frequency is descriptive, not a forecast or guaranteed win probability.</div>
     <div id="marketOUCards" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px"><div class="box">Waiting for market data…</div></div>
   </section>
 
@@ -1439,23 +1439,29 @@ function renderBestContractMarkets(){
 }
 function renderMarketOUBoard(){
  const host=$("marketOUCards");if(!host)return;
- const marketNames={R_10:"Volatility 10",R_25:"Volatility 25",R_50:"Volatility 50",R_75:"Volatility 75",R_100:"Volatility 100","1HZ10V":"Volatility 10 (1s)","1HZ25V":"Volatility 25 (1s)","1HZ50V":"Volatility 50 (1s)","1HZ75V":"Volatility 75 (1s)","1HZ100V":"Volatility 100 (1s)","1HZ150V":"Volatility 150 (1s)","1HZ250V":"Volatility 250 (1s)","1HZ300V":"Volatility 300 (1s)"};
+ const overBarriers=[5,6,7,8],underBarriers=[5,4,3,2,1];
+ const strengthText=x=>{
+   if(!x)return "WAIT";
+   if(x.deviation>0&&x.strength>=2)return "POSITIVE EDGE";
+   if(x.deviation>0&&x.strength>=1)return "WATCHING";
+   if(x.deviation<0&&x.strength>=2)return "BELOW BASELINE";
+   return "NEUTRAL";
+ };
+ const strengthClass=x=>!x?"":x.deviation>0&&x.strength>=2?"green":x.deviation<0&&x.strength>=2?"red":"gold";
+ const contractRows=(a,side,barriers)=>{
+   return barriers.map(barrier=>{
+     const x=(a.ouCandidates||[]).find(v=>v.side===side&&v.barrier===barrier);
+     if(!x)return '<tr><td><b>'+side+' '+barrier+'</b></td><td>—</td><td>—</td><td>WAIT</td><td>'+a.n+'</td></tr>';
+     const strength=x.strength.toFixed(2)+' z';
+     return '<tr><td><b>'+side+' '+barrier+'</b></td><td>'+pct(x.observed*100)+'</td><td>'+pct(x.expected*100)+'</td><td class="'+strengthClass(x)+'">'+strength+'<div class="small">'+strengthText(x)+'</div></td><td>'+x.validN+'</td></tr>';
+   }).join("");
+ };
  host.innerHTML=SYMBOLS.map(symbol=>{
-   const market=markets[symbol],a=analyze(market),ready=a.n>=500;
-   const get=(side,barrier)=>(a.ouCandidates||[]).find(x=>x.side===side&&x.barrier===barrier);
-   const strengthLabel=x=>!x?"—":x.strength>=2?"ELEVATED":x.strength>=1?"WATCH":"LOW";
-   const contractRows=(side,barriers)=>{
-     if(!ready)return '<tr><td colspan="4">Collecting '+a.n+'/500 observations</td></tr>';
-     const visible=barriers.map(barrier=>get(side,barrier)).filter(x=>x&&!x.impossible&&x.observed>0.40);
-     if(!visible.length)return '<tr><td colspan="4">No contract currently above 40% observed hit rate</td></tr>';
-     return visible.map(x=>{
-       const color=x.strength>=2?"#ffd071":x.strength>=1?"#91c7ff":"#91a4bd";
-       return '<tr><td><b>'+x.label+'</b></td><td>'+pct(x.observed*100)+'</td><td>'+x.strength.toFixed(2)+'</td><td style="color:'+color+'">'+(x.strength>=2?"ELEVATED":strengthLabel(x))+'</td></tr>';
-     }).join("");
-   };
-   const status=!market.available?(market.error||"Waiting for connection"):ready?"ANALYSIS READY":"COLLECTING "+a.n+"/500";
-   const table=(heading,side,barriers)=>'<div class="box" style="padding:9px;min-width:0"><b style="display:block;margin-bottom:6px">'+heading+'</b><div class="tablewrap"><table style="width:100%;min-width:0;table-layout:fixed"><thead><tr><th>Contract</th><th>Rate</th><th>Strength</th><th>Level</th></tr></thead><tbody>'+contractRows(side,barriers)+'</tbody></table></div></div>';
-   return '<article class="box" style="min-width:0;border-top:3px solid #36c5bd"><div class="radar-head"><div><div style="font-size:18px;font-weight:800;letter-spacing:.2px">'+(marketNames[symbol]||symbol)+'</div></div><span class="pill">'+status+'</span></div><div class="note" style="margin:7px 0 9px">Analysis source: '+(marketNames[symbol]||symbol)+' • Independent sample: '+a.n+' ticks • Latest: '+(market.quote===null?"—":fmt(market.quote))+'</div><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:9px">'+table("OVER — 3 TO 4","OVER",[3,4])+table("UNDER — 5 TO 7","UNDER",[5,6,7])+'</div><div class="note" style="margin-top:8px">Rate is historical frequency, not a guaranteed future win rate. This shortlist displays observed rates above 40% after 500 ticks; a best-market pick additionally needs at least 2.00 z positive deviation versus the theoretical contract baseline. '+(ready?"Each contract is calculated from this market only.":"No shortlist until this market reaches 500 ticks.")+'</div></article>';
+   const market=markets[symbol],a=analyze(market),ready=a.n>=150;
+   const age=market.updated?Math.max(0,Math.floor((Date.now()-market.updated)/1000)):null;
+   const status=!market.available?(market.error||"NOT CONNECTED"):!ready?"COLLECTING "+a.n+"/150":age!==null&&age>=20?"STALE DATA":"LIVE ANALYSIS";
+   const table=(title,side,barriers)=>'<div class="box" style="padding:9px;min-width:0"><b style="display:block;margin-bottom:7px">'+title+'</b><div class="tablewrap"><table style="width:100%;min-width:0;table-layout:fixed"><thead><tr><th>CONTRACT</th><th>HIT RATE</th><th>BASELINE</th><th>STRENGTH</th><th>SAMPLE</th></tr></thead><tbody>'+contractRows(a,side,barriers)+'</tbody></table></div></div>';
+   return '<article class="box" style="min-width:0;border-top:3px solid #36c5bd"><div class="radar-head"><div><div style="font-size:18px;font-weight:800">'+marketName(symbol)+'</div><div class="note">Market code: '+symbol+'</div></div><span class="pill">'+status+'</span></div><div class="note" style="margin:7px 0 9px">Independent sample: '+a.n+' ticks • Latest quote: '+(market.quote===null?"—":fmt(market.quote))+'</div><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:9px">'+table("OVER CONTRACTS — 5 TO 8","OVER",overBarriers)+table("UNDER CONTRACTS — 5 TO 1","UNDER",underBarriers)+'</div><div class="note" style="margin-top:8px">'+(ready?"Strength is the absolute z-score versus the contract's theoretical baseline; positive/negative labels show whether observed frequency is above/below baseline.":"Collecting data: strength becomes meaningful after 150 ticks.")+'</div></article>';
  }).join("");
 }
 let previousIntelLeader="";
@@ -1664,7 +1670,7 @@ function setupAppTabs(){
  if(Object.values(anchors).some(x=>!x))return;
  const children=Array.from(content.children),idx=Object.fromEntries(Object.entries(anchors).map(([k,v])=>[k,children.indexOf(v)]));
  const ranges={home:[idx.home,idx.markets],markets:[idx.markets,idx.analysis],analysis:[idx.analysis,idx.execution],execution:[idx.execution,idx.radar],radar:[idx.radar,children.length]};
- const extra={digits:["probability","market-ou-ranking","market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],boomcrash:["boom-crash-centre"],news:["economic-news-centre"]};
+ const extra={digits:["probability","market-ou-ranking"],ou:["market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],boomcrash:["boom-crash-centre"],news:["economic-news-centre"]};
  const extraNodes=Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean);
  const allContent=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
  function activate(name){
