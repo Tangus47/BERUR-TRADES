@@ -468,6 +468,11 @@ a{font-weight:700}
       <div class="box"><b>QUALIFIED SETUPS</b><div class="large" id="cfdQualified">0</div></div>
       <div class="box"><b>LEADING SIGNAL</b><div class="large" id="cfdLeader">—</div><div class="note" id="cfdLeaderInfo">Waiting for live feed</div></div>
     </div>
+    <section class="box" style="margin:14px 0;padding:14px" aria-label="Live currency strength heatmap">
+      <div class="radar-head"><div><span class="eyebrow">LIVE TECHNICAL RELATIVE STRENGTH</span><h3 class="section-title">CURRENCY STRENGTH HEATMAP</h3><p class="note">Ranks currencies from the currently discovered Forex pairs using their live multi-timeframe BUY / SELL directions. This is a relative technical-pressure estimate, not an independent spot-market index.</p></div><span class="pill">DERIV LIVE SIGNALS</span></div>
+      <div id="currencyStrengthHeatmap" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:9px"><div class="box">Waiting for Forex pair signals…</div></div>
+      <p class="note" id="currencyStrengthNote">A currency is ranked only when enough mapped pair signals are available. WAIT or missing pairs are not treated as bullish or bearish evidence.</p>
+    </section>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0">
       <label class="box">Account balance <input id="cfdBalance" type="number" min="0" step="any" placeholder="Enter balance" style="width:100%;margin-top:7px"></label>
       <label class="box">Risk per trade (%) <input id="cfdRiskPct" type="number" min="0.1" max="5" step="0.1" value="1" style="width:100%;margin-top:7px"></label>
@@ -971,10 +976,40 @@ function cfdUsdMacroScore(m,a){
  let label=!complete?"INCOMPLETE DATA — SET DXY & VERIFY NEWS":active?"NEWS RISK — REVIEW":soon?"HIGH-IMPACT EVENT APPROACHING":score>=80?"STRONG AGREEMENT":score>=65?"PARTIAL AGREEMENT":"WEAK / CONFLICTING";
  return {score,label,dxy:dxyLabel,news:newsLabel,pair:pair.label,technical:Math.round(technical),dxyPoints:Math.round(dxyScore),newsPoints:Math.round(newsScore)};
 }
+function renderCurrencyStrengthHeatmap(){
+ const root=$("currencyStrengthHeatmap"),note=$("currencyStrengthNote");if(!root)return;
+ const currencies=["USD","EUR","GBP","JPY","AUD","NZD","CAD","CHF"];
+ const stats=Object.fromEntries(currencies.map(c=>[c,{net:0,count:0,pairs:[]}]));
+ const seen=new Set();
+ Object.values(cfdMarkets).forEach(m=>{
+  if(m.category==="BOOMCRASH")return;
+  const raw=(String(m.symbol||"")+" "+String(m.name||"")).toUpperCase().replace(/[^A-Z]/g,"");
+  const pair=["EURUSD","GBPUSD","AUDUSD","NZDUSD","USDJPY","USDCHF","USDCAD","EURGBP","EURJPY","GBPJPY","AUDJPY","NZDJPY","EURCHF","GBPCHF","EURAUD","GBPAUD","AUDNZD","CADJPY","CHFJPY"].find(p=>raw.includes(p));
+  if(!pair||seen.has(pair))return;
+  seen.add(pair);
+  const base=pair.slice(0,3),quote=pair.slice(3,6);
+  if(!stats[base]||!stats[quote])return;
+  const a=cfdAnalyze(m);if(a.signal!=="BUY"&&a.signal!=="SELL")return;
+  const confidence=Math.max(1,Math.min(1,a.strength/100));
+  const direction=a.signal==="BUY"?1:-1;
+  stats[base].net+=direction*confidence;stats[base].count++;stats[base].pairs.push(pair);
+  stats[quote].net-=direction*confidence;stats[quote].count++;stats[quote].pairs.push(pair);
+ });
+ const ranked=currencies.map(c=>({currency:c,...stats[c],score:stats[c].count?Math.round(50+50*stats[c].net/stats[c].count):null})).sort((a,b)=>(b.score??-1)-(a.score??-1));
+ const active=ranked.filter(x=>x.score!==null);
+ if(!active.length){root.innerHTML='<div class="box">Waiting for confirmed multi-timeframe Forex signals. No currency ranking is available yet.</div>';if(note)note.textContent="No mapped pair currently has a confirmed BUY / SELL signal. This avoids inventing strength from missing data.";return;}
+ root.innerHTML=ranked.map(x=>{
+  const tone=x.score===null?"var(--muted)":x.score>=60?"var(--green)":x.score<=40?"var(--red)":"var(--text)";
+  const state=x.score===null?"NO DATA":x.score>=60?"STRONGER":x.score<=40?"WEAKER":"NEUTRAL";
+  return '<div class="box" style="border-top:3px solid '+tone+'"><div style="display:flex;justify-content:space-between;gap:6px"><b>'+x.currency+'</b><span class="note">'+state+'</span></div><div class="large" style="color:'+tone+'">'+(x.score===null?"—":x.score+"/100")+'</div><div class="note">'+x.count+' pair votes · '+x.pairs.join(", ")+'</div></div>';
+ }).join("");
+ if(note)note.textContent="Based on "+seen.size+" discovered currency pairs; "+active.length+" currencies currently have confirmed directional evidence. Scores are normalized relative-strength estimates, not probabilities or trade guarantees.";
+}
 function renderCfdCentre(){
  const body=$("cfdSignalRows");if(!body)return;
  const list=Object.values(cfdMarkets).filter(m=>m.category!=="BOOMCRASH"&&(cfdCategoryFilter==="ALL"||m.category===cfdCategoryFilter));
  const analysed=list.map(m=>({m,a:cfdAnalyze(m)}));
+ renderCurrencyStrengthHeatmap();
  const qualified=analysed.filter(x=>x.a.signal!=="WAIT").sort((x,y)=>y.a.strength-x.a.strength);
  $("cfdDiscovered").textContent=Object.values(cfdMarkets).filter(m=>m.category!=="BOOMCRASH").length;
  $("cfdQualified").textContent=qualified.length;
