@@ -870,6 +870,8 @@ function renderTradeQualityFilter(){
     {ok:!!m.available&&feedAge!==null&&feedAge<20,label:!m.available?"MARKET UNAVAILABLE":feedAge===null?"NO FEED":feedAge>=20?"STALE FEED":"FEED FRESH"},
     {ok:!!monitor&&monitor.active&&signalAge!==null&&signalAge<60,label:!monitor||!monitor.active?"SIGNAL NOT QUALIFIED":signalAge>=60?"SIGNAL EXPIRED":"SIGNAL FRESH"}
    ];
+   const quoteKey=symbol+"|"+side+"|"+candidate.barrier,liveQuote=qualityQuoteResults.get(quoteKey);
+   if(liveQuote&&candidate.observed*100<=liveQuote.breakEven)checks.push({ok:false,label:"OBSERVED RATE AT/BELOW LIVE QUOTE BREAK-EVEN"});
    const failed=checks.filter(x=>!x.ok);
    const decision=failed.length?"BLOCKED":"MANUAL REVIEW ONLY";
    if(failed.length)blockedCount++;else reviewCount++;
