@@ -12,7 +12,7 @@ on:
       - '.github/workflows/build-android-apk.yml'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   build-android:
     runs-on: ubuntu-latest
@@ -50,6 +50,14 @@ jobs:
           path: android-app/app/build/outputs/apk/direct/debug/*.apk
           if-no-files-found: error
           retention-days: 30
+      - name: Publish stable direct APK download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK="$(find android-app/app/build/outputs/apk/direct/debug -name '*.apk' -print -quit)"
+          test -n "$APK"
+          gh release create direct-latest --title "BERUR TRADES Direct APK" --notes "Latest direct Android APK build. Existing installations can update only when signed with the same certificate." || true
+          gh release upload direct-latest "$APK#BERUR-TRADES-Direct.apk" --clobber
       - name: Upload Play Store AAB preparation
         uses: actions/upload-artifact@v4
         with:
