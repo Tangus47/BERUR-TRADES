@@ -247,6 +247,7 @@ a{font-weight:700}
     <div class="card"><h3>SELECTED MARKET</h3><div class="metric" id="selectedMarket">Volatility 10</div><div class="small" id="selectedPrice">Waiting for live price</div></div>
     <div class="card"><h3>DATA SAMPLE</h3><div class="metric" id="sample">0 ticks</div><div class="small">Recent observations</div></div>
   </div>
+  <div id="newsHomeBanner"></div>
   <section class="section card" id="homeBestMarkets">
     <div class="radar-head"><div><h2 class="section-title">BEST MARKETS SELECTED BY ANALYSIS</h2><p class="note">Independent leaders for each contract family. Only statistically elevated historical deviations appear here; WAIT means no qualifying setup. Always check the live payout before considering a trade.</p></div><span class="pill">LIVE ANALYSIS PICKS</span></div>
     <div id="homeBestMarketCards" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px"><div class="box">Waiting for independent market analysis…</div></div>
@@ -487,7 +488,6 @@ a{font-weight:700}
       <div class="box"><b>UPDATE INTERVAL</b><div class="large">15 min</div><div class="note">Feed refreshes automatically while the page is visible.</div></div>
       <div class="box"><b>TRADING MODE</b><div class="large">ADVISORY</div><div class="note">Warnings only. No automatic trade direction or execution.</div></div>
     </div>
-    <div id="newsHomeBanner"></div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0">
       <label class="box">Instrument / pair filter<select id="newsPairFilter" style="width:100%;margin-top:7px"><option value="ALL">All tracked pairs</option><option value="EUR/USD">EUR/USD</option><option value="GBP/USD">GBP/USD</option><option value="USD/JPY">USD/JPY</option><option value="AUD/USD">AUD/USD</option><option value="USD/CAD">USD/CAD</option><option value="USD/CHF">USD/CHF</option><option value="NZD/USD">NZD/USD</option><option value="XAU/USD">XAU/USD (Gold)</option></select></label>
       <label class="box">Impact filter<select id="newsImpactFilter" style="width:100%;margin-top:7px"><option value="all">High + Medium + Low</option><option value="high">High impact only</option><option value="medium">Medium impact only</option><option value="low">Low impact only</option></select></label>
