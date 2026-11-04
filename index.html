@@ -796,7 +796,7 @@ function classifyCfdInstrument(item){
  if(!symbol||SYMBOLS.includes(symbol)||symbol.startsWith("R_")||symbol.startsWith("1HZ"))return null;
  const labels=[item.market,item.market_display_name,item.submarket,item.submarket_display_name,item.display_name,item.symbol].join(" ").toLowerCase();
  let category=null;
- if(/\\b(boom|crash)\\b/.test(labels))category="BOOMCRASH";
+ if(/\b(boom|crash)\b/.test(labels))category="BOOMCRASH";
  else if(labels.includes("derived")||labels.includes("synthetic"))return null;
  if(!category && /xau|xag|gold|silver|metal/.test(labels))category="METALS";
  else if(!category&&(symbol.startsWith("frx")||labels.includes("forex")||labels.includes("currency")))category="FOREX";
@@ -899,11 +899,11 @@ function renderCfdCentre(){
  const list=Object.values(cfdMarkets).filter(m=>m.category!=="BOOMCRASH"&&(cfdCategoryFilter==="ALL"||m.category===cfdCategoryFilter));
  const analysed=list.map(m=>({m,a:cfdAnalyze(m)}));
  const qualified=analysed.filter(x=>x.a.signal!=="WAIT").sort((x,y)=>y.a.strength-x.a.strength);
- $("cfdDiscovered").textContent=Object.keys(cfdMarkets).length;
+ $("cfdDiscovered").textContent=Object.values(cfdMarkets).filter(m=>m.category!=="BOOMCRASH").length;
  $("cfdQualified").textContent=qualified.length;
  $("cfdLeader").textContent=qualified[0]?qualified[0].m.name:"—";
  $("cfdLeaderInfo").textContent=qualified[0]?qualified[0].a.signal+" · "+qualified[0].a.strength+"/100":"No qualified live setup";
- if(!analysed.length){body.innerHTML='<tr><td colspan="10">No Forex / CFD instruments discovered from this Deriv feed yet. Confirm the account API exposes CFD symbols.</td></tr>';return;}
+ if(!analysed.length){body.innerHTML='<tr><td colspan="14">No Forex / CFD instruments discovered from this Deriv feed yet. Confirm the account API exposes CFD symbols.</td></tr>';return;}
  body.innerHTML=analysed.sort((x,y)=>y.a.strength-x.a.strength).map(({m,a})=>{
    const state=cfdSignalState(m,a),key=m.symbol.replace(/[^a-z0-9]/gi,""),expired=state.expiresAt&&Date.now()>=state.expiresAt;
    const signal=expired?"EXPIRED":a.signal,cls=signal==="BUY"?"good":signal==="SELL"?"bad":"warn";
@@ -921,11 +921,11 @@ function renderCfdCentre(){
  }).join("");
 }
 function updateCfdSignalClocks(){
- renderBoomCrashCentre();
  Object.values(cfdMarkets).forEach(m=>{
    const state=m.signalState;if(!state||!state.expiresAt)return;
-   const key=m.symbol.replace(/[^a-z0-9]/gi,""),node=$("cfd-valid-"+key);
-   if(node)node.textContent=Date.now()>=state.expiresAt?"EXPIRED":Math.ceil((state.expiresAt-Date.now())/1000)+"s";
+   const key=m.symbol.replace(/[^a-z0-9]/gi,""),remaining=Date.now()>=state.expiresAt?"EXPIRED":Math.ceil((state.expiresAt-Date.now())/1000)+"s";
+   const node=$("cfd-valid-"+key),boomNode=$("bc-valid-"+key);
+   if(node)node.textContent=remaining;if(boomNode)boomNode.textContent=remaining;
  });
 }
 function updateCfdLotLabels(){
