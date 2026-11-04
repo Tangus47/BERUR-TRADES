@@ -87,7 +87,7 @@ export default {
       auth.searchParams.set("response_type", "code");
       auth.searchParams.set("client_id", env.DERIV_CLIENT_ID);
       auth.searchParams.set("redirect_uri", REDIRECT_URI);
-      auth.searchParams.set("scope", "trade account_manage");
+      auth.searchParams.set("scope", "trade");
       auth.searchParams.set("state", state);
       auth.searchParams.set("code_challenge", challenge);
       auth.searchParams.set("code_challenge_method", "S256");
