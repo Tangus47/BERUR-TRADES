@@ -358,6 +358,12 @@ a{font-weight:700}
     <p class="note">“Strongest” means the largest positive standardized historical deviation (z-score) within that market and contract side. WATCH means the deviation is below 2.00; even a higher score is historical evidence only, not a prediction or guarantee. No candidate is displayed as qualified when its deviation is not positive.</p>
   </section>
 
+  <section class="section card" id="trade-quality-filter">
+    <div class="radar-head"><div><h2 class="section-title">TRADE QUALITY FILTER — PRE-TRADE CHECK</h2><p class="note">Screens the strongest Over and Under candidate in each market. A pass means manual review only; no trade is labelled ready until a live Deriv proposal confirms payout and price.</p></div><span class="pill">NO AUTO-EXECUTION</span></div>
+    <div class="tablewrap"><table style="min-width:850px"><thead><tr><th>Market</th><th>Contract</th><th>Evidence</th><th>Feed age</th><th>Signal freshness</th><th>Payout check</th><th>Decision</th></tr></thead><tbody id="tradeQualityRows"><tr><td colspan="7">Collecting independent market evidence…</td></tr></tbody></table></div>
+    <p class="note" id="tradeQualitySummary">A live quote/payout is required before any contract can be considered trade-ready. Historical hit rate is not expected profit.</p>
+  </section>
+
   <section class="section card" id="market-ou-board">
     <div class="radar-head"><div><h2 class="section-title">INDIVIDUAL MARKET — DIGIT OVER / UNDER BOARD</h2><p class="note">Each synthetic market is analysed independently using only its own received tick history. No cross-market pooling.</p></div><span class="pill">PER-MARKET ANALYSIS</span></div>
     <div class="note" style="margin:10px 0 14px">For each market, compare Over 0–9 and Under 0–9. Impossible contracts are marked N/A. Historical frequency is descriptive, not a forecast or guaranteed win probability. Minimum evidence sample: 150 ticks per market.</div>
@@ -827,6 +833,37 @@ function renderMarketSignalMonitor(){
   return '<tr><td><b>'+key.replace("|"," · ")+'</b></td><td>'+x.label+'</td><td>'+trend+' · '+x.strength.toFixed(2)+'</td><td>'+new Date(x.lastConfirmed).toLocaleTimeString()+'</td><td>'+(x.active?freshness:'<span class="gold">INVALIDATED</span>')+'</td></tr>';
  }).join("");
 }
+function renderTradeQualityFilter(){
+ const host=$("tradeQualityRows");if(!host)return;
+ const now=Date.now(),rows=[];let reviewCount=0,blockedCount=0;
+ SYMBOLS.forEach(symbol=>{
+  const m=markets[symbol],a=analyze(m);
+  ["OVER","UNDER"].forEach(side=>{
+   const candidate=(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=150&&x.deviation>0).sort((x,y)=>y.strength-x.strength)[0];
+   if(!candidate)return;
+   const feedAge=m.updated?Math.max(0,Math.floor((now-m.updated)/1000)):null;
+   const monitor=marketSignalMonitor[symbol+"|"+side];
+   const signalAge=monitor&&monitor.lastConfirmed?Math.max(0,Math.floor((now-monitor.lastConfirmed)/1000)):null;
+   const checks=[
+    {ok:a.n>=150,label:a.n>=150?"SAMPLE OK":"NEED 150+ TICKS"},
+    {ok:candidate.strength>=2,label:candidate.strength>=2?"EVIDENCE ≥ 2.00":"EVIDENCE BELOW 2.00"},
+    {ok:!!m.available&&feedAge!==null&&feedAge<20,label:!m.available?"MARKET UNAVAILABLE":feedAge===null?"NO FEED":feedAge>=20?"STALE FEED":"FEED FRESH"},
+    {ok:!!monitor&&monitor.active&&signalAge!==null&&signalAge<60,label:!monitor||!monitor.active?"SIGNAL NOT QUALIFIED":signalAge>=60?"SIGNAL EXPIRED":"SIGNAL FRESH"}
+   ];
+   const failed=checks.filter(x=>!x.ok);
+   const decision=failed.length?"BLOCKED":"MANUAL REVIEW ONLY";
+   if(failed.length)blockedCount++;else reviewCount++;
+   rows.push({symbol,side,candidate,feedAge,signalAge,failed,decision});
+  });
+ });
+ host.innerHTML=rows.length?rows.map(x=>{
+  const c=x.candidate,ev=c.strength>=2?'<span class="green">QUALIFIED · '+c.strength.toFixed(2)+'</span>':'<span class="gold">WATCH · '+c.strength.toFixed(2)+'</span>';
+  const why=x.failed.length?x.failed.map(v=>v.label).join(" · "):"All data/evidence checks passed";
+  return '<tr><td><b>'+x.symbol+'</b></td><td>'+x.side+' '+c.barrier+'</td><td>'+ev+'</td><td>'+(x.feedAge===null?"—":x.feedAge+"s")+'</td><td>'+(x.signalAge===null?"—":x.signalAge+"s")+'</td><td><span class="gold">NOT VERIFIED — LIVE QUOTE REQUIRED</span></td><td><b class="'+(x.failed.length?"gold":"green")+'">'+x.decision+'</b><div class="note">'+why+'</div></td></tr>';
+ }).join(""):'<tr><td colspan="7">No candidates yet. Waiting for sufficient independent market history.</td></tr>';
+ const summary=$("tradeQualitySummary");
+ if(summary)summary.textContent=reviewCount+" candidate(s) passed the historical-evidence and feed checks for manual review; "+blockedCount+" blocked. Payout is not available in the tick-history feed, so every candidate still requires a live Deriv proposal and payout comparison. No trade is automatically approved.";
+}
 function renderMarketOURanking(){
  const body=$("marketOURankingRows");if(!body)return;
  const pick=(a,side)=>a.n>=150?(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=150&&x.deviation>0).sort((x,y)=>y.strength-x.strength)[0]||null:null;
@@ -862,6 +899,7 @@ function render() {
  renderMarketOURanking();
  renderMarketSignalMonitor();
  renderMarketFeedHealth();
+ renderTradeQualityFilter();
  renderMarketOUBoard();
  const available = SYMBOLS.filter(s=>markets[s].available).length;
  const loaded = SYMBOLS.filter(s=>markets[s].ticks.length>=50).length;
