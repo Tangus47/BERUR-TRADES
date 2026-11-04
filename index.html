@@ -351,7 +351,7 @@ a{font-weight:700}
   </div><!-- terminal-layout -->
 
   <section class="section card" id="market-ou-ranking">
-    <div class="radar-head"><div><h2 class="section-title">STRONGEST OVER / UNDER — MARKET RANKING</h2><p class="note">Each market gets its own strongest Over and strongest Under candidate, ranked by positive historical deviation from the uniform-digit baseline.</p></div><span class="pill">150+ TICKS REQUIRED</span></div>
+    <div class="radar-head"><div><h2 class="section-title">STRONGEST OVER / UNDER — MARKET RANKING</h2><p class="note">Each market gets its own strongest Over and strongest Under candidate, ranked by positive historical deviation from the uniform-digit baseline.</p></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button id="marketAlertToggle" type="button" class="btn">Enable sound alerts</button><span id="marketAlertState" class="pill">SOUND OFF</span></div></div><div id="marketAlertToast" class="note" role="status" aria-live="polite" style="margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:10px">Alerts appear here when a new qualified market setup is detected.</div><div id="marketAlertLog" class="note" style="margin-bottom:10px">No new alerts yet.</div>
     <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Market</th><th>Strongest Over</th><th>Observed / Baseline</th><th>Strength</th><th>Strongest Under</th><th>Observed / Baseline</th><th>Strength</th><th>Sample</th></tr></thead><tbody id="marketOURankingRows"><tr><td colspan="8">Collecting independent market samples…</td></tr></tbody></table></div>
     <p class="note">“Strongest” means the largest positive standardized historical deviation (z-score) within that market and contract side. WATCH means the deviation is below 2.00; even a higher score is historical evidence only, not a prediction or guarantee. No candidate is displayed as qualified when its deviation is not positive.</p>
   </section>
@@ -753,6 +753,32 @@ function drawCandles(m){
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-candle-tf]");if(!b)return;candleTimeframe=Number(b.dataset.candleTf)||60;document.querySelectorAll("[data-candle-tf]").forEach(x=>x.classList.toggle("active",x===b));drawCandles(markets[selected]);});
 
+let marketAlertSoundOn=false,marketAlertAudio=null,marketAlertPrimed=false;
+const marketAlertPrevious={},marketAlertLog=[];
+let marketAlertLastAt=0;
+function marketAlertBeep(){
+ if(!marketAlertSoundOn||!marketAlertAudio)return;
+ try{const now=marketAlertAudio.currentTime;[0,0.22].forEach((offset,i)=>{const osc=marketAlertAudio.createOscillator(),gain=marketAlertAudio.createGain();osc.type="sine";osc.frequency.value=i?1046:784;gain.gain.setValueAtTime(0.0001,now+offset);gain.gain.exponentialRampToValueAtTime(0.16,now+offset+0.02);gain.gain.exponentialRampToValueAtTime(0.0001,now+offset+0.16);osc.connect(gain);gain.connect(marketAlertAudio.destination);osc.start(now+offset);osc.stop(now+offset+0.17);});}catch(e){}
+}
+function setupMarketAlerts(){
+ const btn=$("marketAlertToggle");if(!btn||btn.dataset.ready)return;btn.dataset.ready="1";
+ btn.addEventListener("click",async()=>{
+  marketAlertSoundOn=!marketAlertSoundOn;
+  if(marketAlertSoundOn){const AC=window.AudioContext||window.webkitAudioContext;if(AC){marketAlertAudio=marketAlertAudio||new AC();try{await marketAlertAudio.resume();marketAlertPrimed=marketAlertAudio.state==="running";}catch(e){marketAlertPrimed=false;}}if(!marketAlertPrimed){marketAlertSoundOn=false;$("marketAlertToast").textContent="Sound is unavailable or blocked by this browser. Try again after allowing audio.";return;}btn.textContent="Disable sound alerts";$("marketAlertState").textContent="SOUND ON";marketAlertBeep();$("marketAlertToast").textContent="Sound alerts enabled. A short chime plays for new qualified Over/Under deviations.";}else{btn.textContent="Enable sound alerts";$("marketAlertState").textContent="SOUND OFF";$("marketAlertToast").textContent="Sound alerts are off. Visual alert history remains active.";}
+ });
+}
+function recordMarketAlert(symbol,side,candidate){
+ const key=symbol+"|"+side,signature=candidate?candidate.label+"|"+candidate.strength.toFixed(2):"";
+ const previous=marketAlertPrevious[key];marketAlertPrevious[key]=signature;
+ if(!candidate||candidate.strength<2||!previous||previous===signature)return;
+ const now=Date.now();if(now-marketAlertLastAt<12000)return;marketAlertLastAt=now;
+ const item={symbol,side,label:candidate.label,strength:candidate.strength,time:new Date().toLocaleTimeString()};
+ marketAlertLog.unshift(item);marketAlertLog.splice(6);
+ const msg=item.symbol+" · "+item.label+" · evidence "+item.strength.toFixed(2)+" · "+item.time;
+ const toast=$("marketAlertToast");if(toast)toast.textContent="NEW QUALIFIED SETUP — "+msg;
+ const log=$("marketAlertLog");if(log)log.innerHTML="<b>Recent alerts:</b> "+marketAlertLog.map(x=>x.symbol+" "+x.label+" ("+x.strength.toFixed(2)+") · "+x.time).join(" &nbsp; | &nbsp; ");
+ marketAlertBeep();
+}
 function renderMarketOURanking(){
  const body=$("marketOURankingRows");if(!body)return;
  const pick=(a,side)=>a.n>=150?(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=150&&x.deviation>0).sort((x,y)=>y.strength-x.strength)[0]||null:null;
@@ -761,6 +787,7 @@ function renderMarketOURanking(){
  const score=x=>x?(x.strength>=2?'<span class="green">QUALIFIED DEVIATION</span>':'<span class="gold">WATCH</span>')+' · '+x.strength.toFixed(2):'—';
  body.innerHTML=SYMBOLS.map(symbol=>{
   const m=markets[symbol],a=analyze(m),over=pick(a,"OVER"),under=pick(a,"UNDER");
+  recordMarketAlert(symbol,"OVER",over&&over.strength>=2?over:null);recordMarketAlert(symbol,"UNDER",under&&under.strength>=2?under:null);
   return '<tr><td><b>'+symbol+'</b></td><td>'+show(over)+'</td><td>'+rate(over)+'</td><td>'+score(over)+'</td><td>'+show(under)+'</td><td>'+rate(under)+'</td><td>'+score(under)+'</td><td>'+a.n+'/150</td></tr>';
  }).join("");
 }
@@ -782,6 +809,7 @@ function renderMarketOUBoard(){
  }).join("");
 }
 function render() {
+ setupMarketAlerts();
  renderMarketOURanking();
  renderMarketOUBoard();
  const available = SYMBOLS.filter(s=>markets[s].available).length;
