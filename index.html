@@ -177,7 +177,7 @@ a{font-weight:700}
   <div class="brand">BERUR <span>TRADES</span></div>
   <div class="sub">DERIV MARKET INTELLIGENCE • LIVE ANALYSIS • MANUAL EXECUTION</div>
 </header>
-<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button></nav>
+<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="digits">Digit Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="quality">Quality</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button></nav>
 
 <main class="wrap">
   <div class="topline">
@@ -202,6 +202,10 @@ a{font-weight:700}
     <div class="card"><h3>SELECTED MARKET</h3><div class="metric" id="selectedMarket">R_10</div><div class="small" id="selectedPrice">Waiting for live price</div></div>
     <div class="card"><h3>DATA SAMPLE</h3><div class="metric" id="sample">0 ticks</div><div class="small">Recent observations</div></div>
   </div>
+  <section class="section card" id="homeBestMarkets">
+    <div class="radar-head"><div><h2 class="section-title">BEST MARKETS SELECTED BY ANALYSIS</h2><p class="note">Independent leaders for each contract family. Only statistically elevated historical deviations appear here; WAIT means no qualifying setup. Always check the live payout before considering a trade.</p></div><span class="pill">LIVE ANALYSIS PICKS</span></div>
+    <div id="homeBestMarketCards" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px"><div class="box">Waiting for independent market analysis…</div></div>
+  </section>
 
   <section class="section card price-trace-card" aria-label="Selected market live tick price trace">
     <div class="trace-head"><div><span class="eyebrow">LIVE MARKET VIEW</span><h3 class="section-title">PRICE TRACE <span class="pill" id="traceSymbol">R_10</span></h3><p class="note">Recent tick-by-tick quote movement for the selected market. This is a live price trace, not a candlestick chart.</p></div><div class="trace-quote"><span class="small">LATEST QUOTE</span><strong id="traceQuote">—</strong><span class="small" id="traceRange">Awaiting market data</span></div></div>
@@ -712,7 +716,7 @@ function analyze(m) {
      }
    }
    const ranked = ouCandidates
-     .filter(x => !x.impossible && x.validN >= 100 && x.deviation > 0)
+     .filter(x => !x.impossible && x.validN >= 100 && x.deviation > 0 && ((x.side === "OVER" && x.barrier >= 5 && x.barrier <= 8) || (x.side === "UNDER" && x.barrier >= 1 && x.barrier <= 5)))
      .sort((x,y) => y.strength - x.strength);
    const strongest = ranked[0];
    if (strongest && strongest.strength >= 2) {
@@ -866,7 +870,7 @@ function renderTradeQualityFilter(){
  SYMBOLS.forEach(symbol=>{
   const m=markets[symbol],a=analyze(m);
   ["OVER","UNDER"].forEach(side=>{
-   const candidate=(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=150&&x.deviation>0).sort((x,y)=>y.strength-x.strength)[0];
+   const candidate=(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=150&&x.deviation>0&&(side==="OVER"?x.barrier>=5&&x.barrier<=8:x.barrier>=1&&x.barrier<=5)).sort((x,y)=>y.strength-x.strength)[0];
    if(!candidate)return;
    const feedAge=m.updated?Math.max(0,Math.floor((now-m.updated)/1000)):null;
    const monitor=marketSignalMonitor[symbol+"|"+side];
@@ -909,7 +913,7 @@ document.addEventListener("click",event=>{
 });
 function renderMarketOURanking(){
  const body=$("marketOURankingRows");if(!body)return;
- const pick=(a,side)=>a.n>=150?(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=150&&x.deviation>0).sort((x,y)=>y.strength-x.strength)[0]||null:null;
+ const pick=(a,side)=>a.n>=150?(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=150&&x.deviation>0&&(side==="OVER"?x.barrier>=5&&x.barrier<=8:x.barrier>=1&&x.barrier<=5)).sort((x,y)=>y.strength-x.strength)[0]||null:null;
  const show=x=>x?'<b>'+x.label+'</b>':'—';
  const rate=x=>x?pct(x.observed*100)+' / '+pct(x.expected*100):'—';
  const score=x=>x?(x.strength>=2?'<span class="green">QUALIFIED DEVIATION</span>':'<span class="gold">WATCH</span>')+' · '+x.strength.toFixed(2):'—';
@@ -920,6 +924,16 @@ function renderMarketOURanking(){
   return '<tr><td><b>'+symbol+'</b></td><td>'+show(over)+'</td><td>'+rate(over)+'</td><td>'+score(over)+'</td><td>'+show(under)+'</td><td>'+rate(under)+'</td><td>'+score(under)+'</td><td>'+a.n+'/150</td></tr>';
  }).join("");
 }
+function renderHomeBestMarkets(){
+ const host=$("homeBestMarketCards"),source=$("bestContractMarketRows");if(!host||!source)return;
+ const rows=Array.from(source.querySelectorAll("tr"));
+ host.innerHTML=rows.map(row=>{
+  const c=row.cells;if(!c||!c.length)return "";
+  const type=(c[0]?.textContent||"").trim();
+  if(c.length<9)return '<article class="box"><b>'+type+'</b><div class="note">WAIT — no statistically elevated candidate yet</div></article>';
+  return '<article class="box"><div class="small">CONTRACT FAMILY</div><b style="font-size:16px">'+type+'</b><div class="small" style="margin-top:9px">BEST MARKET</div><b>'+(c[1]?.innerHTML||"WAIT")+'</b><div class="small" style="margin-top:8px">CONTRACT</div><b>'+(c[2]?.innerHTML||"WAIT")+'</b><div class="small" style="margin-top:8px">SUGGESTED DURATION</div><b>'+(c[7]?.innerHTML||"WAIT")+'</b><div class="note" style="margin-top:8px">'+(c[8]?.innerHTML||"WAIT — evidence not qualified")+'</div><div class="note">Historical evidence only • live payout check required</div></article>';
+ }).join("")||'<div class="box">Waiting for independent market analysis…</div>';
+}
 function renderBestContractMarkets(){
  const body=$("bestContractMarketRows");if(!body)return;
  const names={R_10:"Volatility 10",R_25:"Volatility 25",R_50:"Volatility 50",R_75:"Volatility 75",R_100:"Volatility 100","1HZ10V":"Volatility 10 (1s)","1HZ25V":"Volatility 25 (1s)","1HZ50V":"Volatility 50 (1s)","1HZ75V":"Volatility 75 (1s)","1HZ100V":"Volatility 100 (1s)","1HZ150V":"Volatility 150 (1s)","1HZ250V":"Volatility 250 (1s)","1HZ300V":"Volatility 300 (1s)"};
@@ -927,13 +941,13 @@ function renderBestContractMarkets(){
  const add=(type,symbol,label,count,observed,expected,n)=>{
   if(n<150||!count||expected<=0||expected>=1)return;
   const se=Math.sqrt(expected*(1-expected)/n),z=se?(observed-expected)/se:0;
-  if(observed>expected)candidates.push({type,symbol,label,count,observed,expected,n,strength:z});
+  if(observed>expected&&z>=2)candidates.push({type,symbol,label,count,observed,expected,n,strength:z});
  };
  SYMBOLS.forEach(symbol=>{
   const m=markets[symbol],a=analyze(m),ds=digitsFor(m.ticks||[]),n=ds.length;
   if(n>=150){
-   const over=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.deviation>0&&x.strength>0).sort((x,y)=>y.strength-x.strength)[0];
-   const under=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.deviation>0&&x.strength>0).sort((x,y)=>y.strength-x.strength)[0];
+   const over=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.barrier>=5&&x.barrier<=8&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
+   const under=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.barrier>=1&&x.barrier<=5&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
    if(over)add("OVER",symbol,over.label,over.count,over.observed,over.expected,over.validN);
    if(under)add("UNDER",symbol,under.label,under.count,under.observed,under.expected,under.validN);
    const even=ds.filter(d=>d%2===0).length,odd=n-even;
@@ -1001,11 +1015,11 @@ function renderAllMarketIntelligence(){
   const add=(type,label,count,base,total)=>{
    if(total<150||!base||base>=1)return;
    const rate=count/total,z=(rate-base)/Math.sqrt(base*(1-base)/total);
-   if(rate>base)all.push({symbol:sym,type,label,z,n:total,rate,base});
+   if(rate>base&&z>=2)all.push({symbol:sym,type,label,z,n:total,rate,base});
   };
   if(n>=150){
-   const ov=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.validN>=150&&x.deviation>0).sort((x,y)=>y.strength-x.strength)[0];
-   const un=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.validN>=150&&x.deviation>0).sort((x,y)=>y.strength-x.strength)[0];
+   const ov=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.barrier>=5&&x.barrier<=8&&x.validN>=150&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
+   const un=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.barrier>=1&&x.barrier<=5&&x.validN>=150&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
    if(ov)all.push({symbol:sym,type:"OVER",label:ov.label,z:ov.strength,n:ov.validN,rate:ov.observed,base:ov.expected});
    if(un)all.push({symbol:sym,type:"UNDER",label:un.label,z:un.strength,n:un.validN,rate:un.observed,base:un.expected});
    const even=ds.filter(d=>d%2===0).length;add("ODD","ODD",n-even,.5,n);add("EVEN","EVEN",even,.5,n);
@@ -1037,6 +1051,7 @@ function render() {
  setupMarketAlerts();
  renderMarketOURanking();
  renderBestContractMarkets();
+ renderHomeBestMarkets();
  renderMarketSignalMonitor();
  renderMarketFeedHealth();
  renderTradeQualityFilter();
@@ -1190,19 +1205,25 @@ function setupAppTabs(){
  const anchors={home:direct(document.getElementById("overview")),markets:direct(document.getElementById("candleWorkspace")),analysis:direct(document.getElementById("analysis")),execution:direct(document.getElementById("execution")),radar:direct(document.getElementById("radar"))};
  if(Object.values(anchors).some(x=>!x))return;
  const children=Array.from(content.children),idx=Object.fromEntries(Object.entries(anchors).map(([k,v])=>[k,children.indexOf(v)]));
- const footer=content.querySelector("footer"),footerNode=footer?direct(footer):null;
- const ranges={home:[idx.home,idx.markets],markets:[idx.markets,idx.analysis],analysis:[idx.analysis,idx.execution],execution:[idx.execution,idx.radar],radar:[idx.radar,footerNode?children.indexOf(footerNode):children.length]};
- const all=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
+ const ranges={home:[idx.home,idx.markets],markets:[idx.markets,idx.analysis],analysis:[idx.analysis,idx.execution],execution:[idx.execution,idx.radar],radar:[idx.radar,children.length]};
+ const extra={digits:["market-ou-ranking","market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"]};
+ const extraNodes=Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean);
+ const allContent=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
  function activate(name){
-  const range=ranges[name];if(!range)return;
-  const visible=new Set(children.slice(range[0],range[1]));
-  children.forEach(node=>{if(node===footerNode)return;if(all.includes(node)){const hide=!visible.has(node);node.dataset.appTabHidden=hide?"true":"false";if(!hide)delete node.dataset.appTabHidden;}});
+  const range=ranges[name],external=extra[name]||[];
+  if(range){
+   const visible=new Set(children.slice(range[0],range[1]));
+   children.forEach(node=>{if(allContent.includes(node)){const hide=!visible.has(node);if(hide)node.dataset.appTabHidden="true";else delete node.dataset.appTabHidden;}});
+  }else{
+   children.forEach(node=>{if(allContent.includes(node))node.dataset.appTabHidden="true";});
+  }
+  extraNodes.forEach(node=>{node.hidden=!external.includes(node.id);});
   nav.querySelectorAll("[data-tab]").forEach(btn=>{const active=btn.dataset.tab===name;btn.classList.toggle("active",active);btn.setAttribute("aria-selected",active?"true":"false");});
   try{sessionStorage.setItem("berur-active-tab",name);}catch{}
   if(name==="markets"&&typeof render==="function")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));
  }
  nav.addEventListener("click",e=>{const btn=e.target.closest("[data-tab]");if(btn)activate(btn.dataset.tab);});
- let initial="home";try{const saved=sessionStorage.getItem("berur-active-tab");if(saved&&ranges[saved])initial=saved;}catch{}
+ let initial="home";try{const saved=sessionStorage.getItem("berur-active-tab");if(saved&&[...Object.keys(ranges),...Object.keys(extra)].includes(saved))initial=saved;}catch{}
  activate(initial);
 }
 setupAppTabs();
