@@ -16,6 +16,7 @@ const PAIRS=[
 const CURRENCIES=["USD","EUR","GBP","JPY","AUD","NZD","CAD","CHF","CNY"];
 const state={events:[],lastSuccess:0,serverTime:null,error:"",loading:false,pair:"ALL",impact:"all",before:15,after:15};
 const $=id=>document.getElementById(id);
+const calendarNow=()=>state.serverTime?state.serverTime+(Date.now()-state.lastSuccess)/1000:Date.now()/1000;
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=ts=>new Intl.DateTimeFormat(undefined,{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",timeZoneName:"short"}).format(new Date(ts*1000));
 const countdown=s=>{const n=Math.max(0,Math.floor(Math.abs(s))),d=Math.floor(n/86400),h=Math.floor(n%86400/3600),m=Math.floor(n%3600/60);return (s<0?"Released ":"In ")+(d?d+"d ":"")+(h?String(h).padStart(2,"0")+"h ":"")+String(m).padStart(2,"0")+"m";};
@@ -23,7 +24,7 @@ const pairsFor=ccy=>PAIRS.filter(p=>p.value!=="ALL"&&p.ccy.includes(ccy)).map(p=
 const filtered=()=>state.events.filter(e=>(state.impact==="all"||e.impact===state.impact)&&(state.pair==="ALL"||PAIRS.find(p=>p.value===state.pair).ccy.includes(e.currency)));
 function eventRisk(e,now){const d=e.ts-now;if(e.impact==="high"&&d>=-state.after*60&&d<=state.before*60)return"ACTIVE";if(e.impact==="high"&&d>state.before*60&&d<=3600)return"SOON";return"";}
 function bannerMarkup(){
-const now=state.serverTime||Date.now()/1000;
+const now=calendarNow();
 const hot=state.events.filter(e=>e.impact==="high"&&eventRisk(e,now)==="ACTIVE").sort((a,b)=>Math.abs(a.ts-now)-Math.abs(b.ts-now))[0];
 const next=state.events.filter(e=>e.impact==="high"&&e.ts>=now).sort((a,b)=>a.ts-b.ts)[0];
 if(Date.now()-state.lastSuccess>1200000&&state.lastSuccess)return '<div class="news-mini news-stale"><b>NEWS FEED STALE</b><span>Refresh before relying on event warnings.</span></div>';
@@ -41,7 +42,7 @@ const rows=$("economicNewsRows");
 if(rows){
 const events=filtered().sort((a,b)=>a.ts-b.ts);
 rows.innerHTML=events.length?events.map(e=>{
-const now=state.serverTime||Date.now()/1000,d=e.ts-now,risk=eventRisk(e,now),pairs=pairsFor(e.currency);
+const now=calendarNow(),d=e.ts-now,risk=eventRisk(e,now),pairs=pairsFor(e.currency);
 return '<tr><td><span class="news-impact '+esc(e.impact)+'">'+esc(e.impact.toUpperCase())+'</span></td><td><b>'+esc(e.currency)+'</b></td><td>'+esc(e.title)+(e.status==="moved"?' <span class="news-moved">MOVED</span>':"")+(e.status==="tentative"?' <span class="news-moved">TENTATIVE</span>':"")+'</td><td>'+esc(fmt(e.ts))+'<div class="news-count">'+esc(countdown(d))+'</div></td><td>'+esc(pairs.join(", ")||"No tracked pair mapping")+'</td><td>'+esc(e.actual||"—")+'</td><td>'+esc(e.forecast||"—")+'</td><td>'+esc(e.previous||"—")+'</td><td>'+(risk==="ACTIVE"?'<span class="news-impact high">NEWS WINDOW</span>':risk==="SOON"?'<span class="news-impact medium">APPROACHING</span>':"—")+'</td></tr>';
 }).join(""):'<tr><td colspan="9">'+(state.lastSuccess?"No events match these filters.":"Calendar data is not available yet. Use Refresh to retry.")+'</td></tr>';
 const summary=$("newsResultSummary");if(summary)summary.textContent=events.length+" matching events · "+state.events.length+" events received · High and medium impact calendar";
@@ -55,7 +56,7 @@ try{
 const response=await fetch(API,{method:"GET",cache:"no-store",headers:{Accept:"application/json"}});
 if(!response.ok)throw new Error("Calendar HTTP "+response.status);
 const data=await response.json();if(!data||!Array.isArray(data.events))throw new Error("Unexpected calendar response");
-state.events=data.events.map(e=>({ts:Number(e.ts),currency:String(e.currency||"").toUpperCase(),impact:String(e.impact||"").toLowerCase(),title:String(e.title||"Untitled event"),actual:String(e.actual||""),forecast:String(e.forecast||""),previous:String(e.previous||""),status:String(e.status||"scheduled"),confidence:String(e.confidence||"")})).filter(e=>Number.isFinite(e.ts)&&CURRENCIES.includes(e.currency)&&["high","medium","low","holiday"].includes(e.impact));
+state.events=data.events.map(e=>({ts:Number(e.ts),currency:String(e.currency||"").toUpperCase(),impact:String(e.impact||"").toLowerCase(),title:String(e.title||"Untitled event"),actual:String(e.actual||""),forecast:String(e.forecast||""),previous:String(e.previous||""),status:String(e.status||"scheduled"),confidence:String(e.confidence||"")})).filter(e=>Number.isFinite(e.ts)&&CURRENCIES.includes(e.currency)&&["high","medium"].includes(e.impact));
 state.serverTime=Number(data.server_time)||Math.floor(Date.now()/1000);state.lastSuccess=Date.now();
 }catch(error){state.error=error&&error.message?error.message:"Calendar request failed";}
 finally{state.loading=false;render();}
