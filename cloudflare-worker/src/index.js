@@ -1,4 +1,5 @@
 const APP_ORIGIN = "https://tangus47.github.io";
+const APP_URL = APP_ORIGIN + "/BERUR-TRADES/";
 const REDIRECT_URI = "https://berur-trades-backend.tangusvincent47.workers.dev/oauth/callback";
 const AUTH_URL = "https://auth.deriv.com/oauth2/auth";
 const TOKEN_URL = "https://auth.deriv.com/oauth2/token";
@@ -54,7 +55,7 @@ function redirect(url) {
 }
 
 function appError(code) {
-  const target = new URL("/", APP_ORIGIN);
+  const target = new URL(APP_URL);
   target.searchParams.set("oauth_error", code);
   return redirect(target.toString());
 }
@@ -146,7 +147,7 @@ export default {
         { expirationTtl: 90 }
       );
 
-      const destination = new URL("/", APP_ORIGIN);
+      const destination = new URL(APP_URL);
       destination.hash = new URLSearchParams({ oauth_ticket: ticket }).toString();
       return redirect(destination.toString());
     }
