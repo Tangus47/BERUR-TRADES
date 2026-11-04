@@ -353,6 +353,7 @@ a{font-weight:700}
   <section class="section card" id="market-ou-ranking">
     <div class="radar-head"><div><h2 class="section-title">STRONGEST OVER / UNDER — MARKET RANKING</h2><p class="note">Each market gets its own strongest Over and strongest Under candidate, ranked by positive historical deviation from the uniform-digit baseline.</p></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button id="marketAlertToggle" type="button" class="btn">Enable sound alerts</button><span id="marketAlertState" class="pill">SOUND OFF</span></div></div><div id="marketAlertToast" class="note" role="status" aria-live="polite" style="margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:10px">Alerts appear here when a new qualified market setup is detected.</div><div id="marketAlertLog" class="note" style="margin-bottom:10px">No new alerts yet.</div>
     <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Market</th><th>Strongest Over</th><th>Observed / Baseline</th><th>Strength</th><th>Strongest Under</th><th>Observed / Baseline</th><th>Strength</th><th>Sample</th></tr></thead><tbody id="marketOURankingRows"><tr><td colspan="8">Collecting independent market samples…</td></tr></tbody></table></div>
+    <div style="margin-top:16px"><h3 class="section-title">LIVE SIGNAL STRENGTH &amp; EXPIRY MONITOR</h3><p class="note">Trend uses recent strength readings. A signal stays fresh only while new market ticks continue to confirm it; expiry is a review timer, not a prediction.</p><div class="tablewrap"><table style="min-width:700px"><thead><tr><th>Market / Side</th><th>Contract</th><th>Strength trend</th><th>Last confirmed</th><th>Review countdown</th></tr></thead><tbody id="marketSignalMonitorRows"><tr><td colspan="5">Waiting for qualified signals…</td></tr></tbody></table></div></div>
     <p class="note">“Strongest” means the largest positive standardized historical deviation (z-score) within that market and contract side. WATCH means the deviation is below 2.00; even a higher score is historical evidence only, not a prediction or guarantee. No candidate is displayed as qualified when its deviation is not positive.</p>
   </section>
 
@@ -779,6 +780,26 @@ function recordMarketAlert(symbol,side,candidate){
  const log=$("marketAlertLog");if(log)log.innerHTML="<b>Recent alerts:</b> "+marketAlertLog.map(x=>x.symbol+" "+x.label+" ("+x.strength.toFixed(2)+") · "+x.time).join(" &nbsp; | &nbsp; ");
  marketAlertBeep();
 }
+const marketSignalMonitor={};
+function updateMarketSignalMonitor(symbol,side,candidate){
+ const key=symbol+"|"+side,now=Date.now();let item=marketSignalMonitor[key];
+ if(candidate&&candidate.strength>=2){
+  if(!item||item.label!==candidate.label){item=marketSignalMonitor[key]={label:candidate.label,history:[],lastSampleAt:0,lastConfirmed:now};}
+  if(now-item.lastSampleAt>=15000||!item.history.length){item.history.push(candidate.strength);item.history=item.history.slice(-5);item.lastSampleAt=now;}
+  item.lastConfirmed=now;item.strength=candidate.strength;item.active=true;
+ }else if(item&&item.active){item.active=false;item.invalidatedAt=now;}
+}
+function renderMarketSignalMonitor(){
+ const host=$("marketSignalMonitorRows");if(!host)return;
+ const now=Date.now(),rows=Object.entries(marketSignalMonitor).filter(([,x])=>x.active||now-(x.invalidatedAt||0)<60000);
+ if(!rows.length){host.innerHTML='<tr><td colspan="5">No qualified signals yet. Waiting for at least 150 ticks and a positive deviation of 2.00 or higher.</td></tr>';return;}
+ host.innerHTML=rows.map(([key,x])=>{
+  const trend=x.history.length>1?(x.history[x.history.length-1]>x.history[0]+0.05?"STRENGTHENING":x.history[x.history.length-1]<x.history[0]-0.05?"WEAKENING":"STABLE"):"BUILDING HISTORY";
+  const remaining=x.active?Math.max(0,60000-(now-x.lastConfirmed)):0;
+  const freshness=x.active?(remaining?Math.ceil(remaining/1000)+"s":"REVIEW NOW"):"INVALIDATED";
+  return '<tr><td><b>'+key.replace("|"," · ")+'</b></td><td>'+x.label+'</td><td>'+trend+' · '+x.strength.toFixed(2)+'</td><td>'+new Date(x.lastConfirmed).toLocaleTimeString()+'</td><td>'+(x.active?freshness:'<span class="gold">INVALIDATED</span>')+'</td></tr>';
+ }).join("");
+}
 function renderMarketOURanking(){
  const body=$("marketOURankingRows");if(!body)return;
  const pick=(a,side)=>a.n>=150?(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=150&&x.deviation>0).sort((x,y)=>y.strength-x.strength)[0]||null:null;
@@ -788,6 +809,7 @@ function renderMarketOURanking(){
  body.innerHTML=SYMBOLS.map(symbol=>{
   const m=markets[symbol],a=analyze(m),over=pick(a,"OVER"),under=pick(a,"UNDER");
   recordMarketAlert(symbol,"OVER",over&&over.strength>=2?over:null);recordMarketAlert(symbol,"UNDER",under&&under.strength>=2?under:null);
+  updateMarketSignalMonitor(symbol,"OVER",over&&over.strength>=2?over:null);updateMarketSignalMonitor(symbol,"UNDER",under&&under.strength>=2?under:null);
   return '<tr><td><b>'+symbol+'</b></td><td>'+show(over)+'</td><td>'+rate(over)+'</td><td>'+score(over)+'</td><td>'+show(under)+'</td><td>'+rate(under)+'</td><td>'+score(under)+'</td><td>'+a.n+'/150</td></tr>';
  }).join("");
 }
@@ -811,6 +833,7 @@ function renderMarketOUBoard(){
 function render() {
  setupMarketAlerts();
  renderMarketOURanking();
+ renderMarketSignalMonitor();
  renderMarketOUBoard();
  const available = SYMBOLS.filter(s=>markets[s].available).length;
  const loaded = SYMBOLS.filter(s=>markets[s].ticks.length>=50).length;
