@@ -63,6 +63,64 @@ footer{padding:20px 4px;color:var(--muted);font-size:10px;line-height:1.6}
 .risk-grid input{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:9px}
 @media(max-width:600px){.risk-grid{grid-template-columns:1fr 1fr}}
 .probability-panels{grid-template-columns:1fr 1fr;align-items:start}.probability-card{min-width:0}.probability-card table{min-width:490px}@media(max-width:800px){.probability-panels{grid-template-columns:1fr}}
+
+/* BERUR TRADES premium visual system */
+:root{--bg:#060d19;--panel:#0d192b;--panel2:#13243a;--line:#263d59;--text:#f2f7ff;--muted:#9aacc4;--green:#35e0a2;--red:#ff7188;--gold:#ffd071;--blue:#76b7ff;--violet:#a995ff;--shadow:0 16px 40px rgba(0,0,0,.24)}
+html{scroll-behavior:smooth}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:radial-gradient(ellipse at 12% -10%,rgba(44,116,180,.18),transparent 38%),radial-gradient(ellipse at 95% 8%,rgba(35,198,145,.10),transparent 30%),var(--bg);letter-spacing:.01em}
+header{padding:18px max(16px,calc((100% - 1200px)/2));background:rgba(7,16,30,.88);backdrop-filter:blur(16px);border-bottom:1px solid rgba(118,183,255,.18);box-shadow:0 8px 30px rgba(0,0,0,.18)}
+.brand{font-size:25px;letter-spacing:2px;text-shadow:0 0 24px rgba(53,224,162,.16)}
+.brand span{color:var(--green)}
+.sub{letter-spacing:1.6px;font-weight:700;font-size:10px}
+.wrap{max-width:1280px;padding:20px 16px 28px}
+.topline{padding:13px 15px;border:1px solid rgba(118,183,255,.18);border-radius:15px;background:linear-gradient(110deg,rgba(19,36,58,.94),rgba(12,26,44,.82));box-shadow:var(--shadow)}
+.status{font-weight:800;letter-spacing:.04em}
+.dot{box-shadow:0 0 0 4px rgba(255,208,113,.10),0 0 12px currentColor}
+button,select{min-height:42px;border-radius:11px;padding:11px 15px;border-color:#34506f;background:linear-gradient(180deg,#1a304b,#12243a);box-shadow:0 4px 12px rgba(0,0,0,.12);transition:transform .16s ease,border-color .16s ease,filter .16s ease}
+button{cursor:pointer}
+button:hover:not(:disabled){transform:translateY(-1px);border-color:var(--blue);filter:brightness(1.08)}
+button:active:not(:disabled){transform:translateY(0)}
+button.primary{background:linear-gradient(135deg,#36e0a3,#19b982);color:#041a13;box-shadow:0 7px 22px rgba(40,216,154,.18);font-weight:900}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.grid{gap:13px}
+.card{position:relative;overflow:hidden;background:linear-gradient(145deg,rgba(17,33,54,.97),rgba(10,23,40,.97));border:1px solid rgba(125,164,208,.18);border-radius:17px;padding:17px;box-shadow:0 10px 28px rgba(0,0,0,.16);transition:border-color .2s ease,transform .2s ease,box-shadow .2s ease}
+.card:before{content:"";position:absolute;inset:0 0 auto;height:1px;background:linear-gradient(90deg,transparent,rgba(130,185,255,.35),transparent);pointer-events:none}
+.card:hover{border-color:rgba(118,183,255,.34);box-shadow:0 15px 34px rgba(0,0,0,.22)}
+.card h3{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:#b7cbe4}
+.section{margin-top:16px}
+.section-title{font-size:14px;letter-spacing:.045em;line-height:1.35;color:#e8f2ff}
+.metric{font-size:clamp(21px,2.4vw,29px);font-weight:850;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.small,.note{line-height:1.55}
+.note{font-size:11px;color:#9aacc4}
+.two{gap:14px}
+table{font-size:12px}
+th{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#91a9c6;background:rgba(20,39,62,.55)}
+th,td{padding:12px 10px;border-bottom:1px solid rgba(125,164,208,.13)}
+tbody tr:hover{background:rgba(118,183,255,.055)}
+tr.market.selected{background:linear-gradient(90deg,rgba(53,224,162,.12),rgba(118,183,255,.08));box-shadow:inset 3px 0 var(--green)}
+.signal{font-size:22px;letter-spacing:-.025em}
+.bar{height:8px;background:#1d3048;border:1px solid rgba(125,164,208,.12)}
+.bar i{background:linear-gradient(90deg,#61a9ff,#35e0a2);border-radius:10px;box-shadow:0 0 12px rgba(53,224,162,.28)}
+.digits{gap:7px}
+.digit{border-radius:10px;padding:10px 3px;background:linear-gradient(180deg,#172b44,#102138);border-color:rgba(125,164,208,.2)}
+.digit b{font-size:17px}
+.digit small{font-size:9px}
+.pill{padding:6px 10px;border:1px solid rgba(125,164,208,.18);letter-spacing:.04em}
+.radar-panel{border:1px solid rgba(53,224,162,.32);background:linear-gradient(135deg,rgba(16,43,38,.96),rgba(12,27,43,.96));box-shadow:0 12px 34px rgba(13,102,76,.10)}
+.radar-status{padding:7px 11px;border-radius:30px;background:rgba(255,208,113,.10);border:1px solid rgba(255,208,113,.25);font-size:10px;letter-spacing:.1em}
+.radar-controls input,.risk-grid input{border-radius:9px;border:1px solid #34506f;background:#0a1728;color:var(--text);padding:10px}
+.risk-grid{gap:12px}
+.risk-grid label{font-weight:700;letter-spacing:.02em}
+.probability-card{border-color:rgba(118,183,255,.24)}
+.probability-card:first-child{background:linear-gradient(145deg,rgba(15,37,52,.98),rgba(10,23,40,.98))}
+.probability-card:last-child{background:linear-gradient(145deg,rgba(43,35,22,.42),rgba(10,23,40,.98))}
+footer{border-top:1px solid rgba(125,164,208,.14);margin-top:20px;padding-top:18px}
+a{font-weight:700}
+@media(max-width:800px){header{padding:15px 14px}.wrap{padding:13px 11px 24px}.card{padding:14px}.grid{gap:10px}}
+@media(max-width:600px){.topline{align-items:stretch}.topline .actions{width:100%}.topline .actions button{flex:1}.section-title{font-size:13px}.digits{gap:4px}.digit{padding:8px 1px}.metric{font-size:21px}}
+@media(max-width:380px){.brand{font-size:21px}.sub{font-size:9px;letter-spacing:1px}.card{padding:11px}.digits{gap:3px}.digit b{font-size:13px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
+
 </style>
 </head>
 <body>
