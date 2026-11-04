@@ -148,6 +148,17 @@ a{font-weight:700}
 @media(max-width:980px){.terminal-layout{grid-template-columns:190px minmax(0,1fr);gap:10px}.market-sidebar{top:105px}}
 @media(max-width:720px){.terminal-layout{grid-template-columns:minmax(0,1fr)}.market-sidebar{position:relative;top:auto;max-height:none}.market-watchlist{display:flex;overflow-x:auto;padding:2px 1px 7px;scroll-snap-type:x proximity}.watch-item{flex:0 0 142px;scroll-snap-align:start}.sidebar-heading{margin-bottom:3px}.terminal-nav{justify-content:flex-start}.terminal-nav a{padding:8px 10px;font-size:10px}}
 
+
+.price-trace-card{background:linear-gradient(145deg,rgba(12,31,48,.98),rgba(9,22,38,.98));border-color:rgba(53,224,162,.22)}
+.trace-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.trace-head .section-title{margin:5px 0}
+.trace-quote{text-align:right;display:grid;gap:3px}
+.trace-quote strong{font-size:23px;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:#eafff6}
+.trace-chart{width:100%;margin-top:10px;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,rgba(8,20,34,.72),rgba(8,20,34,.25));border:1px solid rgba(125,164,208,.10)}
+.trace-chart svg{display:block;width:100%;height:190px}
+.trace-foot{display:flex;justify-content:space-between;gap:8px;margin-top:8px;color:#8198b5;font-size:9px;letter-spacing:.1em;font-weight:800}
+@media(max-width:600px){.trace-chart svg{height:135px}.trace-quote strong{font-size:19px}}
+
 </style>
 </head>
 <body>
@@ -180,6 +191,12 @@ a{font-weight:700}
     <div class="card"><h3>SELECTED MARKET</h3><div class="metric" id="selectedMarket">R_10</div><div class="small" id="selectedPrice">Waiting for live price</div></div>
     <div class="card"><h3>DATA SAMPLE</h3><div class="metric" id="sample">0 ticks</div><div class="small">Recent observations</div></div>
   </div>
+
+  <section class="section card price-trace-card" aria-label="Selected market live tick price trace">
+    <div class="trace-head"><div><span class="eyebrow">LIVE MARKET VIEW</span><h3 class="section-title">PRICE TRACE <span class="pill" id="traceSymbol">R_10</span></h3><p class="note">Recent tick-by-tick quote movement for the selected market. This is a live price trace, not a candlestick chart.</p></div><div class="trace-quote"><span class="small">LATEST QUOTE</span><strong id="traceQuote">—</strong><span class="small" id="traceRange">Awaiting market data</span></div></div>
+    <div class="trace-chart"><svg id="priceTrace" viewBox="0 0 1000 220" role="img" aria-label="Recent selected market price trace"><defs><linearGradient id="traceFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#35e0a2" stop-opacity=".28"/><stop offset="100%" stop-color="#35e0a2" stop-opacity="0"/></linearGradient></defs><path d="M0 45H1000 M0 95H1000 M0 145H1000 M0 195H1000" stroke="#29415d" stroke-width="1" stroke-dasharray="4 8" fill="none"/><path id="traceArea" d="" fill="url(#traceFill)"/><path id="traceLine" d="" fill="none" stroke="#35e0a2" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><circle id="tracePoint" cx="0" cy="0" r="6" fill="#35e0a2" stroke="#eafff6" stroke-width="2"/></svg></div>
+    <div class="trace-foot"><span>OLDER TICKS</span><span id="traceSamples">0 observations</span><span>NEWER TICKS</span></div>
+  </section>
 
   <section class="section card" id="markets">
     <h3 class="section-title">MARKET RANKING — STRONGEST EVIDENCE FIRST</h3>
@@ -670,6 +687,22 @@ function rankScore(m) {
  const ouStrength = a.ouCandidates?.filter(x=>!x.impossible&&x.validN>=100&&x.deviation>0).reduce((v,x)=>Math.max(v,x.strength),0)||0;
  return Math.round(Math.min(100,a.directionScore*.45 + Math.min(45,ouStrength*10) + Math.min(10,movement)));
 }
+function updatePriceTrace(m) {
+ const values=(m.ticks||[]).slice(-80);
+ const line=$("traceLine"),area=$("traceArea"),point=$("tracePoint");
+ if(!line||!area||!point)return;
+ $("traceSymbol").textContent=m.symbol;
+ $("traceQuote").textContent=m.quote!==null?fmt(m.quote):"—";
+ $("traceSamples").textContent=values.length+" observations";
+ if(values.length<2){line.setAttribute("d","");area.setAttribute("d","");$("traceRange").textContent="Collecting price ticks";point.setAttribute("opacity","0");return;}
+ const min=Math.min(...values),max=Math.max(...values),span=max-min||Math.max(Math.abs(max)*.000001,1);
+ const pts=values.map((v,i)=>({x:18+i*964/(values.length-1),y:188-(v-min)/span*156}));
+ const d=pts.map((p,i)=>(i?"L":"M")+p.x.toFixed(1)+" "+p.y.toFixed(1)).join(" ");
+ line.setAttribute("d",d);
+ area.setAttribute("d",d+" L"+pts[pts.length-1].x.toFixed(1)+" 202 L"+pts[0].x.toFixed(1)+" 202 Z");
+ point.setAttribute("cx",pts[pts.length-1].x.toFixed(1));point.setAttribute("cy",pts[pts.length-1].y.toFixed(1));point.setAttribute("opacity","1");
+ $("traceRange").textContent=fmt(min)+" — "+fmt(max);
+}
 function render() {
  const available = SYMBOLS.filter(s=>markets[s].available).length;
  const loaded = SYMBOLS.filter(s=>markets[s].ticks.length>=50).length;
@@ -683,6 +716,7 @@ function render() {
  $("bestMarket").textContent = best && best.ticks.length>=50 ? best.symbol : "—";
  $("bestScore").textContent = best && best.ticks.length>=50 ? `Technical score ${rankScore(best)}/100` : "Waiting for sufficient ticks";
  const m=markets[selected];
+ updatePriceTrace(m);
  const bestEligible = eligible[0];
  const state = m.ticks.length >= learningTarget ? "READY" : "LEARNING";
  $("learningState").textContent = state;
