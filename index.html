@@ -267,7 +267,7 @@ function refreshSignalValidity(signal, score, sample) {
     $("signalValidityStatus").className = "pill warn";
     return;
   }
-  if (!activeSignal || activeSignal.signature !== signature || activeSignal.expired) {
+  if (!activeSignal || activeSignal.signature !== signature) {
     const generatedAt = Date.now();
     activeSignal = {signature,signal,generatedAt,expiresAt:generatedAt + signalDurationMs(signal,score,sample),expired:false};
   }
