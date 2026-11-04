@@ -264,14 +264,14 @@ a{font-weight:700}
     <p class="note">Both panels below use only the selected volatility market shown above. Switch markets to refresh the Over and Under hit rates, baselines, strength and sample counts. Historical frequency is descriptive, not a forecast or guaranteed chance on the next tick. Exact barrier digits are losses and remain in the denominator.</p>
     <div class="two probability-panels">
       <section class="card probability-card">
-        <h3 class="section-title green">OVER CONTRACTS — 5 TO 8</h3>
+        <h3 class="section-title green" id="overProbabilityTitle">OVER CONTRACTS — 5 TO 8 • MARKET: —</h3>
         <div class="tablewrap"><table style="min-width:490px">
           <thead><tr><th>CONTRACT</th><th>HIT RATE</th><th>BASELINE</th><th>STRENGTH</th><th>SAMPLES</th></tr></thead>
           <tbody id="overProbabilityRows"><tr><td colspan="5">Connect and collect at least 150 ticks.</td></tr></tbody>
         </table></div>
       </section>
       <section class="card probability-card">
-        <h3 class="section-title gold">UNDER CONTRACTS — 5 TO 1</h3>
+        <h3 class="section-title gold" id="underProbabilityTitle">UNDER CONTRACTS — 5 TO 1 • MARKET: —</h3>
         <div class="tablewrap"><table style="min-width:490px">
           <thead><tr><th>CONTRACT</th><th>HIT RATE</th><th>BASELINE</th><th>STRENGTH</th><th>SAMPLES</th></tr></thead>
           <tbody id="underProbabilityRows"><tr><td colspan="5">Connect and collect at least 150 ticks.</td></tr></tbody>
@@ -935,6 +935,9 @@ function render() {
  const marketDisplayNames={R_10:"Volatility 10",R_25:"Volatility 25",R_50:"Volatility 50",R_75:"Volatility 75",R_100:"Volatility 100","1HZ10V":"Volatility 10 (1s)","1HZ25V":"Volatility 25 (1s)","1HZ50V":"Volatility 50 (1s)","1HZ75V":"Volatility 75 (1s)","1HZ100V":"Volatility 100 (1s)","1HZ150V":"Volatility 150 (1s)","1HZ250V":"Volatility 250 (1s)","1HZ300V":"Volatility 300 (1s)"};
  $("contractMarketName").textContent="ANALYSIS MARKET: "+(marketDisplayNames[selected]||selected)+" ("+selected+")";
  $("probabilityMarketLabel").textContent="CURRENT MARKET: "+(marketDisplayNames[selected]||selected)+" ("+selected+")";
+ const probabilityMarketName=(marketDisplayNames[selected]||selected)+" ("+selected+")";
+ $("overProbabilityTitle").textContent="OVER CONTRACTS — 5 TO 8 • "+probabilityMarketName;
+ $("underProbabilityTitle").textContent="UNDER CONTRACTS — 5 TO 1 • "+probabilityMarketName;
  updatePriceTrace(m);
  drawCandles(m);
  const bestEligible = eligible[0];
