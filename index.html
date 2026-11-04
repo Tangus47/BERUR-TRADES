@@ -415,6 +415,9 @@ const SYMBOLS = [
  "1HZ10V","1HZ25V","1HZ50V","1HZ75V","1HZ100V",
  "1HZ150V","1HZ250V","1HZ300V"
 ];
+const MARKET_NAMES={R_10:"Volatility 10",R_25:"Volatility 25",R_50:"Volatility 50",R_75:"Volatility 75",R_100:"Volatility 100", "1HZ10V":"Volatility 10 (1s)","1HZ25V":"Volatility 25 (1s)","1HZ50V":"Volatility 50 (1s)","1HZ75V":"Volatility 75 (1s)","1HZ100V":"Volatility 100 (1s)","1HZ150V":"Volatility 150 (1s)","1HZ250V":"Volatility 250 (1s)","1HZ300V":"Volatility 300 (1s)"};
+const marketName=symbol=>MARKET_NAMES[symbol]||symbol;
+window.BERUR_MARKET_NAME=marketName;
 const WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
 const markets = {};
 SYMBOLS.forEach(s => markets[s] = {
@@ -757,7 +760,7 @@ function updatePriceTrace(m) {
  const values=(m.ticks||[]).slice(-80);
  const line=$("traceLine"),area=$("traceArea"),point=$("tracePoint");
  if(!line||!area||!point)return;
- $("traceSymbol").textContent=m.symbol;
+ $("traceSymbol").textContent=marketName(m.symbol);
  $("traceQuote").textContent=m.quote!==null?fmt(m.quote):"—";
  $("traceSamples").textContent=values.length+" observations";
  if(values.length<2){line.setAttribute("d","");area.setAttribute("d","");$("traceRange").textContent="Collecting price ticks";point.setAttribute("opacity","0");return;}
@@ -773,7 +776,7 @@ function updatePriceTrace(m) {
 let candleTimeframe=60;
 function drawCandles(m){
  const svg=$("candleChart");if(!svg)return;
- $("candleSymbol").textContent=m.symbol;
+ $("candleSymbol").textContent=marketName(m.symbol);
  const points=(m.tickPoints||[]).filter(p=>Number.isFinite(p.price)&&Number.isFinite(p.time));
  if(!points.length){svg.innerHTML='<text x="500" y="150" text-anchor="middle" fill="#91a4bd" font-size="16">Waiting for tick history</text>';$("candleInfo").textContent="No timestamped ticks";return;}
  const buckets=new Map();
@@ -818,9 +821,9 @@ function recordMarketAlert(symbol,side,candidate){
  const now=Date.now();if(now-marketAlertLastAt<12000)return;marketAlertLastAt=now;
  const item={symbol,side,label:candidate.label,strength:candidate.strength,time:new Date().toLocaleTimeString()};
  marketAlertLog.unshift(item);marketAlertLog.splice(6);
- const msg=item.symbol+" · "+item.label+" · evidence "+item.strength.toFixed(2)+" · "+item.time;
+ const msg=marketName(item.symbol)+" · "+item.label+" · evidence "+item.strength.toFixed(2)+" · "+item.time;
  const toast=$("marketAlertToast");if(toast)toast.textContent="NEW QUALIFIED SETUP — "+msg;
- const log=$("marketAlertLog");if(log)log.innerHTML="<b>Recent alerts:</b> "+marketAlertLog.map(x=>x.symbol+" "+x.label+" ("+x.strength.toFixed(2)+") · "+x.time).join(" &nbsp; | &nbsp; ");
+ const log=$("marketAlertLog");if(log)log.innerHTML="<b>Recent alerts:</b> "+marketAlertLog.map(x=>marketName(x.symbol)+" "+x.label+" ("+x.strength.toFixed(2)+") · "+x.time).join(" &nbsp; | &nbsp; ");
  marketAlertBeep();
 }
 const marketSignalMonitor={};
@@ -842,12 +845,12 @@ function renderMarketFeedHealth(){
   if(status==="STALE"||status==="SLOW")stale.push(symbol+" "+status.toLowerCase());
   if(status==="STALE"&&!marketFeedWarnings[symbol]){
    marketFeedWarnings[symbol]=true;
-   const msg="MARKET DATA STALE — "+symbol+" · last update "+age+"s ago";
+   const msg="MARKET DATA STALE — "+marketName(symbol)+" · last update "+age+"s ago";
    const toast=$("marketAlertToast");if(toast)toast.textContent=msg;
    marketInvalidationBeep();
   }else if(status!=="STALE"){marketFeedWarnings[symbol]=false;}
   const cls=status==="LIVE"?"green":status==="STALE"?"bad":status==="SLOW"?"gold":"";
-  return '<tr><td><b>'+symbol+'</b></td><td><span class="pill '+cls+'">'+status+'</span></td><td>'+(m.updated?new Date(m.updated).toLocaleTimeString():"—")+'</td><td>'+(age===null?"—":age+"s")+'</td></tr>';
+  return '<tr><td><b>'+marketName(symbol)+'</b></td><td><span class="pill '+cls+'">'+status+'</span></td><td>'+(m.updated?new Date(m.updated).toLocaleTimeString():"—")+'</td><td>'+(age===null?"—":age+"s")+'</td></tr>';
  }).join("");
  const summary=$("marketFeedHealthSummary");
  if(summary)summary.textContent=stale.length?"Attention: "+stale.join(", ")+". Check the connection before relying on analysis.":"No stale feeds detected among the listed markets.";
@@ -978,7 +981,7 @@ function renderBestContractMarkets(){
     else if(aligned){duration="10 ticks";durationReason="Trend aligned, but directional evidence is weaker; use caution.";}
   }
   const status=best.strength>=2?'<span class="green">ELEVATED HISTORICAL DEVIATION</span>':'<span class="gold">WATCH — WEAK EVIDENCE</span>';
-  return '<tr><td><b>'+type+'</b></td><td><b>'+names[best.symbol]+'</b><br><span class="small">'+best.symbol+'</span></td><td>'+best.label+'</td><td>'+pct(best.observed*100)+'</td><td>'+pct(best.expected*100)+'</td><td>'+best.strength.toFixed(2)+' z</td><td>'+best.n+'</td><td><b>'+duration+'</b><br><span class="small">'+durationReason+'</span></td><td>'+status+'</td></tr>';
+  return '<tr><td><b>'+type+'</b></td><td><b>'+marketName(best.symbol)+'</b></td><td>'+best.label+'</td><td>'+pct(best.observed*100)+'</td><td>'+pct(best.expected*100)+'</td><td>'+best.strength.toFixed(2)+' z</td><td>'+best.n+'</td><td><b>'+duration+'</b><br><span class="small">'+durationReason+'</span></td><td>'+status+'</td></tr>';
  }).join("");
  body.innerHTML=rows;
  const ready=SYMBOLS.filter(symbol=>(markets[symbol].ticks||[]).length>=500).length;
@@ -1044,7 +1047,7 @@ function renderAllMarketIntelligence(){
  host.innerHTML=rows;
  const leaders=all.filter(x=>x.grade&&x.grade!=="WAIT").sort((x,y)=>y.z-x.z);
  const lead=leaders[0];
- $("intelLeader").textContent=lead?names[lead.symbol]:"—";
+ $("intelLeader").textContent=lead?marketName(lead.symbol):"—";
  $("intelLeaderType").textContent=lead?lead.type+" · "+lead.label+" · "+lead.z.toFixed(2)+" z":"No candidate has passed evidence and freshness checks";
  const sig=lead?lead.symbol+"|"+lead.type+"|"+lead.label:"";
  $("intelRotation").textContent=!previousIntelLeader?"Building baseline":sig&&sig!==previousIntelLeader?"LEADER CHANGED — review new candidate":sig?"Leader unchanged":"No qualified leader";
@@ -1069,15 +1072,15 @@ function render() {
  if (autoSelectBest && eligible.length && selected !== eligible[0].symbol) {
    selected = eligible[0].symbol;
  }
- $("bestMarket").textContent = best && best.ticks.length>=50 ? best.symbol : "—";
+ $("bestMarket").textContent = best && best.ticks.length>=50 ? marketName(best.symbol) : "—";
  $("bestScore").textContent = best && best.ticks.length>=50 ? `Technical score ${rankScore(best)}/100` : "Waiting for sufficient ticks";
  const m=markets[selected];
  const marketDisplayNames={R_10:"Volatility 10",R_25:"Volatility 25",R_50:"Volatility 50",R_75:"Volatility 75",R_100:"Volatility 100","1HZ10V":"Volatility 10 (1s)","1HZ25V":"Volatility 25 (1s)","1HZ50V":"Volatility 50 (1s)","1HZ75V":"Volatility 75 (1s)","1HZ100V":"Volatility 100 (1s)","1HZ150V":"Volatility 150 (1s)","1HZ250V":"Volatility 250 (1s)","1HZ300V":"Volatility 300 (1s)"};
- $("contractMarketName").textContent="ANALYSIS MARKET: "+(marketDisplayNames[selected]||selected)+" ("+selected+")";
- $("probabilityMarketLabel").textContent="CURRENT MARKET: "+(marketDisplayNames[selected]||selected)+" ("+selected+")";
- const probabilityMarketName=(marketDisplayNames[selected]||selected)+" ("+selected+")";
- $("overProbabilityTitle").textContent="OVER CONTRACTS — 5 TO 8 • "+probabilityMarketName;
- $("underProbabilityTitle").textContent="UNDER CONTRACTS — 5 TO 1 • "+probabilityMarketName;
+ $("contractMarketName").textContent="ANALYSIS MARKET: "+marketName(selected);
+ $("probabilityMarketLabel").textContent="CURRENT MARKET: "+marketName(selected);
+ const probabilityMarketName=marketName(selected);
+ $("overProbabilityTitle").textContent="OVER CONTRACTS — 5 TO 8 • MARKET: "+probabilityMarketName;
+ $("underProbabilityTitle").textContent="UNDER CONTRACTS — 5 TO 1 • MARKET: "+probabilityMarketName;
  updatePriceTrace(m);
  drawCandles(m);
  const bestEligible = eligible[0];
@@ -1085,13 +1088,13 @@ function render() {
  $("learningState").textContent = state;
  $("learningState").style.color = state === "READY" ? "var(--green)" : "var(--gold)";
  $("learningProgress").textContent = Math.min(m.ticks.length,learningTarget) + " / " + learningTarget + " observations";
- $("radarMarket").textContent = bestEligible ? bestEligible.symbol : "NO QUALIFIED MARKET";
+ $("radarMarket").textContent = bestEligible ? marketName(bestEligible.symbol) : "NO QUALIFIED MARKET";
  $("radarSignal").textContent = bestEligible ? (analyze(bestEligible).directionSignal !== "WAIT" ? analyze(bestEligible).directionSignal : analyze(bestEligible).digitSignal) : "WAIT";
  $("radarReason").textContent = bestEligible ? "Highest-ranked market that passed the existing analysis safeguards. Manual review only." : "No market has passed the existing evidence filters. Keep waiting.";
  $("learningNote").textContent = state === "READY" ? "Learning sample reached. This does not itself create a trade signal; the separate 120/150-tick analysis safeguards remain active." : "Collecting observations. The learning target controls readiness only; signal safeguards still require larger samples before manual review.";
  $("riskGuardStatus").textContent = "Advisory limits: max stake " + $("maxStake").value + " • session loss " + $("sessionLoss").value + " • take-profit " + $("sessionProfit").value + ". Not enforced by Deriv.";
- $("selectedMarket").textContent=selected;
- $("analysisSymbol").textContent=selected;
+ $("selectedMarket").textContent=marketName(selected);
+ $("analysisSymbol").textContent=marketName(selected);
  $("selectedPrice").textContent=m.quote!==null ? `Live: ${fmt(m.quote)}` : "Waiting for live price";
  $("sample").textContent=`${m.ticks.length} ticks`;
  const sidebar=$("marketSidebar");
