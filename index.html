@@ -1067,9 +1067,9 @@ function requestMarketCandles(symbol,granularity=candleTimeframe){
  m.timeframes=m.timeframes||{};
  if(m.timeframes[granularity]?.length||m.requestedCandleTf===granularity)return;
  m.requestedCandleTf=granularity;
+ const id=requestId+1;
  const sent=request({ticks_history:symbol,count:120,end:"latest",style:"candles",granularity},"market-candles",symbol);
- const id=Object.keys(requestMap).find(key=>requestMap[key]?.type==="market-candles"&&requestMap[key]?.symbol===symbol);
- if(id)requestMap[id].granularity=granularity;
+ if(requestMap[id])requestMap[id].granularity=granularity;
  if(!sent)m.requestedCandleTf=null;
 }
 function loadMarket(symbol) {
