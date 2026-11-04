@@ -170,6 +170,50 @@ a{font-weight:700}
 .app-tabs .app-tab.active{background:var(--teal);color:#061522;border-color:var(--teal)}
 .terminal-content>[data-app-tab-hidden="true"]{display:none!important}
 @media(max-width:600px){.app-tabs{margin:0 -8px;padding:8px}.app-tabs .app-tab{padding:9px 14px;font-size:12px}.terminal-layout{gap:10px}}
+
+/* Professional multi-accent dashboard finish */
+:root{--teal:#39d6c3;--cyan:#63c8ff;--violet:#b39aff;--amber:#ffc66e;--rose:#ff8298;--lime:#a6e36f}
+#overview>.card{border-top:3px solid var(--cyan);background:linear-gradient(150deg,rgba(18,42,65,.98),rgba(10,23,40,.98))}
+#overview>.card:nth-child(2){border-top-color:var(--violet);background:linear-gradient(150deg,rgba(39,31,68,.62),rgba(10,23,40,.98))}
+#overview>.card:nth-child(3){border-top-color:var(--teal);background:linear-gradient(150deg,rgba(13,57,55,.52),rgba(10,23,40,.98))}
+#overview>.card:nth-child(4){border-top-color:var(--amber);background:linear-gradient(150deg,rgba(67,48,25,.48),rgba(10,23,40,.98))}
+#overview>.card:nth-child(1) .metric{color:var(--cyan)}
+#overview>.card:nth-child(2) .metric{color:var(--violet)}
+#overview>.card:nth-child(3) .metric{color:var(--teal)}
+#overview>.card:nth-child(4) .metric{color:var(--amber)}
+#homeBestMarkets{border-color:rgba(179,154,255,.32);background:linear-gradient(145deg,rgba(31,28,55,.75),rgba(10,23,40,.98))}
+#homeBestMarketCards>.box{border:1px solid rgba(118,183,255,.2);border-top:3px solid var(--cyan);background:linear-gradient(145deg,rgba(18,40,62,.96),rgba(10,23,40,.98));border-radius:13px;padding:13px;box-shadow:0 9px 22px rgba(0,0,0,.16)}
+#homeBestMarketCards>.box:nth-child(4n+2){border-top-color:var(--violet)}
+#homeBestMarketCards>.box:nth-child(4n+3){border-top-color:var(--teal)}
+#homeBestMarketCards>.box:nth-child(4n){border-top-color:var(--amber)}
+#homeBestMarketCards>.box b{color:#f4f7ff}
+#markets{border-top:2px solid var(--cyan)}
+#analysis{border-top:2px solid var(--violet)}
+#probability{border-top:2px solid var(--teal)}
+#radar{border-top:2px solid var(--amber)}
+#trade-quality-filter{border-top:2px solid var(--rose)}
+#market-ou-board,#market-ou-ranking{border-top:2px solid var(--cyan)}
+#all-market-command-centre{border-top:2px solid var(--violet)}
+.app-tabs .app-tab{transition:background .18s,border-color .18s,color .18s}
+.app-tabs .app-tab:nth-child(1){--tab-accent:var(--cyan)}
+.app-tabs .app-tab:nth-child(2){--tab-accent:var(--teal)}
+.app-tabs .app-tab:nth-child(3){--tab-accent:var(--violet)}
+.app-tabs .app-tab:nth-child(4){--tab-accent:var(--amber)}
+.app-tabs .app-tab:nth-child(5){--tab-accent:var(--cyan)}
+.app-tabs .app-tab:nth-child(6){--tab-accent:var(--rose)}
+.app-tabs .app-tab:nth-child(7){--tab-accent:var(--lime)}
+.app-tabs .app-tab:not(.active){border-color:color-mix(in srgb,var(--tab-accent) 32%,transparent);background:color-mix(in srgb,var(--tab-accent) 8%,#0d192b)}
+.app-tabs .app-tab.active{background:var(--tab-accent);border-color:var(--tab-accent);color:#071522;box-shadow:0 4px 16px color-mix(in srgb,var(--tab-accent) 24%,transparent)}
+.watch-item{border-left:3px solid rgba(99,200,255,.48)}
+.watch-item:nth-child(4n+2){border-left-color:rgba(179,154,255,.65)}
+.watch-item:nth-child(4n+3){border-left-color:rgba(57,214,195,.65)}
+.watch-item:nth-child(4n){border-left-color:rgba(255,198,110,.65)}
+.watch-item.active{border-color:var(--teal);box-shadow:inset 3px 0 var(--teal),0 5px 18px rgba(57,214,195,.10)}
+.pill.good,.pill.green{background:rgba(53,224,162,.12);border-color:rgba(53,224,162,.32);color:#74f0c0}
+.pill.warn,.pill.gold{background:rgba(255,198,110,.12);border-color:rgba(255,198,110,.3);color:#ffd58d}
+.pill.bad,.pill.red{background:rgba(255,130,152,.12);border-color:rgba(255,130,152,.3);color:#ff9bad}
+@media(max-width:600px){#overview>.card{min-height:104px}#homeBestMarketCards>.box{padding:11px}}
+
 </style>
 </head>
 <body>
@@ -199,7 +243,7 @@ a{font-weight:700}
   <div class="grid" id="overview">
     <div class="card"><h3>MARKETS SCANNED</h3><div class="metric" id="scanned">0 / 13</div><div class="small">Selected synthetic indices</div></div>
     <div class="card"><h3>BEST RANKED MARKET</h3><div class="metric" id="bestMarket">—</div><div class="small" id="bestScore">Waiting for data</div></div>
-    <div class="card"><h3>SELECTED MARKET</h3><div class="metric" id="selectedMarket">R_10</div><div class="small" id="selectedPrice">Waiting for live price</div></div>
+    <div class="card"><h3>SELECTED MARKET</h3><div class="metric" id="selectedMarket">Volatility 10</div><div class="small" id="selectedPrice">Waiting for live price</div></div>
     <div class="card"><h3>DATA SAMPLE</h3><div class="metric" id="sample">0 ticks</div><div class="small">Recent observations</div></div>
   </div>
   <section class="section card" id="homeBestMarkets">
@@ -208,14 +252,14 @@ a{font-weight:700}
   </section>
 
   <section class="section card price-trace-card" aria-label="Selected market live tick price trace">
-    <div class="trace-head"><div><span class="eyebrow">LIVE MARKET VIEW</span><h3 class="section-title">PRICE TRACE <span class="pill" id="traceSymbol">R_10</span></h3><p class="note">Recent tick-by-tick quote movement for the selected market. This is a live price trace, not a candlestick chart.</p></div><div class="trace-quote"><span class="small">LATEST QUOTE</span><strong id="traceQuote">—</strong><span class="small" id="traceRange">Awaiting market data</span></div></div>
+    <div class="trace-head"><div><span class="eyebrow">LIVE MARKET VIEW</span><h3 class="section-title">PRICE TRACE <span class="pill" id="traceSymbol">Volatility 10</span></h3><p class="note">Recent tick-by-tick quote movement for the selected market. This is a live price trace, not a candlestick chart.</p></div><div class="trace-quote"><span class="small">LATEST QUOTE</span><strong id="traceQuote">—</strong><span class="small" id="traceRange">Awaiting market data</span></div></div>
     <div class="trace-chart"><svg id="priceTrace" viewBox="0 0 1000 220" role="img" aria-label="Recent selected market price trace"><defs><linearGradient id="traceFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#35e0a2" stop-opacity=".28"/><stop offset="100%" stop-color="#35e0a2" stop-opacity="0"/></linearGradient></defs><path d="M0 45H1000 M0 95H1000 M0 145H1000 M0 195H1000" stroke="#29415d" stroke-width="1" stroke-dasharray="4 8" fill="none"/><path id="traceArea" d="" fill="url(#traceFill)"/><path id="traceLine" d="" fill="none" stroke="#35e0a2" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><circle id="tracePoint" cx="0" cy="0" r="6" fill="#35e0a2" stroke="#eafff6" stroke-width="2"/></svg></div>
     <div class="trace-foot"><span>OLDER TICKS</span><span id="traceSamples">0 observations</span><span>NEWER TICKS</span></div>
   </section>
 
 
   <section class="section card" id="candleWorkspace" aria-label="Synthetic market candlestick chart">
-    <div class="trace-head"><div><span class="eyebrow">PRICE ACTION WORKSPACE</span><h3 class="section-title">LIVE CANDLESTICK CHART <span class="pill" id="candleSymbol">R_10</span></h3><p class="note">Candles are aggregated from received Deriv tick history and live ticks. Longer timeframes need enough observations; this is not a full broker candle feed.</p></div><div class="trace-quote"><span class="small">LATEST CLOSE</span><strong id="candleClose">—</strong><span class="small" id="candleInfo">Waiting for market data</span></div></div>
+    <div class="trace-head"><div><span class="eyebrow">PRICE ACTION WORKSPACE</span><h3 class="section-title">LIVE CANDLESTICK CHART <span class="pill" id="candleSymbol">Volatility 10</span></h3><p class="note">Candles are aggregated from received Deriv tick history and live ticks. Longer timeframes need enough observations; this is not a full broker candle feed.</p></div><div class="trace-quote"><span class="small">LATEST CLOSE</span><strong id="candleClose">—</strong><span class="small" id="candleInfo">Waiting for market data</span></div></div>
     <div class="candle-controls" role="group" aria-label="Chart timeframe"><button type="button" data-candle-tf="60" class="active">1M</button><button type="button" data-candle-tf="300">5M</button><button type="button" data-candle-tf="900">15M</button><button type="button" data-candle-tf="3600">1H</button><button type="button" data-candle-tf="14400">4H</button><button type="button" data-candle-tf="86400">1D</button></div>
     <svg id="candleChart" class="candle-chart" viewBox="0 0 1000 300" role="img" aria-label="Aggregated OHLC candlestick chart"><text x="500" y="150" text-anchor="middle" fill="#91a4bd" font-size="16">Connect to load candles</text></svg>
     <div class="candle-legend"><span>UP CANDLE</span><span class="down">DOWN CANDLE</span><span>OHLC aggregated from tick observations</span></div>
@@ -236,7 +280,7 @@ a{font-weight:700}
     <section class="card">
       <h3 class="section-title">SELECTED MARKET ANALYSIS</h3>
       <div class="small">MARKET</div>
-      <div class="metric" id="analysisSymbol">R_10</div>
+      <div class="metric" id="analysisSymbol">Volatility 10</div>
       <div class="small">DIRECTIONAL ANALYSIS</div>
       <div class="signal" id="direction">WAITING</div>
       <div class="small" id="directionReason">Connect to receive recent ticks.</div>
@@ -1102,7 +1146,7 @@ function render() {
    sidebar.innerHTML=SYMBOLS.map(symbol=>{
      const item=markets[symbol],a=analyze(item),score=item.available?rankScore(item):0;
      const state=!item.available?(item.error?"Unavailable":"Discovering"):item.ticks.length>=100?"Ready":item.loading?"Loading":"Collecting";
-     return '<button type="button" class="watch-item '+(symbol===selected?"active":"")+'" data-watch-symbol="'+symbol+'"><span><span class="watch-name">'+symbol+'</span><span class="watch-meta">'+state+'</span></span><span class="watch-score">'+(item.available?score+"/100":"—")+'</span></button>';
+     return '<button type="button" class="watch-item '+(symbol===selected?"active":"")+'" data-watch-symbol="'+symbol+'"><span><span class="watch-name">'+marketName(symbol)+'</span><span class="watch-meta">'+state+'</span></span><span class="watch-score">'+(item.available?score+"/100":"—")+'</span></button>';
    }).join("");
    sidebar.querySelectorAll("[data-watch-symbol]").forEach(btn=>btn.addEventListener("click",()=>{
      selected=btn.dataset.watchSymbol;
@@ -1118,7 +1162,7 @@ function render() {
    const cls=direction==="RISE"?"green":direction==="FALL"?"red":"gold";
    const status=x.error?"Unavailable":x.ticks.length>=100?"Analyzed":x.loading?"Loading":"Collecting";
    return `<tr class="market ${x.symbol===selected?"selected":""}" data-symbol="${x.symbol}">
-   <td>${i+1}</td><td><b>${x.symbol}</b></td><td>${price}</td>
+   <td>${i+1}</td><td><b>${marketName(x.symbol)}</b></td><td>${price}</td>
    <td class="${cls}">${direction}</td><td>${score}/100</td><td>${status}</td></tr>`;
  }).join("") || '<tr><td colspan="6">No markets discovered yet.</td></tr>';
  document.querySelectorAll("tr[data-symbol]").forEach(row=>row.addEventListener("click",()=>{selected=row.dataset.symbol;render();}));
