@@ -473,7 +473,7 @@ a{font-weight:700}
       <label class="box">Risk per trade (%) <input id="cfdRiskPct" type="number" min="0.1" max="5" step="0.1" value="1" style="width:100%;margin-top:7px"></label>
       <label class="box">Instrument filter <select id="cfdCategoryFilter" style="width:100%;margin-top:7px"><option value="ALL">All discovered CFDs</option><option value="METALS">Metals (Gold / Silver)</option><option value="FOREX">Forex pairs</option><option value="INDICES">Stock indices</option><option value="COMMODITIES">Other commodities</option><option value="CRYPTO">Crypto CFDs</option></select></label>
     </div>
-    <div class="tablewrap"><table style="min-width:1250px"><thead><tr><th>INSTRUMENT</th><th>STRENGTH</th><th>SIGNAL</th><th>1M</th><th>5M</th><th>15M</th><th>1H</th><th>LIVE ENTRY</th><th>POTENTIAL STOP LOSS</th><th>POTENTIAL TAKE PROFIT</th><th>R:R</th><th>VALIDITY</th><th>VALUE / 1.00 MOVE / LOT</th><th>SUGGESTED LOT</th></tr></thead><tbody id="cfdSignalRows"><tr><td colspan="10">Connect to Deriv and discover available Forex / CFD instruments.</td></tr></tbody></table></div>
+    <div class="tablewrap"><table style="min-width:1500px"><thead><tr><th>INSTRUMENT</th><th>TECH STRENGTH</th><th>USD CONFIRMATION SCORE</th><th>MACRO AGREEMENT</th><th>SIGNAL</th><th>1M</th><th>5M</th><th>15M</th><th>1H</th><th>LIVE ENTRY</th><th>POTENTIAL STOP LOSS</th><th>POTENTIAL TAKE PROFIT</th><th>R:R</th><th>VALIDITY</th><th>VALUE / 1.00 MOVE / LOT</th><th>SUGGESTED LOT</th></tr></thead><tbody id="cfdSignalRows"><tr><td colspan="10">Connect to Deriv and discover available Forex / CFD instruments.</td></tr></tbody></table></div>
     <p class="note" id="cfdCentreNote">Lot size requires your account balance and the verified monetary value of a 1.00 price move per 1.00 lot for each instrument. Do not guess contract specifications. Stops and targets are technical estimates, not guaranteed fill prices. This panel does not place trades.</p>
   </section>
   <section class="section card" id="boom-crash-centre" hidden>
@@ -490,7 +490,7 @@ a{font-weight:700}
       <div class="box"><b>TRADING MODE</b><div class="large">ADVISORY</div><div class="note">Warnings only. No automatic trade direction or execution.</div></div>
     </div>
     <section class="box dxy-monitor" aria-label="US Dollar Index monitor" style="margin:14px 0;padding:14px">
-      <div class="radar-head"><div><span class="eyebrow">USD BROAD-STRENGTH BENCHMARK</span><h3 class="section-title">US DOLLAR INDEX — DXY</h3><p class="note">Track the US dollar against its major-currency basket and compare its movement with the selected USD pair.</p></div><span class="pill">TVC:DXY · LIVE CHART</span></div>
+      <div class="radar-head"><div><span class="eyebrow">USD BROAD-STRENGTH BENCHMARK</span><h3 class="section-title">US DOLLAR INDEX — DXY</h3><label class="note" style="display:inline-block;margin-top:8px">DXY direction from chart <select id="dxyDirectionInput" style="margin-left:6px"><option value="UNKNOWN">Not assessed</option><option value="RISING">Rising</option><option value="FALLING">Falling</option><option value="RANGE">Ranging / mixed</option></select></label><span class="note">Manual confirmation: choose the current DXY direction after reviewing the chart. No unverified price feed is assumed.</span><p class="note">Track the US dollar against its major-currency basket and compare its movement with the selected USD pair.</p></div><span class="pill">TVC:DXY · LIVE CHART</span></div>
       <div class="dxy-chart-wrap"><iframe title="TradingView US Dollar Index DXY chart" src="https://www.tradingview.com/widgetembed/?frameElementId=berurDxyChart&symbol=TVC%3ADXY&interval=60&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=07111f&theme=dark&style=1&timezone=Etc%2FUTC&withdateranges=1&hideideas=1&locale=en" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allowtransparency="true"></iframe></div>
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin-top:12px">
         <div class="box"><b>DXY RISING</b><div class="note">Often supports USD strength: EUR/USD, GBP/USD, AUD/USD and NZD/USD may face downward pressure; USD/JPY, USD/CHF and USD/CAD may receive upward pressure.</div></div>
@@ -541,6 +541,7 @@ window.BERUR_MARKET_NAME=marketName;
 const WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
 const cfdMarkets = {};
 const cfdRiskInputs = {};
+let usdNewsRiskState={active:[],soon:[],received:false};
 let cfdAccountBalance = null;
 let cfdRiskPercent = 1;
 let cfdCategoryFilter = "ALL";
@@ -936,6 +937,40 @@ function renderBoomCrashCentre(){
   return '<tr><td><b>'+cfdEscape(m.name)+'</b><div class="note">'+cfdEscape(m.symbol)+'</div></td><td><b>'+a.strength+'/100</b><div class="note">'+cfdEscape(a.reason)+'</div></td><td><span class="pill '+cls+'">'+signal+'</span></td><td>'+cell(60)+'</td><td>'+cell(300)+'</td><td>'+cell(900)+'</td><td>'+cell(3600)+'</td><td>'+(a.entry?a.entry.toFixed(5):"—")+'</td><td>'+(a.stop?a.stop.toFixed(5):"—")+'</td><td>'+(a.target?a.target.toFixed(5):"—")+'</td><td>'+(a.stop?"1 : 2.0":"—")+'</td><td><span id="bc-valid-'+key+'">'+(expired?"EXPIRED":state.expiresAt?Math.max(0,Math.ceil((state.expiresAt-Date.now())/1000))+"s":"—")+'</span></td></tr>';
  }).join("");
 }
+function cfdUsdMacroScore(m,a){
+ const raw=(String(m.symbol||"")+" "+String(m.name||"")).toUpperCase().replace(/[^A-Z0-9]/g,"");
+ const pairs=[
+  {key:"EURUSD",label:"EUR/USD",usdBase:false},
+  {key:"GBPUSD",label:"GBP/USD",usdBase:false},
+  {key:"AUDUSD",label:"AUD/USD",usdBase:false},
+  {key:"NZDUSD",label:"NZD/USD",usdBase:false},
+  {key:"USDJPY",label:"USD/JPY",usdBase:true},
+  {key:"USDCHF",label:"USD/CHF",usdBase:true},
+  {key:"USDCAD",label:"USD/CAD",usdBase:true},
+  {key:"XAUUSD",label:"XAU/USD",usdBase:false}
+ ];
+ const pair=pairs.find(p=>raw.includes(p.key));
+ if(!pair)return {score:null,label:"Not a mapped USD pair",dxy:"—",news:"—"};
+ const dxy=(document.getElementById("dxyDirectionInput")||{}).value||"UNKNOWN";
+ let dxyScore=50,dxyLabel="DXY not assessed";
+ if(dxy==="RANGE"){dxyLabel="DXY ranging · neutral";dxyScore=50;}
+ else if(dxy==="RISING"||dxy==="FALLING"){
+  const usdBull=dxy==="RISING";
+  const expected=pair.usdBase?(usdBull?"BUY":"SELL"):(usdBull?"SELL":"BUY");
+  dxyScore=a.signal==="WAIT"?50:(a.signal===expected?100:0);
+  dxyLabel=(dxy==="RISING"?"DXY rising":"DXY falling")+" · "+(a.signal==="WAIT"?"technical direction pending":a.signal===expected?"aligned":"conflicting");
+ }
+ const ccy=pair.key.slice(0,3)==="XAU"?"USD":[pair.key.slice(0,3),pair.key.slice(3,6)];
+ const active=usdNewsRiskState.active.some(x=>ccy.includes(x));
+ const soon=usdNewsRiskState.soon.some(x=>ccy.includes(x));
+ const newsScore=active?0:soon?40:usdNewsRiskState.received?100:50;
+ const newsLabel=active?"HIGH-IMPACT WINDOW":soon?"HIGH-IMPACT EVENT SOON":usdNewsRiskState.received?"No matching high-impact event":"News feed unverified";
+ const technical=a.timeframes&&a.timeframes.ready&&a.timeframes.aligned&&a.signal!=="WAIT"?a.strength:Math.min(a.strength,45);
+ const score=Math.round(technical*.55+dxyScore*.25+newsScore*.20);
+ let label=active?"NEWS RISK — REVIEW":score>=80?"STRONG AGREEMENT":score>=65?"PARTIAL AGREEMENT":"WEAK / CONFLICTING";
+ if(dxy==="UNKNOWN"||!usdNewsRiskState.received)label="INCOMPLETE DATA · "+label;
+ return {score,label,dxy:dxyLabel,news:newsLabel,pair:pair.label};
+}
 function renderCfdCentre(){
  const body=$("cfdSignalRows");if(!body)return;
  const list=Object.values(cfdMarkets).filter(m=>m.category!=="BOOMCRASH"&&(cfdCategoryFilter==="ALL"||m.category===cfdCategoryFilter));
@@ -945,13 +980,15 @@ function renderCfdCentre(){
  $("cfdQualified").textContent=qualified.length;
  $("cfdLeader").textContent=qualified[0]?qualified[0].m.name:"—";
  $("cfdLeaderInfo").textContent=qualified[0]?qualified[0].a.signal+" · "+qualified[0].a.strength+"/100":"No qualified live setup";
- if(!analysed.length){body.innerHTML='<tr><td colspan="14">No Forex / CFD instruments discovered from this Deriv feed yet. Confirm the account API exposes CFD symbols.</td></tr>';return;}
+ if(!analysed.length){body.innerHTML='<tr><td colspan="16">No Forex / CFD instruments discovered from this Deriv feed yet. Confirm the account API exposes CFD symbols.</td></tr>';return;}
  body.innerHTML=analysed.sort((x,y)=>y.a.strength-x.a.strength).map(({m,a})=>{
    const state=cfdSignalState(m,a),key=m.symbol.replace(/[^a-z0-9]/gi,""),expired=state.expiresAt&&Date.now()>=state.expiresAt;
    const signal=expired?"EXPIRED":a.signal,cls=signal==="BUY"?"good":signal==="SELL"?"bad":"warn";
    const cfg=cfdRiskInputs[m.symbol]||{},lot=cfdLotEstimate(m,a),dist=a.stop&&a.entry?Math.abs(a.entry-a.stop):0;
    return '<tr><td><b>'+cfdEscape(m.name)+'</b><div class="note">'+cfdEscape(m.category)+' · '+cfdEscape(m.symbol)+'</div></td>'+
     '<td><b>'+a.strength+'/100</b><div class="note">'+cfdEscape(a.reason)+'</div></td>'+
+    '<td><b>'+(cfdUsdMacroScore(m,a).score===null?"—":cfdUsdMacroScore(m,a).score+"/100")+'</b></td>'+
+    '<td><span class="note">'+cfdEscape(cfdUsdMacroScore(m,a).label)+'</span><div class="note">'+cfdEscape(cfdUsdMacroScore(m,a).dxy+" · "+cfdUsdMacroScore(m,a).news)+'</div></td>'+
     '<td><span class="pill '+cls+'">'+signal+'</span></td>'+
     '<td>'+cfdTfCell(a,60)+'</td><td>'+cfdTfCell(a,300)+'</td><td>'+cfdTfCell(a,900)+'</td><td>'+cfdTfCell(a,3600)+'</td>'+
     '<td>'+ (Number.isFinite(a.entry)?a.entry.toFixed(5):"—")+'</td>'+
@@ -1624,6 +1661,13 @@ if(cfdPanel){
  });
  cfdPanel.addEventListener("change",e=>{if(e.target.id==="cfdCategoryFilter"){cfdCategoryFilter=e.target.value;renderCfdCentre();}});
 }
+const dxyControl=$("dxyDirectionInput");
+if(dxyControl)dxyControl.addEventListener("change",()=>renderCfdCentre());
+window.addEventListener("berur-news-risk-update",event=>{
+ const d=event.detail||{};
+ usdNewsRiskState={active:Array.isArray(d.active)?d.active:[],soon:Array.isArray(d.soon)?d.soon:[],received:!!d.received};
+ renderCfdCentre();
+});
 render();
 renderBoomCrashCentre();
 setInterval(updateCfdSignalClocks,1000);
