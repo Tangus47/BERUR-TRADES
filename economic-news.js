@@ -48,6 +48,10 @@ return '<tr><td><span class="news-impact '+esc(e.impact)+'">'+esc(e.impact.toUpp
 const summary=$("newsResultSummary");if(summary)summary.textContent=events.length+" matching events · "+state.events.length+" events received · High and medium impact calendar";
 }
 const banners=bannerMarkup();["newsHomeBanner","newsForexBanner"].forEach(id=>{const el=$(id);if(el)el.innerHTML=banners;});
+const nowForRisk=calendarNow();
+const activeCurrencies=[...new Set(state.events.filter(e=>e.impact==="high"&&e.ts-nowForRisk>=-state.after*60&&e.ts-nowForRisk<=state.before*60).map(e=>e.currency))];
+const soonCurrencies=[...new Set(state.events.filter(e=>e.impact==="high"&&e.ts-nowForRisk>state.before*60&&e.ts-nowForRisk<=3600).map(e=>e.currency))];
+window.dispatchEvent(new CustomEvent("berur-news-risk-update",{detail:{active:activeCurrencies,soon:soonCurrencies,received:!!state.lastSuccess&&Date.now()-state.lastSuccess<=1200000}}));
 const syn=$("newsSyntheticNotice");if(syn)syn.textContent="Synthetic Volatility indices (including 1-second indices), Boom and Crash are not mapped to macroeconomic releases. This panel does not apply economic-news blackout warnings to those markets.";
 }
 async function refresh(){
