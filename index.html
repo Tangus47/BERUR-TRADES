@@ -135,7 +135,7 @@ footer{padding:20px 4px;color:var(--muted);font-size:10px;line-height:1.6}
 
   <section class="section card">
     <h3 class="section-title">OVER / UNDER DIGIT SCANNER — 0 TO 9</h3>
-    <p class="note">Every threshold is evaluated separately. Over X means digit greater than X; Under X means digit less than X. The exact X is excluded. Rankings show historical deviation from the uniform-digit baseline, not a prediction or guaranteed trading edge.</p>
+    <p class="note">Every threshold is evaluated separately. Over X wins when the digit is greater than X; Under X wins when it is less than X. The exact X is a loss and remains in the sample. Rankings compare observed results with the theoretical baseline; they do not predict future digits.</p>
     <div class="tablewrap">
       <table style="min-width:680px">
         <thead><tr><th>RANK</th><th>CONTRACT</th><th>OBSERVED</th><th>BASELINE</th><th>DEVIATION</th><th>VALID SAMPLES</th><th>ASSESSMENT</th></tr></thead>
@@ -146,6 +146,16 @@ footer{padding:20px 4px;color:var(--muted);font-size:10px;line-height:1.6}
   </section>
 
   <section class="section card">
+    <h3 class="section-title">50% CONTRACT COMPARISON</h3>
+    <p class="note">OVER 4, UNDER 5, EVEN and ODD each have a theoretical 50% winning chance under a uniform 0–9 digit model. Compare observed frequency and sample evidence; historical results do not forecast the next digit.</p>
+    <div class="tablewrap"><table style="min-width:560px">
+      <thead><tr><th>RANK</th><th>CONTRACT</th><th>OBSERVED</th><th>BASELINE</th><th>DEVIATION</th><th>SAMPLES</th></tr></thead>
+      <tbody id="halfOddsRows"><tr><td colspan="6">Connect and collect at least 100 ticks.</td></tr></tbody>
+    </table></div>
+    <p class="small" id="halfOddsSummary">Waiting for enough observations to compare the four contracts.</p>
+  </section>
+
+  <section class="section card">
     <h3 class="section-title">LAST-DIGIT DISTRIBUTION</h3>
     <div class="small" style="margin-bottom:10px">Frequency of the final displayed decimal digit in recent quotes.</div>
     <div class="digits" id="digitGrid"></div>
@@ -153,7 +163,7 @@ footer{padding:20px 4px;color:var(--muted);font-size:10px;line-height:1.6}
   </section>
 
   <div class="grid section">
-    <div class="card"><h3>OVER / UNDER 5</h3><div class="metric" id="overUnder">—</div><div class="small" id="overUnderDetail">No data</div></div>
+    <div class="card"><h3>BEST DIGIT CONTRACT</h3><div class="metric" id="overUnder">—</div><div class="small" id="overUnderDetail">No data</div></div>
     <div class="card"><h3>EVEN / ODD</h3><div class="metric" id="evenOdd">—</div><div class="small" id="evenOddDetail">No data</div></div>
     <div class="card"><h3>RISE / FALL</h3><div class="metric" id="riseFall">—</div><div class="small" id="riseFallDetail">No data</div></div>
     <div class="card"><h3>DATA QUALITY</h3><div class="metric" id="quality">LOW</div><div class="small" id="qualityDetail">Waiting for observations</div></div>
@@ -495,11 +505,11 @@ function analyze(m) {
  let digitReason = "Collect at least 150 ticks before assessing all Over/Under thresholds.";
  if (n >= 150) {
    for (let barrier = 0; barrier <= 9; barrier++) {
-     const validN = n - counts[barrier];
+     const validN = n;
      const overCount = ds.filter(d => d > barrier).length;
      const underCount = ds.filter(d => d < barrier).length;
-     const expectedOver = (9 - barrier) / 9;
-     const expectedUnder = barrier / 9;
+     const expectedOver = (9 - barrier) / 10;
+     const expectedUnder = barrier / 10;
      for (const side of ["OVER","UNDER"]) {
        const count = side === "OVER" ? overCount : underCount;
        const expected = side === "OVER" ? expectedOver : expectedUnder;
@@ -507,16 +517,15 @@ function analyze(m) {
        const standardError = validN > 0 ? Math.sqrt(expected * (1 - expected) / validN) : 0;
        const z = standardError > 0 ? (observed - expected) / standardError : 0;
        const impossible = (side === "UNDER" && barrier === 0) || (side === "OVER" && barrier === 9);
-       const guaranteed = (side === "OVER" && barrier === 0) || (side === "UNDER" && barrier === 9);
        ouCandidates.push({
          side, barrier, label: side + " " + barrier, count, validN,
          observed, expected, deviation: observed - expected,
-         z, strength: Math.abs(z), impossible, guaranteed
+         z, strength: Math.abs(z), impossible, guaranteed: false
        });
      }
    }
    const ranked = ouCandidates
-     .filter(x => !x.impossible && !x.guaranteed && x.validN >= 100 && x.deviation > 0)
+     .filter(x => !x.impossible && x.validN >= 100 && x.deviation > 0)
      .sort((x,y) => y.strength - x.strength);
    const strongest = ranked[0];
    if (strongest && strongest.strength >= 2) {
@@ -550,7 +559,7 @@ function rankScore(m) {
  const a=analyze(m);
  if(a.n<50) return 0;
  const movement=m.ticks.length>1 ? Math.abs(m.ticks[m.ticks.length-1]-m.ticks[0])/(Math.abs(m.ticks[0])||1)*100 : 0;
- const ouStrength = a.ouCandidates?.filter(x=>!x.impossible&&!x.guaranteed&&x.validN>=100&&x.deviation>0).reduce((v,x)=>Math.max(v,x.strength),0)||0;
+ const ouStrength = a.ouCandidates?.filter(x=>!x.impossible&&x.validN>=100&&x.deviation>0).reduce((v,x)=>Math.max(v,x.strength),0)||0;
  return Math.round(Math.min(100,a.directionScore*.45 + Math.min(45,ouStrength*10) + Math.min(10,movement)));
 }
 function render() {
@@ -606,12 +615,29 @@ function render() {
  $("ouRows").innerHTML = rankedOU.map((x,i)=>{
    const observed = pct(x.observed*100), baseline = pct(x.expected*100);
    const dev = (x.deviation>=0?"+":"")+(x.deviation*100).toFixed(1)+" pp";
-   let assessment = x.impossible ? "IMPOSSIBLE" : x.guaranteed ? "CERTAIN / LOW VALUE" : x.validN<100 ? "LOW SAMPLE" : x.deviation<=0 ? "BELOW BASELINE" : x.strength>=2 ? "EVIDENCE TO REVIEW" : "WEAK — WAIT";
+   let assessment = x.impossible ? "IMPOSSIBLE" : x.validN<100 ? "LOW SAMPLE" : x.deviation<=0 ? "BELOW BASELINE" : x.strength>=2 ? "EVIDENCE TO REVIEW" : "WEAK — WAIT";
    const cls = x.impossible || x.deviation<=0 ? "red" : x.strength>=2 ? "green" : "gold";
    return "<tr><td>"+(i+1)+"</td><td><b>"+x.label+"</b></td><td>"+observed+"</td><td>"+baseline+"</td><td class='"+cls+"'>"+dev+" (z "+x.strength.toFixed(2)+")</td><td>"+x.validN+"</td><td class='"+cls+"'>"+assessment+"</td></tr>";
  }).join("");
  const bestOU = rankedOU.find(x=>!x.impossible&&!x.guaranteed&&x.validN>=100&&x.deviation>0);
  $("ouBestSummary").textContent = bestOU ? "Strongest historical deviation: "+bestOU.label+" • "+pct(bestOU.observed*100)+" observed vs "+pct(bestOU.expected*100)+" baseline. This is not a probability forecast." : "No qualifying Over/Under recommendation. Keep waiting.";
+ const halfOdds = [
+   {label:"OVER 4",count:a.counts.slice(5,10).reduce((s,v)=>s+v,0)},
+   {label:"UNDER 5",count:a.counts.slice(0,5).reduce((s,v)=>s+v,0)},
+   {label:"EVEN",count:a.even},
+   {label:"ODD",count:a.odd}
+ ].map(x=>{
+   const observed=a.n?x.count/a.n:0, expected=0.5;
+   const se=a.n?Math.sqrt(expected*(1-expected)/a.n):0;
+   const z=se?(observed-expected)/se:0;
+   return {...x,observed,expected,deviation:observed-expected,z,strength:Math.abs(z)};
+ }).sort((x,y)=>y.strength-x.strength);
+ $("halfOddsRows").innerHTML = a.n>=100 ? halfOdds.map((x,i)=>{
+   const cls=x.deviation>0?"green":x.deviation<0?"red":"gold";
+   return "<tr><td>"+(i+1)+"</td><td><b>"+x.label+"</b></td><td>"+pct(x.observed*100)+"</td><td>50.0%</td><td class='"+cls+"'>"+(x.deviation>=0?"+":"")+(x.deviation*100).toFixed(1)+" pp (z "+x.z.toFixed(2)+")</td><td>"+a.n+"</td></tr>";
+ }).join("") : '<tr><td colspan="6">Collect at least 100 ticks to compare all four contracts.</td></tr>';
+ const halfTop=halfOdds[0];
+ $("halfOddsSummary").textContent = a.n>=100 ? "Largest historical deviation by absolute z-score: "+halfTop.label+" ("+(halfTop.deviation>=0?"+":"")+(halfTop.deviation*100).toFixed(1)+" percentage points). This is descriptive evidence, not a trade guarantee." : "Waiting for at least 100 observations.";
  $("matchDigit").textContent=a.n>=100?`Hot ${a.hot} / Cold ${a.cold}`:"—";
  $("matchReason").textContent=a.n>=100?`Hot digit observed ${a.counts[a.hot]} times; cold digit ${a.counts[a.cold]} times. Descriptive only.`:"Waiting for at least 100 observations.";
  $("tradeStatus").textContent=a.tradeAllowed?"REVIEW SETUP — MANUAL ONLY":"NO TRADE — INSUFFICIENT EVIDENCE";
