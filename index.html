@@ -990,7 +990,7 @@ function renderCurrencyStrengthHeatmap(){
   const base=pair.slice(0,3),quote=pair.slice(3,6);
   if(!stats[base]||!stats[quote])return;
   const a=cfdAnalyze(m);if(a.signal!=="BUY"&&a.signal!=="SELL")return;
-  const confidence=Math.max(1,Math.min(1,a.strength/100));
+  const confidence=Math.max(.5,Math.min(.98,a.strength/100));
   const direction=a.signal==="BUY"?1:-1;
   stats[base].net+=direction*confidence;stats[base].count++;stats[base].pairs.push(pair);
   stats[quote].net-=direction*confidence;stats[quote].count++;stats[quote].pairs.push(pair);
