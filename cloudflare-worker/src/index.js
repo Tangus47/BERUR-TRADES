@@ -27,7 +27,7 @@ function corsHeaders(origin) {
   if (origin !== ALLOWED_ORIGIN) return {};
   return {
     "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "600",
     "Vary": "Origin"
@@ -151,6 +151,43 @@ export default {
       return redirect(destination.toString());
     }
 
+    if (url.pathname.startsWith("/api/")) {
+      if (request.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers: corsHeaders(origin) });
+      }
+      if (origin !== ALLOWED_ORIGIN) {
+        return json({ error: "Origin not allowed" }, 403);
+      }
+      const sessionId = (request.headers.get("Authorization") || "").replace(/^Bearer\\s+/i, "");
+      if (!/^[a-f0-9]{64}$/.test(sessionId)) {
+        return json({ error: "Session expired. Connect Deriv again." }, 401, corsHeaders(origin));
+      }
+      const session = await env.BERUR_SESSIONS.get(`session:${sessionId}`, "json");
+      if (!session?.access_token) {
+        return json({ error: "Session expired. Connect Deriv again." }, 401, corsHeaders(origin));
+      }
+      let upstreamUrl;
+      let method = request.method;
+      if (url.pathname === "/api/accounts" && method === "GET") {
+        upstreamUrl = "https://api.derivws.com/trading/v1/options/accounts";
+      } else {
+        const match = url.pathname.match(/^\\/api\\/accounts\\/([A-Za-z0-9_-]+)\\/otp$/);
+        if (!match || method !== "POST") return json({ error: "Not found" }, 404, corsHeaders(origin));
+        upstreamUrl = "https://api.derivws.com/trading/v1/options/accounts/" + encodeURIComponent(match[1]) + "/otp";
+      }
+      let upstream;
+      try {
+        upstream = await fetch(upstreamUrl, {
+          method,
+          headers: { "Authorization": "Bearer " + session.access_token }
+        });
+      } catch {
+        return json({ error: "Deriv API temporarily unavailable" }, 502, corsHeaders(origin));
+      }
+      const payload = await upstream.json().catch(() => ({ error: "Invalid Deriv response" }));
+      return json(payload, upstream.status, corsHeaders(origin));
+    }
+
     if (url.pathname === "/oauth/redeem") {
       if (request.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: corsHeaders(origin) });
@@ -182,7 +219,14 @@ export default {
         return json({ error: "Login ticket has expired or was already used" }, 401, corsHeaders(origin));
       }
 
-      return json(session, 200, corsHeaders(origin));
+      const sessionId = randomHex(32);
+      const ttl = Math.max(60, Math.min(86400, Number(session.expires_in) || 3600));
+      await env.BERUR_SESSIONS.put(
+        `session:${sessionId}`,
+        JSON.stringify({ access_token: session.access_token }),
+        { expirationTtl: ttl }
+      );
+      return json({ session_id: sessionId, expires_in: ttl }, 200, corsHeaders(origin));
     }
 
     return json({ error: "Not found" }, 404);
