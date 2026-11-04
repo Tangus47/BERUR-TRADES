@@ -163,6 +163,13 @@ a{font-weight:700}
 /* Candlestick chart workspace */
 .candle-controls{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.candle-controls button{padding:8px 12px;min-height:34px;font-size:11px}.candle-controls button.active{background:linear-gradient(135deg,#36e0a3,#19b982);color:#041a13;border-color:transparent}.candle-chart{width:100%;height:300px;display:block;background:linear-gradient(180deg,rgba(8,20,34,.9),rgba(8,20,34,.35));border:1px solid rgba(125,164,208,.12);border-radius:12px}.candle-legend{display:flex;gap:14px;flex-wrap:wrap;color:#91a9c6;font-size:10px;margin-top:8px}.candle-legend span:before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--green)}.candle-legend .down:before{background:var(--red)}
 @media(max-width:600px){.candle-chart{height:230px}}
+
+/* Compact touch-friendly tab navigation */
+.app-tabs{display:flex;gap:7px;overflow-x:auto;white-space:nowrap;padding:8px 10px;position:sticky;top:0;z-index:30;background:rgba(7,17,31,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);scrollbar-width:thin}
+.app-tabs .app-tab{flex:0 0 auto;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--muted);padding:10px 16px;font:inherit;font-size:13px;font-weight:800;min-height:40px;cursor:pointer}
+.app-tabs .app-tab.active{background:var(--teal);color:#061522;border-color:var(--teal)}
+.terminal-content>[data-app-tab-hidden="true"]{display:none!important}
+@media(max-width:600px){.app-tabs{margin:0 -8px;padding:8px}.app-tabs .app-tab{padding:9px 14px;font-size:12px}.terminal-layout{gap:10px}}
 </style>
 </head>
 <body>
@@ -170,7 +177,7 @@ a{font-weight:700}
   <div class="brand">BERUR <span>TRADES</span></div>
   <div class="sub">DERIV MARKET INTELLIGENCE • LIVE ANALYSIS • MANUAL EXECUTION</div>
 </header>
-<nav class="terminal-nav" aria-label="Dashboard navigation"><a href="#overview">Overview</a><a href="#markets">Markets</a><a href="#candleWorkspace">Candles</a><a href="#analysis">Analysis</a><a href="#probability">Digit Radar</a><a href="#radar">Smart Radar</a><a href="#execution">Execution</a></nav>
+<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button></nav>
 
 <main class="wrap">
   <div class="topline">
@@ -1175,6 +1182,30 @@ $("copyBtn").addEventListener("click",()=>{
    navigator.clipboard.writeText(text).then(()=>$("copyStatus").textContent="Analysis copied.").catch(()=>$("copyStatus").textContent="Copy not available in this browser.");
  } else $("copyStatus").textContent="Clipboard unavailable in this browser.";
 });
+
+function setupAppTabs(){
+ const content=document.querySelector(".terminal-content"),nav=document.querySelector(".app-tabs");
+ if(!content||!nav)return;
+ const direct=el=>{while(el&&el.parentElement!==content)el=el.parentElement;return el&&el.parentElement===content?el:null;};
+ const anchors={home:direct(document.getElementById("overview")),markets:direct(document.getElementById("candleWorkspace")),analysis:direct(document.getElementById("analysis")),execution:direct(document.getElementById("execution")),radar:direct(document.getElementById("radar"))};
+ if(Object.values(anchors).some(x=>!x))return;
+ const children=Array.from(content.children),idx=Object.fromEntries(Object.entries(anchors).map(([k,v])=>[k,children.indexOf(v)]));
+ const footer=content.querySelector("footer"),footerNode=footer?direct(footer):null;
+ const ranges={home:[idx.home,idx.markets],markets:[idx.markets,idx.analysis],analysis:[idx.analysis,idx.execution],execution:[idx.execution,idx.radar],radar:[idx.radar,footerNode?children.indexOf(footerNode):children.length]};
+ const all=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
+ function activate(name){
+  const range=ranges[name];if(!range)return;
+  const visible=new Set(children.slice(range[0],range[1]));
+  children.forEach(node=>{if(node===footerNode)return;if(all.includes(node)){const hide=!visible.has(node);node.dataset.appTabHidden=hide?"true":"false";if(!hide)delete node.dataset.appTabHidden;}});
+  nav.querySelectorAll("[data-tab]").forEach(btn=>{const active=btn.dataset.tab===name;btn.classList.toggle("active",active);btn.setAttribute("aria-selected",active?"true":"false");});
+  try{sessionStorage.setItem("berur-active-tab",name);}catch{}
+  if(name==="markets"&&typeof render==="function")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));
+ }
+ nav.addEventListener("click",e=>{const btn=e.target.closest("[data-tab]");if(btn)activate(btn.dataset.tab);});
+ let initial="home";try{const saved=sessionStorage.getItem("berur-active-tab");if(saved&&ranges[saved])initial=saved;}catch{}
+ activate(initial);
+}
+setupAppTabs();
 render();
 setInterval(updateSignalClock,250);
 setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
