@@ -691,7 +691,8 @@ function connect() {
    try { data = JSON.parse(event.data); } catch(e) { return; }
    if (data.error) {
      const info = requestMap[data.req_id];
-     if (info && markets[info.symbol]) markets[info.symbol].error = data.error.message || "Request error";\n     if (info && cfdMarkets[info.symbol]) cfdMarkets[info.symbol].error = data.error.message || "Request error";\n     renderCfdCentre();
+     if (info && markets[info.symbol]) markets[info.symbol].error = data.error.message || "Request error";
+     if (info && cfdMarkets[info.symbol]) cfdMarkets[info.symbol].error = data.error.message || "Request error";\n     renderCfdCentre();
      render();
      return;
    }
@@ -1510,7 +1511,8 @@ function setupAppTabs(){
   extraNodes.forEach(node=>{node.hidden=!external.includes(node.id);});
   nav.querySelectorAll("[data-tab]").forEach(btn=>{const active=btn.dataset.tab===name;btn.classList.toggle("active",active);btn.setAttribute("aria-selected",active?"true":"false");});
   try{sessionStorage.setItem("berur-active-tab",name);}catch{}
-  if(name==="markets"&&typeof render==="function")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));\n  if(name==="forex")renderCfdCentre();
+  if(name==="markets"&&typeof render==="function")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));
+  if(name==="forex")renderCfdCentre();
  }
  nav.addEventListener("click",e=>{const btn=e.target.closest("[data-tab]");if(btn)activate(btn.dataset.tab);});
  let initial="home";try{const saved=sessionStorage.getItem("berur-active-tab");if(saved&&[...Object.keys(ranges),...Object.keys(extra)].includes(saved))initial=saved;}catch{}
