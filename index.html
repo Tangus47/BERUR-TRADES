@@ -350,6 +350,12 @@ a{font-weight:700}
   </div><!-- terminal-content -->
   </div><!-- terminal-layout -->
 
+  <section class="section card" id="market-ou-ranking">
+    <div class="radar-head"><div><h2 class="section-title">STRONGEST OVER / UNDER — MARKET RANKING</h2><p class="note">Each market gets its own strongest Over and strongest Under candidate, ranked by positive historical deviation from the uniform-digit baseline.</p></div><span class="pill">150+ TICKS REQUIRED</span></div>
+    <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Market</th><th>Strongest Over</th><th>Observed / Baseline</th><th>Strength</th><th>Strongest Under</th><th>Observed / Baseline</th><th>Strength</th><th>Sample</th></tr></thead><tbody id="marketOURankingRows"><tr><td colspan="8">Collecting independent market samples…</td></tr></tbody></table></div>
+    <p class="note">“Strongest” means the largest positive standardized historical deviation (z-score) within that market and contract side. WATCH means the deviation is below 2.00; even a higher score is historical evidence only, not a prediction or guarantee. No candidate is displayed as qualified when its deviation is not positive.</p>
+  </section>
+
   <section class="section card" id="market-ou-board">
     <div class="radar-head"><div><h2 class="section-title">INDIVIDUAL MARKET — DIGIT OVER / UNDER BOARD</h2><p class="note">Each synthetic market is analysed independently using only its own received tick history. No cross-market pooling.</p></div><span class="pill">PER-MARKET ANALYSIS</span></div>
     <div class="note" style="margin:10px 0 14px">For each market, compare Over 0–9 and Under 0–9. Impossible contracts are marked N/A. Historical frequency is descriptive, not a forecast or guaranteed win probability. Minimum evidence sample: 150 ticks per market.</div>
@@ -747,6 +753,17 @@ function drawCandles(m){
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-candle-tf]");if(!b)return;candleTimeframe=Number(b.dataset.candleTf)||60;document.querySelectorAll("[data-candle-tf]").forEach(x=>x.classList.toggle("active",x===b));drawCandles(markets[selected]);});
 
+function renderMarketOURanking(){
+ const body=$("marketOURankingRows");if(!body)return;
+ const pick=(a,side)=>a.n>=150?(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=150&&x.deviation>0).sort((x,y)=>y.strength-x.strength)[0]||null:null;
+ const show=x=>x?'<b>'+x.label+'</b>':'—';
+ const rate=x=>x?pct(x.observed*100)+' / '+pct(x.expected*100):'—';
+ const score=x=>x?(x.strength>=2?'<span class="green">QUALIFIED DEVIATION</span>':'<span class="gold">WATCH</span>')+' · '+x.strength.toFixed(2):'—';
+ body.innerHTML=SYMBOLS.map(symbol=>{
+  const m=markets[symbol],a=analyze(m),over=pick(a,"OVER"),under=pick(a,"UNDER");
+  return '<tr><td><b>'+symbol+'</b></td><td>'+show(over)+'</td><td>'+rate(over)+'</td><td>'+score(over)+'</td><td>'+show(under)+'</td><td>'+rate(under)+'</td><td>'+score(under)+'</td><td>'+a.n+'/150</td></tr>';
+ }).join("");
+}
 function renderMarketOUBoard(){
  const host=$("marketOUCards");if(!host)return;
  host.innerHTML=SYMBOLS.map(symbol=>{
@@ -765,6 +782,7 @@ function renderMarketOUBoard(){
  }).join("");
 }
 function render() {
+ renderMarketOURanking();
  renderMarketOUBoard();
  const available = SYMBOLS.filter(s=>markets[s].available).length;
  const loaded = SYMBOLS.filter(s=>markets[s].ticks.length>=50).length;
