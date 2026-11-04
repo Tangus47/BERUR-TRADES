@@ -866,7 +866,7 @@ function renderCfdCentre(){
     '<td>'+(dist?"1 : "+a.rr.toFixed(1):"—")+'</td>'+
     '<td><span id="cfd-valid-'+key+'">'+(expired?"00:00":state.expiresAt?Math.max(0,Math.ceil((state.expiresAt-Date.now())/1000))+"s":"—")+'</span></td>'+
     '<td><input aria-label="Value per 1 price move per lot for '+cfdEscape(m.name)+'" data-cfd-value="'+cfdEscape(m.symbol)+'" type="number" min="0" step="any" placeholder="Verified value" value="'+(cfg.valuePerMove||"")+'" style="width:125px"></td>'+
-    '<td><b id="cfd-lot-'+key+'">'+(lot!==null&&Number.isFinite(lot)?lot.toFixed(2)+" lots":"—")+'</b></td></tr>';
+    '<td><b id="cfd-lot-'+key+'">'+(lot!==null&&Number.isFinite(lot)?(lot<0.01?"Below 0.01 lot":lot.toFixed(2)+" lots"):"—")+'</b></td></tr>';
  }).join("");
 }
 function updateCfdSignalClocks(){
@@ -881,7 +881,7 @@ function updateCfdLotLabels(){
    const key=m.symbol.replace(/[^a-z0-9]/gi,""),node=$("cfd-lot-"+key);
    if(!node)return;
    const a=cfdAnalyze(m),lot=cfdLotEstimate(m,a);
-   node.textContent=lot!==null&&Number.isFinite(lot)?lot.toFixed(2)+" lots":"—";
+   node.textContent=lot!==null&&Number.isFinite(lot)?(lot<0.01?"Below 0.01 lot — do not round up":lot.toFixed(2)+" lots"):"—";
  });
 }
 function loadMarket(symbol) {
