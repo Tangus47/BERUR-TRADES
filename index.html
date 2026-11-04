@@ -966,10 +966,10 @@ function cfdUsdMacroScore(m,a){
  const newsScore=active?0:soon?40:usdNewsRiskState.received?100:50;
  const newsLabel=active?"HIGH-IMPACT WINDOW":soon?"HIGH-IMPACT EVENT SOON":usdNewsRiskState.received?"No matching high-impact event":"News feed unverified";
  const technical=a.timeframes&&a.timeframes.ready&&a.timeframes.aligned&&a.signal!=="WAIT"?a.strength:Math.min(a.strength,45);
- const score=Math.round(technical*.55+dxyScore*.25+newsScore*.20);
- let label=active?"NEWS RISK — REVIEW":soon?"HIGH-IMPACT EVENT APPROACHING":score>=80?"STRONG AGREEMENT":score>=65?"PARTIAL AGREEMENT":"WEAK / CONFLICTING";
- if(dxy==="UNKNOWN"||!usdNewsRiskState.received)label="INCOMPLETE DATA · "+label;
- return {score,label,dxy:dxyLabel,news:newsLabel,pair:pair.label};
+ const complete=dxy!=="UNKNOWN"&&usdNewsRiskState.received;
+ const score=complete?Math.round(technical*.55+dxyScore*.25+newsScore*.20):null;
+ let label=!complete?"INCOMPLETE DATA — SET DXY & VERIFY NEWS":active?"NEWS RISK — REVIEW":soon?"HIGH-IMPACT EVENT APPROACHING":score>=80?"STRONG AGREEMENT":score>=65?"PARTIAL AGREEMENT":"WEAK / CONFLICTING";
+ return {score,label,dxy:dxyLabel,news:newsLabel,pair:pair.label,technical:Math.round(technical),dxyPoints:Math.round(dxyScore),newsPoints:Math.round(newsScore)};
 }
 function renderCfdCentre(){
  const body=$("cfdSignalRows");if(!body)return;
@@ -984,11 +984,11 @@ function renderCfdCentre(){
  body.innerHTML=analysed.sort((x,y)=>y.a.strength-x.a.strength).map(({m,a})=>{
    const state=cfdSignalState(m,a),key=m.symbol.replace(/[^a-z0-9]/gi,""),expired=state.expiresAt&&Date.now()>=state.expiresAt;
    const signal=expired?"EXPIRED":a.signal,cls=signal==="BUY"?"good":signal==="SELL"?"bad":"warn";
-   const cfg=cfdRiskInputs[m.symbol]||{},lot=cfdLotEstimate(m,a),dist=a.stop&&a.entry?Math.abs(a.entry-a.stop):0;
+   const cfg=cfdRiskInputs[m.symbol]||{},lot=cfdLotEstimate(m,a),dist=a.stop&&a.entry?Math.abs(a.entry-a.stop):0,macro=cfdUsdMacroScore(m,a);
    return '<tr><td><b>'+cfdEscape(m.name)+'</b><div class="note">'+cfdEscape(m.category)+' · '+cfdEscape(m.symbol)+'</div></td>'+
     '<td><b>'+a.strength+'/100</b><div class="note">'+cfdEscape(a.reason)+'</div></td>'+
-    '<td><b>'+(cfdUsdMacroScore(m,a).score===null?"—":cfdUsdMacroScore(m,a).score+"/100")+'</b></td>'+
-    '<td><span class="note">'+cfdEscape(cfdUsdMacroScore(m,a).label)+'</span><div class="note">'+cfdEscape(cfdUsdMacroScore(m,a).dxy+" · "+cfdUsdMacroScore(m,a).news)+'</div></td>'+
+    '<td><b>'+(macro.score===null?"—":macro.score+"/100")+'</b><div class="note">'+(macro.score===null?"Awaiting complete DXY and calendar data":"Tech "+macro.technical+" · DXY "+macro.dxyPoints+" · News "+macro.newsPoints)+'</div></td>'+
+    '<td><span class="note">'+cfdEscape(macro.label)+'</span><div class="note">'+cfdEscape(macro.dxy+" · "+macro.news)+'</div></td>'+
     '<td><span class="pill '+cls+'">'+signal+'</span></td>'+
     '<td>'+cfdTfCell(a,60)+'</td><td>'+cfdTfCell(a,300)+'</td><td>'+cfdTfCell(a,900)+'</td><td>'+cfdTfCell(a,3600)+'</td>'+
     '<td>'+ (Number.isFinite(a.entry)?a.entry.toFixed(5):"—")+'</td>'+
