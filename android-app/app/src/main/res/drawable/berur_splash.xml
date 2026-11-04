@@ -1,4 +1,4 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="#071629"/>
+    <item android:drawable="@color/berur_navy"/>
     <item android:gravity="center" android:width="260dp" android:height="260dp" android:drawable="@drawable/berur_launcher"/>
 </layer-list>
