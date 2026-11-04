@@ -33,6 +33,7 @@ If these secrets are absent, the workflow intentionally creates an unsigned AAB 
 - Complete Data safety, Ads, Target audience, Content rating, App access and regional declarations accurately.
 - Provide any required business/regulatory disclosures for each country targeted.
 - Upload the signed AAB to an internal testing track first. Review all Play Console pre-launch and policy feedback before production release.
+- If this is a personal developer account created after 13 November 2023, plan for a closed test with at least 12 testers opted in continuously for 14 days before applying for production access.
 
 ## Important
 Google Play approval is not guaranteed. The Play edition is deliberately read-only with respect to broker accounts and trade execution. A policy review may still assess its market signals, binary-options-related analysis and financial claims.
