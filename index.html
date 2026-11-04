@@ -350,6 +350,12 @@ a{font-weight:700}
   </div><!-- terminal-content -->
   </div><!-- terminal-layout -->
 
+  <section class="section card" id="market-ou-board">
+    <div class="radar-head"><div><h2 class="section-title">INDIVIDUAL MARKET — DIGIT OVER / UNDER BOARD</h2><p class="note">Each synthetic market is analysed independently using only its own received tick history. No cross-market pooling.</p></div><span class="pill">PER-MARKET ANALYSIS</span></div>
+    <div class="note" style="margin:10px 0 14px">For each market, compare Over 0–9 and Under 0–9. Impossible contracts are marked N/A. Historical frequency is descriptive, not a forecast or guaranteed win probability. Minimum evidence sample: 150 ticks per market.</div>
+    <div id="marketOUCards" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px"><div class="box">Waiting for market data…</div></div>
+  </section>
+
   <footer>
     BERUR TRADES • Independent analysis tool.<br>
     Market data is supplied by Deriv's public market-data WebSocket. Technical indicators use historical observations and cannot predict future prices. Digital options and synthetic indices involve substantial risk. Never trade solely from an indicator.
@@ -741,7 +747,25 @@ function drawCandles(m){
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-candle-tf]");if(!b)return;candleTimeframe=Number(b.dataset.candleTf)||60;document.querySelectorAll("[data-candle-tf]").forEach(x=>x.classList.toggle("active",x===b));drawCandles(markets[selected]);});
 
+function renderMarketOUBoard(){
+ const host=$("marketOUCards");if(!host)return;
+ host.innerHTML=SYMBOLS.map(symbol=>{
+   const market=markets[symbol],a=analyze(market),ready=a.n>=150;
+   const rows=ready?a.ouCandidates.filter(x=>x.barrier>=0&&x.barrier<=9):[];
+   const rowHtml=rows.map(x=>{
+     const impossible=x.impossible;
+     const observed=x.validN?x.count/x.validN*100:0;
+     const strength=x.strength;
+     const evidence=strength>=2?"ELEVATED DEVIATION":strength>=1?"WATCH":"LOW";
+     const color=impossible?"#8293a8":strength>=2?"#ffd071":"#91a4bd";
+     return '<tr><td><b>'+x.side+' '+x.barrier+'</b></td><td>'+ (impossible?"N/A":pct(observed))+'</td><td>'+pct(x.expected*100)+'</td><td>'+(impossible?"—":strength.toFixed(2))+'</td><td style="color:'+color+'">'+(impossible?"IMPOSSIBLE":evidence)+'</td></tr>';
+   }).join("");
+   const status=!market.available?(market.error||"Waiting for connection"):ready?"ANALYSIS READY":"COLLECTING "+a.n+"/150";
+   return '<article class="box" style="min-width:0"><div class="radar-head"><b>'+symbol+'</b><span class="pill">'+status+'</span></div><div class="note" style="margin:7px 0 9px">Own sample: '+a.n+' ticks • Latest: '+(market.quote===null?"—":fmt(market.quote))+'</div><div class="tablewrap"><table style="min-width:520px"><thead><tr><th>Contract</th><th>Observed</th><th>Baseline</th><th>|z|</th><th>Evidence</th></tr></thead><tbody>'+(ready?rowHtml:'<tr><td colspan="5">Collecting at least 150 ticks for this market. No signal yet.</td></tr>')+'</tbody></table></div><div class="note" style="margin-top:8px">'+(ready?"Rates are calculated from this market only. |z| measures deviation from a uniform-digit baseline; it is not a win probability.":"This panel remains independent; other markets cannot fill its sample.")+'</div></article>';
+ }).join("");
+}
 function render() {
+ renderMarketOUBoard();
  const available = SYMBOLS.filter(s=>markets[s].available).length;
  const loaded = SYMBOLS.filter(s=>markets[s].ticks.length>=50).length;
  $("scanned").textContent = `${loaded} / ${available}`;
