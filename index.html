@@ -770,7 +770,7 @@ function setupMarketAlerts(){
 function recordMarketAlert(symbol,side,candidate){
  const key=symbol+"|"+side,signature=candidate?candidate.label+"|"+candidate.strength.toFixed(2):"";
  const previous=marketAlertPrevious[key];marketAlertPrevious[key]=signature;
- if(!candidate||candidate.strength<2||!previous||previous===signature)return;
+ if(!candidate||candidate.strength<2||previous===undefined||previous===signature)return;
  const now=Date.now();if(now-marketAlertLastAt<12000)return;marketAlertLastAt=now;
  const item={symbol,side,label:candidate.label,strength:candidate.strength,time:new Date().toLocaleTimeString()};
  marketAlertLog.unshift(item);marketAlertLog.splice(6);
