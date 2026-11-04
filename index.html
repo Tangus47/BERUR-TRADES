@@ -266,6 +266,10 @@ a{font-weight:700}
     <div class="candle-controls" role="group" aria-label="Chart timeframe"><button type="button" data-candle-tf="60" class="active">1M</button><button type="button" data-candle-tf="300">5M</button><button type="button" data-candle-tf="900">15M</button><button type="button" data-candle-tf="3600">1H</button><button type="button" data-candle-tf="14400">4H</button><button type="button" data-candle-tf="86400">1D</button></div>
     <svg id="candleChart" class="candle-chart" viewBox="0 0 1000 300" role="img" aria-label="Aggregated OHLC candlestick chart"><text x="500" y="150" text-anchor="middle" fill="#91a4bd" font-size="16">Connect to load candles</text></svg>
     <div class="candle-legend"><span>UP CANDLE</span><span class="down">DOWN CANDLE</span><span>OHLC aggregated from tick observations</span></div>
+    <section class="box" style="margin-top:14px;padding:14px" aria-label="Japanese candlestick pattern analysis">
+      <div class="radar-head"><div><span class="eyebrow">JAPANESE PRICE-ACTION RECOGNITION</span><h3 class="section-title">CANDLESTICK PATTERNS — SELECTED MARKET</h3><p class="note">Completed-candle reversal and continuation structures, with trend context and confirmation warnings.</p></div><span class="pill">CLOSED CANDLES</span></div>
+      <div id="syntheticPatternSummary" class="note">Waiting for enough completed candles…</div><div id="syntheticPatternCards" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px;margin-top:10px"><div class="box">Pattern analysis will appear when candle history loads.</div></div>
+    </section>
   </section>
 
   <section class="section card" id="markets">
@@ -468,6 +472,12 @@ a{font-weight:700}
       <div class="box"><b>QUALIFIED SETUPS</b><div class="large" id="cfdQualified">0</div></div>
       <div class="box"><b>LEADING SIGNAL</b><div class="large" id="cfdLeader">—</div><div class="note" id="cfdLeaderInfo">Waiting for live feed</div></div>
     </div>
+    <section class="box" style="margin:14px 0;padding:14px" aria-label="Forex Japanese candlestick pattern scanner">
+      <div class="radar-head"><div><span class="eyebrow">FOREX & CFD PRICE ACTION</span><h3 class="section-title">JAPANESE CANDLESTICK PATTERN SCANNER</h3><p class="note">Scans available Forex pairs and metals independently using completed Deriv OHLC candles.</p></div><span class="pill">MULTI-INSTRUMENT SCAN</span></div>
+      <div class="candle-controls" role="group" aria-label="Forex pattern timeframe"><button type="button" data-pattern-tf="60" class="active">1M</button><button type="button" data-pattern-tf="300">5M</button><button type="button" data-pattern-tf="900">15M</button><button type="button" data-pattern-tf="3600">1H</button></div>
+      <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>INSTRUMENT</th><th>TIMEFRAME</th><th>DETECTED PATTERN</th><th>DIRECTION</th><th>CONTEXT</th><th>QUALITY</th></tr></thead><tbody id="cfdPatternRows"><tr><td colspan="6">Waiting for Forex candle history…</td></tr></tbody></table></div>
+      <p class="note">Patterns are not standalone entries. Confirm with trend, support/resistance, price close and macro/news risk.</p>
+    </section>
     <section class="box" style="margin:14px 0;padding:14px" aria-label="Live currency strength heatmap">
       <div class="radar-head"><div><span class="eyebrow">LIVE TECHNICAL RELATIVE STRENGTH</span><h3 class="section-title">CURRENCY STRENGTH HEATMAP</h3><p class="note">Ranks currencies from the currently discovered Forex pairs using their live multi-timeframe BUY / SELL directions. This is a relative technical-pressure estimate, not an independent spot-market index.</p></div><span class="pill">DERIV LIVE SIGNALS</span></div>
       <div id="currencyStrengthHeatmap" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:9px"><div class="box">Waiting for Forex pair signals…</div></div>
@@ -1017,6 +1027,7 @@ function renderCurrencyStrengthHeatmap(){
  if(note)note.textContent="Based on "+seen.size+" discovered currency pairs; "+active.length+" currencies currently have confirmed directional evidence. Scores are normalized relative-strength estimates, not probabilities or trade guarantees.";
 }
 function renderCfdCentre(){
+ renderCfdPatterns();
  const body=$("cfdSignalRows");if(!body)return;
  const list=Object.values(cfdMarkets).filter(m=>m.category!=="BOOMCRASH"&&(cfdCategoryFilter==="ALL"||m.category===cfdCategoryFilter));
  const analysed=list.map(m=>({m,a:cfdAnalyze(m)}));
@@ -1247,6 +1258,49 @@ function updatePriceTrace(m) {
 }
 
 let candleTimeframe=60;
+let cfdPatternTimeframe=60;
+function detectJapanesePatterns(raw){
+ const bars=(raw||[]).filter(c=>[c.open,c.high,c.low,c.close].every(Number.isFinite)&&c.high>=Math.max(c.open,c.close)&&c.low<=Math.min(c.open,c.close));
+ if(bars.length<6)return [];
+ const b=bars.slice(0,-1),n=b.length,last=b[n-1],prev=b[n-2],p2=b[n-3];
+ const body=c=>Math.abs(c.close-c.open),range=c=>Math.max(c.high-c.low,1e-12),upper=c=>c.high-Math.max(c.open,c.close),lower=c=>Math.min(c.open,c.close)-c.low;
+ const bull=c=>c.close>c.open,bear=c=>c.close<c.open,small=c=>body(c)/range(c)<=.12;
+ const trendBars=b.slice(-8),first=trendBars[0].close,trend=last.close>first*1.001?"UPTREND":last.close<first*.999?"DOWNTREND":"SIDEWAYS";
+ const out=[],add=(name,direction,reason,quality)=>out.push({name,direction,reason,quality});
+ if(small(last))add("Doji","NEUTRAL","Indecision; wait for a break of the candle range",68);
+ if(lower(last)>=body(last)*2.2&&upper(last)<=Math.max(body(last)*.45,range(last)*.08)&&body(last)/range(last)<.42)add(trend==="DOWNTREND"?"Hammer":"Hanging Man",trend==="DOWNTREND"?"BULLISH":"BEARISH","Long lower shadow; "+trend.toLowerCase()+" context",74);
+ if(upper(last)>=body(last)*2.2&&lower(last)<=Math.max(body(last)*.45,range(last)*.08)&&body(last)/range(last)<.42)add(trend==="UPTREND"?"Shooting Star":"Inverted Hammer",trend==="UPTREND"?"BEARISH":"BULLISH","Long upper shadow; "+trend.toLowerCase()+" context",74);
+ if(bull(last)&&bear(prev)&&last.open<=prev.close&&last.close>=prev.open&&body(last)>body(prev)*1.05)add("Bullish Engulfing","BULLISH","Bullish body engulfs prior bearish body",84);
+ if(bear(last)&&bull(prev)&&last.open>=prev.close&&last.close<=prev.open&&body(last)>body(prev)*1.05)add("Bearish Engulfing","BEARISH","Bearish body engulfs prior bullish body",84);
+ if(bull(last)&&bear(prev)&&last.open>prev.close&&last.close<prev.open&&body(last)<body(prev)*.8)add("Bullish Harami","POTENTIAL BULLISH","Small bullish body inside prior bearish body",70);
+ if(bear(last)&&bull(prev)&&last.open<prev.close&&last.close>prev.open&&body(last)<body(prev)*.8)add("Bearish Harami","POTENTIAL BEARISH","Small bearish body inside prior bullish body",70);
+ const midpoint=(prev.open+prev.close)/2;
+ if(bear(prev)&&bull(last)&&last.open<prev.low&&last.close>midpoint&&last.close<prev.open)add("Piercing Line","BULLISH","Bullish close recovers above prior bearish midpoint",78);
+ if(bull(prev)&&bear(last)&&last.open>prev.high&&last.close<midpoint&&last.close>prev.open)add("Dark Cloud Cover","BEARISH","Bearish close falls below prior bullish midpoint",78);
+ if(Math.abs(last.low-prev.low)<=range(last)*.08&&Math.abs(last.low-prev.low)<=range(prev)*.08&&bull(last)&&bear(prev))add("Tweezer Bottom","BULLISH","Two-candle rejection near a shared low",72);
+ if(Math.abs(last.high-prev.high)<=range(last)*.08&&Math.abs(last.high-prev.high)<=range(prev)*.08&&bear(last)&&bull(prev))add("Tweezer Top","BEARISH","Two-candle rejection near a shared high",72);
+ if(bear(p2)&&body(p2)/range(p2)>.5&&body(prev)/range(prev)<.3&&bull(last)&&last.close>(p2.open+p2.close)/2)add("Morning Star","BULLISH","Three-candle reversal structure after weakness",88);
+ if(bull(p2)&&body(p2)/range(p2)>.5&&body(prev)/range(prev)<.3&&bear(last)&&last.close<(p2.open+p2.close)/2)add("Evening Star","BEARISH","Three-candle reversal structure after strength",88);
+ const trio=b.slice(-3);
+ if(trio.length===3&&trio.every(bull)&&trio.every((c,i)=>body(c)/range(c)>.45&&(!i||c.close>trio[i-1].close)))add("Three White Soldiers","BULLISH","Three consecutive strong bullish closes",86);
+ if(trio.length===3&&trio.every(bear)&&trio.every((c,i)=>body(c)/range(c)>.45&&(!i||c.close<trio[i-1].close)))add("Three Black Crows","BEARISH","Three consecutive strong bearish closes",86);
+ return out.sort((x,y)=>y.quality-x.quality).slice(0,4).map(x=>({...x,trend}));
+}
+function renderSyntheticPatterns(m){
+ const cards=$("syntheticPatternCards"),summary=$("syntheticPatternSummary");if(!cards||!summary)return;
+ const bars=m.timeframes&&m.timeframes[candleTimeframe]||[],patterns=detectJapanesePatterns(bars);
+ if(bars.length<7){summary.textContent="Collecting completed candles ("+bars.length+" received).";cards.innerHTML='<div class="box">Need at least 7 candles to scan patterns.</div>';return;}
+ summary.textContent="Market: "+marketName(m.symbol)+" · "+({60:"1 minute",300:"5 minutes",900:"15 minutes",3600:"1 hour",14400:"4 hours",86400:"1 day"}[candleTimeframe]||candleTimeframe+"s")+" · Context from recent candle closes.";
+ cards.innerHTML=patterns.length?patterns.map(p=>'<div class="box"><b>'+cfdEscape(p.name)+'</b><div class="pill '+(p.direction.includes("BULLISH")?"good":p.direction.includes("BEARISH")?"bad":"warn")+'" style="margin:7px 0">'+p.direction+'</div><div class="note">'+cfdEscape(p.reason)+'</div><div class="note">Pattern quality: '+p.quality+'/100 · '+p.trend+'</div></div>').join(""):'<div class="box">No recognised pattern on completed candles. WAIT for clearer price action.</div>';
+}
+function renderCfdPatterns(){
+ const body=$("cfdPatternRows");if(!body)return;
+ const list=Object.values(cfdMarkets).filter(m=>m.category==="FOREX"||m.category==="METALS"),rows=[];
+ list.forEach(m=>{const bars=m.timeframes&&m.timeframes[cfdPatternTimeframe]||[];detectJapanesePatterns(bars).slice(0,2).forEach(p=>rows.push({m,p}));});
+ rows.sort((a,b)=>b.p.quality-a.p.quality);
+ if(!rows.length){body.innerHTML='<tr><td colspan="6">No confirmed candle structures yet. Collecting closed candles for the selected timeframe.</td></tr>';return;}
+ body.innerHTML=rows.slice(0,40).map(({m,p})=>'<tr><td><b>'+cfdEscape(m.name)+'</b><div class="note">'+cfdEscape(m.symbol)+'</div></td><td>'+({60:"1M",300:"5M",900:"15M",3600:"1H"}[cfdPatternTimeframe])+'</td><td><b>'+cfdEscape(p.name)+'</b></td><td><span class="pill '+(p.direction.includes("BULLISH")?"good":p.direction.includes("BEARISH")?"bad":"warn")+'">'+p.direction+'</span></td><td>'+p.trend+' · '+cfdEscape(p.reason)+'</td><td>'+p.quality+'/100</td></tr>').join("");
+}
 function drawCandles(m){
  const svg=$("candleChart");if(!svg)return;
  $("candleSymbol").textContent=marketName(m.symbol);
@@ -1270,8 +1324,9 @@ function drawCandles(m){
  candles.forEach((c,i)=>{const x=40+(i+.5)*step,up=c.close>=c.open,color=up?'#35e0a2':'#ff7188',top=y(Math.max(c.open,c.close)),bottom=y(Math.min(c.open,c.close)),body=Math.max(2,bottom-top);out+='<line x1="'+x.toFixed(1)+'" y1="'+y(c.high).toFixed(1)+'" x2="'+x.toFixed(1)+'" y2="'+y(c.low).toFixed(1)+'" stroke="'+color+'" stroke-width="2"/><rect x="'+(x-w/2).toFixed(1)+'" y="'+top.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+body.toFixed(1)+'" rx="1" fill="'+color+'"/>';});
  out+='<text x="40" y="290" fill="#91a4bd" font-size="10">'+new Date(candles[0].time).toLocaleTimeString()+'</text><text x="960" y="290" text-anchor="end" fill="#91a4bd" font-size="10">'+new Date(candles[candles.length-1].time).toLocaleTimeString()+'</text>';
  svg.innerHTML=out;
+ renderSyntheticPatterns(m);
 }
-document.addEventListener("click",e=>{const b=e.target.closest("[data-candle-tf]");if(!b)return;candleTimeframe=Number(b.dataset.candleTf)||60;document.querySelectorAll("[data-candle-tf]").forEach(x=>x.classList.toggle("active",x===b));const m=markets[selected];if(m){m.requestedCandleTf=null;requestMarketCandles(selected,candleTimeframe);drawCandles(m);}});
+document.addEventListener("click",e=>{const pt=e.target.closest("[data-pattern-tf]");if(pt){cfdPatternTimeframe=Number(pt.dataset.patternTf)||60;document.querySelectorAll("[data-pattern-tf]").forEach(x=>x.classList.toggle("active",x===pt));renderCfdPatterns();return;}const b=e.target.closest("[data-candle-tf]");if(!b)return;candleTimeframe=Number(b.dataset.candleTf)||60;document.querySelectorAll("[data-candle-tf]").forEach(x=>x.classList.toggle("active",x===b));const m=markets[selected];if(m){m.requestedCandleTf=null;requestMarketCandles(selected,candleTimeframe);drawCandles(m);}});
 
 let marketAlertSoundOn=false,marketAlertAudio=null,marketAlertPrimed=false;
 const marketAlertPrevious={},marketAlertLog=[];
