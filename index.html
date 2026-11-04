@@ -297,6 +297,21 @@ a{font-weight:700}
       <div class="small" id="signalExpiresAt">Valid until: —</div>
       <div class="small" id="signalTimezone">Timezone: detecting…</div>
       <div style="margin-top:9px"><span class="pill warn" id="signalValidityStatus">NO ACTIVE SIGNAL</span></div>
+      <div class="section" id="botSessionTimer" style="border-top:1px solid var(--line);padding-top:13px;margin-top:14px">
+        <div class="small" style="font-weight:800;color:var(--teal)">DERIV BOT SESSION COUNTDOWN</div>
+        <div class="metric" id="botSessionClock" style="font-size:30px;margin:5px 0">05:00</div>
+        <div class="small" id="botSessionStatus">Set the planned session length, start your bot on Deriv, then start this timer.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center">
+          <label class="small" for="botSessionMinutes">Run-time</label>
+          <select id="botSessionMinutes" aria-label="Deriv Bot session length">
+            <option value="1">1 minute</option><option value="3">3 minutes</option><option value="5" selected>5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option><option value="20">20 minutes</option><option value="30">30 minutes</option>
+          </select>
+          <button type="button" class="primary" id="botSessionStart">START TIMER</button>
+          <button type="button" id="botSessionReset">RESET</button>
+        </div>
+        <div style="height:7px;background:var(--line);border-radius:8px;overflow:hidden;margin-top:10px"><div id="botSessionProgress" style="height:100%;width:100%;background:var(--teal);transition:width .25s"></div></div>
+        <div class="small" style="margin-top:8px">At zero: alert to stop Deriv Bot manually and reassess. This timer does not control or stop the external bot.</div>
+      </div>
     </section>
 
     <section class="card">
@@ -510,6 +525,50 @@ function updateSignalClock() {
   const urgent = remaining <= 10000;
   $("signalValidityStatus").textContent = urgent ? "EXPIRING SOON" : "ACTIVE — FRESH SIGNAL";
   $("signalValidityStatus").className = "pill " + (urgent ? "warn" : "good");
+}
+let botSessionEndsAt = 0;
+let botSessionTotalMs = 5 * 60 * 1000;
+let botSessionRunning = false;
+let botSessionFinished = false;
+let botSessionAlerted = false;
+function renderBotSessionClock() {
+  const clock=$("botSessionClock"),status=$("botSessionStatus"),progress=$("botSessionProgress");
+  if(!clock||!status||!progress)return;
+  const remaining=botSessionRunning?Math.max(0,botSessionEndsAt-Date.now()):(botSessionFinished?0:botSessionTotalMs);
+  const seconds=Math.ceil(remaining/1000);
+  clock.textContent=String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");
+  progress.style.width=(botSessionTotalMs?Math.max(0,Math.min(100,remaining/botSessionTotalMs*100)):0)+"%";
+  if(botSessionFinished){
+    status.textContent="TIME COMPLETE — STOP DERIV BOT MANUALLY, then reassess the signal.";
+    status.style.color="var(--red)";
+    if(!botSessionAlerted){
+      botSessionAlerted=true;
+      try{const C=window.AudioContext||window.webkitAudioContext;if(C){const c=new C(),o=c.createOscillator(),g=c.createGain();o.frequency.value=880;g.gain.value=.12;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.45);o.onended=()=>c.close();}}catch{}
+      try{if("Notification" in window&&Notification.permission==="granted")new Notification("BERUR TRADES",{body:"Session timer ended. Stop Deriv Bot manually and reassess."});}catch{}
+    }
+    return;
+  }
+  status.style.color="var(--muted)";
+  status.textContent=botSessionRunning?(remaining<=60000?"ONE MINUTE OR LESS — prepare to stop Deriv Bot.":"Session timer running. Keep Deriv Bot open and monitor risk."):"Timer ready. Start Deriv Bot separately, then press START TIMER.";
+}
+function startBotSessionTimer(){
+  if(botSessionRunning)return;
+  if(botSessionFinished){resetBotSessionTimer();}
+  const select=$("botSessionMinutes");
+  botSessionTotalMs=(Math.max(1,Number(select&&select.value)||5))*60000;
+  botSessionEndsAt=Date.now()+botSessionTotalMs;
+  botSessionRunning=true;botSessionFinished=false;botSessionAlerted=false;
+  renderBotSessionClock();
+}
+function resetBotSessionTimer(){
+  const select=$("botSessionMinutes");
+  botSessionTotalMs=(Math.max(1,Number(select&&select.value)||5))*60000;
+  botSessionEndsAt=0;botSessionRunning=false;botSessionFinished=false;botSessionAlerted=false;
+  renderBotSessionClock();
+}
+function updateBotSessionTimer(){
+  if(botSessionRunning&&Date.now()>=botSessionEndsAt){botSessionRunning=false;botSessionFinished=true;}
+  renderBotSessionClock();
 }
 function refreshSignalValidity(signal, score, sample) {
   const signature = selected + "|" + signal;
@@ -1278,6 +1337,11 @@ function setupAppTabs(){
 }
 setupAppTabs();
 render();
+$("botSessionStart").addEventListener("click",startBotSessionTimer);
+$("botSessionReset").addEventListener("click",resetBotSessionTimer);
+$("botSessionMinutes").addEventListener("change",()=>{if(!botSessionRunning)resetBotSessionTimer();});
+renderBotSessionClock();
+setInterval(updateBotSessionTimer,250);
 setInterval(updateSignalClock,250);
 setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
 })();
