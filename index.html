@@ -134,6 +134,18 @@ footer{padding:20px 4px;color:var(--muted);font-size:10px;line-height:1.6}
   </div>
 
   <section class="section card">
+    <h3 class="section-title">OVER / UNDER DIGIT SCANNER — 0 TO 9</h3>
+    <p class="note">Every threshold is evaluated separately. Over X means digit greater than X; Under X means digit less than X. The exact X is excluded. Rankings show historical deviation from the uniform-digit baseline, not a prediction or guaranteed trading edge.</p>
+    <div class="tablewrap">
+      <table style="min-width:680px">
+        <thead><tr><th>RANK</th><th>CONTRACT</th><th>OBSERVED</th><th>BASELINE</th><th>DEVIATION</th><th>VALID SAMPLES</th><th>ASSESSMENT</th></tr></thead>
+        <tbody id="ouRows"><tr><td colspan="7">Connect and collect at least 150 ticks.</td></tr></tbody>
+      </table>
+    </div>
+    <p class="small" id="ouBestSummary">No Over/Under contract assessed yet.</p>
+  </section>
+
+  <section class="section card">
     <h3 class="section-title">LAST-DIGIT DISTRIBUTION</h3>
     <div class="small" style="margin-bottom:10px">Frequency of the final displayed decimal digit in recent quotes.</div>
     <div class="digits" id="digitGrid"></div>
@@ -478,38 +490,45 @@ function analyze(m) {
    directionSignal = trend;
  }
 
+ const ouCandidates = [];
  let digitSignal = "WAIT";
- let digitReason =
-   "Collect at least 150 ticks before assessing digit frequencies.";
-
+ let digitReason = "Collect at least 150 ticks before assessing all Over/Under thresholds.";
  if (n >= 150) {
-   const nonFive = over + under;
-   const overRate = nonFive ? over / nonFive : 0;
-   const evenRate = n ? even / n : 0;
-
-   const candidates = [
-     {
-       name: overRate >= 0.5 ? "OVER 5" : "UNDER 5",
-       edge: Math.abs(overRate - 0.5) * 100,
-       detail: `Over 5 ${pct(overRate * 100)} of non-5 digits; Under 5 ${pct((1 - overRate) * 100)}.`
-     },
-     {
-       name: evenRate >= 0.5 ? "EVEN" : "ODD",
-       edge: Math.abs(evenRate - 0.5) * 100,
-       detail: `Even ${pct(evenRate * 100)}; Odd ${pct(100 - evenRate * 100)}.`
+   for (let barrier = 0; barrier <= 9; barrier++) {
+     const validN = n - counts[barrier];
+     const overCount = ds.filter(d => d > barrier).length;
+     const underCount = ds.filter(d => d < barrier).length;
+     const expectedOver = (9 - barrier) / 9;
+     const expectedUnder = barrier / 9;
+     for (const side of ["OVER","UNDER"]) {
+       const count = side === "OVER" ? overCount : underCount;
+       const expected = side === "OVER" ? expectedOver : expectedUnder;
+       const observed = validN ? count / validN : 0;
+       const standardError = validN > 0 ? Math.sqrt(expected * (1 - expected) / validN) : 0;
+       const z = standardError > 0 ? (observed - expected) / standardError : 0;
+       const impossible = (side === "UNDER" && barrier === 0) || (side === "OVER" && barrier === 9);
+       const guaranteed = (side === "OVER" && barrier === 0) || (side === "UNDER" && barrier === 9);
+       ouCandidates.push({
+         side, barrier, label: side + " " + barrier, count, validN,
+         observed, expected, deviation: observed - expected,
+         z, strength: Math.abs(z), impossible, guaranteed
+       });
      }
-   ].sort((a, b) => b.edge - a.edge);
-
-   if (candidates[0].edge >= 8) {
-     digitSignal = candidates[0].name;
-     digitReason = candidates[0].detail +
-       " Historical frequency only, not a prediction.";
+   }
+   const ranked = ouCandidates
+     .filter(x => !x.impossible && !x.guaranteed && x.validN >= 100 && x.deviation > 0)
+     .sort((x,y) => y.strength - x.strength);
+   const strongest = ranked[0];
+   if (strongest && strongest.strength >= 2) {
+     digitSignal = strongest.label;
+     digitReason = strongest.label + " observed " + pct(strongest.observed * 100) +
+       " versus " + pct(strongest.expected * 100) + " uniform baseline; z-score " +
+       strongest.strength.toFixed(2) + " across " + strongest.validN +
+       " non-equal observations. Historical evidence only.";
    } else {
-     digitReason =
-       "No sufficiently strong historical digit imbalance. No digit signal.";
+     digitReason = "No Over/Under threshold has reached the minimum evidence score. WAIT.";
    }
  }
-
  const enough = n >= 150;
  const tradeAllowed =
    enough &&
@@ -522,7 +541,7 @@ function analyze(m) {
    counts, n, even, odd, over, under, neutral,
    hot, cold, up, down, trend,
    directionScore, directionSignal,
-   digitSignal, digitReason,
+   digitSignal, digitReason, ouCandidates,
    tradeAllowed, quality, digitEdge
  };
 }
@@ -531,7 +550,8 @@ function rankScore(m) {
  const a=analyze(m);
  if(a.n<50) return 0;
  const movement=m.ticks.length>1 ? Math.abs(m.ticks[m.ticks.length-1]-m.ticks[0])/(Math.abs(m.ticks[0])||1)*100 : 0;
- return Math.round(Math.min(100,a.directionScore*.65 + Math.min(35,a.digitEdge*2.5) + Math.min(10,movement)));
+ const ouStrength = a.ouCandidates?.filter(x=>!x.impossible&&!x.guaranteed&&x.validN>=100&&x.deviation>0).reduce((v,x)=>Math.max(v,x.strength),0)||0;
+ return Math.round(Math.min(100,a.directionScore*.45 + Math.min(45,ouStrength*10) + Math.min(10,movement)));
 }
 function render() {
  const available = SYMBOLS.filter(s=>markets[s].available).length;
@@ -582,16 +602,26 @@ function render() {
  $("duration").textContent=a.n>=100?(a.directionScore>=80?"3 ticks":a.directionScore>=70?"5 ticks":"10 ticks"):"—";
  $("contract").textContent=a.digitSignal;
  $("contractReason").textContent=a.digitReason;
+ const rankedOU = a.ouCandidates.slice().sort((x,y)=>y.strength-x.strength);
+ $("ouRows").innerHTML = rankedOU.map((x,i)=>{
+   const observed = pct(x.observed*100), baseline = pct(x.expected*100);
+   const dev = (x.deviation>=0?"+":"")+(x.deviation*100).toFixed(1)+" pp";
+   let assessment = x.impossible ? "IMPOSSIBLE" : x.guaranteed ? "CERTAIN / LOW VALUE" : x.validN<100 ? "LOW SAMPLE" : x.deviation<=0 ? "BELOW BASELINE" : x.strength>=2 ? "EVIDENCE TO REVIEW" : "WEAK — WAIT";
+   const cls = x.impossible || x.deviation<=0 ? "red" : x.strength>=2 ? "green" : "gold";
+   return "<tr><td>"+(i+1)+"</td><td><b>"+x.label+"</b></td><td>"+observed+"</td><td>"+baseline+"</td><td class='"+cls+"'>"+dev+" (z "+x.strength.toFixed(2)+")</td><td>"+x.validN+"</td><td class='"+cls+"'>"+assessment+"</td></tr>";
+ }).join("");
+ const bestOU = rankedOU.find(x=>!x.impossible&&!x.guaranteed&&x.validN>=100&&x.deviation>0);
+ $("ouBestSummary").textContent = bestOU ? "Strongest historical deviation: "+bestOU.label+" • "+pct(bestOU.observed*100)+" observed vs "+pct(bestOU.expected*100)+" baseline. This is not a probability forecast." : "No qualifying Over/Under recommendation. Keep waiting.";
  $("matchDigit").textContent=a.n>=100?`Hot ${a.hot} / Cold ${a.cold}`:"—";
  $("matchReason").textContent=a.n>=100?`Hot digit observed ${a.counts[a.hot]} times; cold digit ${a.counts[a.cold]} times. Descriptive only.`:"Waiting for at least 100 observations.";
  $("tradeStatus").textContent=a.tradeAllowed?"REVIEW SETUP — MANUAL ONLY":"NO TRADE — INSUFFICIENT EVIDENCE";
  $("tradeStatus").className="pill "+(a.tradeAllowed?"good":"warn");
  $("digitGrid").innerHTML=a.counts.map((c,d)=>`<div class="digit"><b>${d}</b><small>${a.n?pct(c/a.n*100):"0%"}</small></div>`).join("");
- $("digitSample").textContent=`${a.n} recent observations • 5 is excluded from Over/Under 5`;
+ $("digitSample").textContent=`${a.n} recent observations • threshold scanner evaluates digits 0–9 separately`;
  const totalOU=a.over+a.under;
  const overRate=totalOU?a.over/totalOU*100:0;
- $("overUnder").textContent=totalOU?(overRate>=50?"OVER 5":"UNDER 5"):"—";
- $("overUnderDetail").textContent=totalOU?`Over ${pct(overRate)} • Under ${pct(100-overRate)} • 5s: ${a.neutral}`:"No data";
+ $("overUnder").textContent=a.digitSignal;
+ $("overUnderDetail").textContent=a.digitReason;
  $("evenOdd").textContent=a.n?(a.even>=a.odd?"EVEN":"ODD"):"—";
  $("evenOddDetail").textContent=a.n?`Even ${pct(a.even/a.n*100)} • Odd ${pct(a.odd/a.n*100)}`:"No data";
  $("riseFall").textContent=a.n>=20?a.trend:"—";
@@ -614,7 +644,7 @@ $("learningTarget").addEventListener("change",event => {
 });
 $("connectBtn").addEventListener("click",connect);
 $("stopBtn").addEventListener("click",stop);
-$("sendAnalysisBtn").addEventListener("click",()=>{const m=markets[selected],a=analyze(m);if(!activeSignal||activeSignal.expired||Date.now()>=activeSignal.expiresAt){$("executionHandoffStatus").textContent="NO TRADE: signal is missing or expired. Wait for a fresh Radar signal.";return;}let contract="";if(a.digitSignal==="OVER 5")contract="DIGITOVER";else if(a.digitSignal==="UNDER 5")contract="DIGITUNDER";else if(a.digitSignal==="EVEN")contract="DIGITEVEN";else if(a.digitSignal==="ODD")contract="DIGITODD";else if(a.directionSignal==="RISE")contract="CALL";else if(a.directionSignal==="FALL")contract="PUT";if(!a.tradeAllowed||!contract){$("executionHandoffStatus").textContent="NO TRADE: analysis has not produced a supported contract signal.";return;}const detail={symbol:selected,contract,duration:a.directionSignal!=="WAIT"?(a.directionScore>=80?3:a.directionScore>=70?5:10):1,evidenceScore:a.directionScore,sample:a.n,reason:a.digitSignal!=="WAIT"?a.digitReason:"Directional trend "+a.trend+" confirmed by recent tick balance.",signal:a.digitSignal!=="WAIT"?a.digitSignal:a.directionSignal};window.dispatchEvent(new CustomEvent("berur:analysis-ready",{detail}));$("executionHandoffStatus").textContent="Sent "+detail.signal+" on "+selected+" to execution desk. Review the quote and approve manually.";});
+$("sendAnalysisBtn").addEventListener("click",()=>{const m=markets[selected],a=analyze(m);if(!activeSignal||activeSignal.expired||Date.now()>=activeSignal.expiresAt){$("executionHandoffStatus").textContent="NO TRADE: signal is missing or expired. Wait for a fresh Radar signal.";return;}let contract="";const ouMatch=a.digitSignal.match(/^(OVER|UNDER) ([0-9])$/);if(ouMatch)contract=ouMatch[1]==="OVER"?"DIGITOVER":"DIGITUNDER";else if(a.directionSignal==="RISE")contract="CALL";else if(a.directionSignal==="FALL")contract="PUT";if(!a.tradeAllowed||!contract){$("executionHandoffStatus").textContent="NO TRADE: analysis has not produced a supported contract signal.";return;}const detail={symbol:selected,contract,barrier:ouMatch?Number(ouMatch[2]):undefined,duration:a.directionSignal!=="WAIT"?(a.directionScore>=80?3:a.directionScore>=70?5:10):1,evidenceScore:a.directionScore,sample:a.n,reason:a.digitSignal!=="WAIT"?a.digitReason:"Directional trend "+a.trend+" confirmed by recent tick balance.",signal:a.digitSignal!=="WAIT"?a.digitSignal:a.directionSignal};window.dispatchEvent(new CustomEvent("berur:analysis-ready",{detail}));$("executionHandoffStatus").textContent="Sent "+detail.signal+" on "+selected+" to execution desk. Review the quote and approve manually.";});
 $("botBtn").addEventListener("click",()=>window.open("https://bot.deriv.com/","_blank","noopener"));
 $("copyBtn").addEventListener("click",()=>{
  const m=markets[selected],a=analyze(m);
