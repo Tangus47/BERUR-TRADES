@@ -935,6 +935,10 @@ function loadCfdMarket(symbol){
  request({ticks:symbol,subscribe:1},"cfd-tick",symbol);
 }
 function cfdEscape(value){return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
+function signalStrengthMarkup(score,favourable,reason){
+ const value=Math.max(0,Math.min(100,Math.round(Number(score)||0))),tone=favourable?"#20c987":"#f0525f";
+ return '<div style="min-width:104px"><b style="color:'+tone+'">'+value+'/100 ('+value+'%)</b><div role="progressbar" aria-label="Signal strength" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+value+'" style="height:6px;background:rgba(148,163,184,.22);border-radius:8px;overflow:hidden;margin:5px 0"><span style="display:block;width:'+value+'%;height:100%;background:'+tone+';border-radius:8px"></span></div>'+(reason?'<div class="note">'+cfdEscape(reason)+'</div>':'')+'</div>';
+}
 function cfdBaseAnalyze(m){
  const p=m.ticks||[],n=p.length,entry=Number(m.quote??p[p.length-1]);
  if(n<120||!Number.isFinite(entry))return {signal:"WAIT",strength:0,reason:"Collecting at least 120 live observations",entry};
@@ -1095,7 +1099,7 @@ function renderCfdCentre(){
    const signal=expired?"EXPIRED":a.signal,cls=signal==="BUY"?"good":signal==="SELL"?"bad":"warn";
    const cfg=cfdRiskInputs[m.symbol]||{},lot=cfdLotEstimate(m,a),dist=a.stop&&a.entry?Math.abs(a.entry-a.stop):0,macro=cfdUsdMacroScore(m,a);
    return '<tr><td><b>'+cfdEscape(m.name)+'</b><div class="note">'+cfdEscape(m.category)+' · '+cfdEscape(m.symbol)+'</div></td>'+
-    '<td><b>'+a.strength+'/100</b><div class="note">'+cfdEscape(a.reason)+'</div></td>'+
+    '<td>'+signalStrengthMarkup(a.strength,(a.signal==="BUY"||a.signal==="SELL")&&!expired,a.reason)+'</td>'+
     '<td><b>'+(macro.score===null?"—":macro.score+"/100")+'</b><div class="note">'+(macro.score===null?"Awaiting complete DXY and calendar data":"Tech "+macro.technical+" · DXY "+macro.dxyPoints+" · News "+macro.newsPoints)+'</div></td>'+
     '<td><span class="note">'+cfdEscape(macro.label)+'</span><div class="note">'+cfdEscape(macro.dxy+" · "+macro.news)+'</div></td>'+
     '<td><span class="pill '+cls+'">'+signal+'</span></td>'+
@@ -1726,8 +1730,11 @@ function render() {
  $("direction").textContent=a.directionSignal;
  $("direction").className="signal "+(a.directionSignal==="RISE"?"green":a.directionSignal==="FALL"?"red":"gold");
  $("directionReason").textContent=a.directionSignal==="WAIT"?"No directional setup meets the evidence rules.":`EMA trend ${a.trend}; recent directional balance ${Math.round(Math.max(a.up,a.down)/Math.max(1,a.up+a.down)*100)}%.`;
+ const directionFavourable=a.directionSignal!=="WAIT";
  $("directionBar").style.width=a.directionScore+"%";
- $("directionScore").textContent=`Evidence score: ${a.directionScore}/100 • heuristic, not a win probability`;
+ $("directionBar").style.background=directionFavourable?"#20c987":"#f0525f";
+ $("directionScore").style.color=directionFavourable?"#20c987":"#f0525f";
+ $("directionScore").textContent=`Evidence score: ${a.directionScore}/100 (${a.directionScore}%) • ${directionFavourable?"FAVOURABLE":"NOT FAVOURABLE"} • heuristic, not a win probability`;
  $("duration").textContent=a.n>=100?(a.directionScore>=80?"3 ticks":a.directionScore>=70?"5 ticks":"10 ticks"):"—";
  $("contract").textContent=a.digitSignal;
  $("contractReason").textContent=a.digitReason;
