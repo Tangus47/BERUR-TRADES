@@ -748,18 +748,24 @@ function refreshSignalValidity(signal, score, sample) {
     $("signalValidityStatus").className = "pill warn";
     return;
   }
+  const currentMarket=markets[selected];
+  const tickSequence=Number(currentMarket?.liveTickCount||currentMarket?.ticks.length||0);
   if (!activeSignal || activeSignal.signature !== signature) {
     const generatedAt = Date.now();
-    activeSignal = {signature,signal,generatedAt,expiresAt:generatedAt + signalDurationMs(signal,score,sample),expired:false};
+    activeSignal = {signature,signal,generatedAt,expiresAt:generatedAt + signalDurationMs(signal,score,sample),expired:false,tickSequence};
+  } else if (tickSequence > Number(activeSignal.tickSequence||0)) {
+    activeSignal.tickSequence=tickSequence;
+    activeSignal.expiresAt=Date.now()+signalDurationMs(signal,score,sample);
+    activeSignal.expired=false;
   }
   $("signalGeneratedAt").textContent = "Generated: " + formatLocalTime(activeSignal.generatedAt);
   $("signalExpiresAt").textContent = "Valid until: " + formatLocalTime(activeSignal.expiresAt);
   $("signalTimezone").textContent = "Timezone: " + localZone;
   updateSignalClock();
-  const current=markets[selected]?analyze(markets[selected]):null;
+  const current=currentMarket?analyze(currentMarket):null;
   const ou=String(signal).match(/^(OVER|UNDER) ([0-9])$/);
   const contract=ou?(ou[1]==="OVER"?"DIGITOVER":"DIGITUNDER"):signal==="EVEN"?"DIGITEVEN":signal==="ODD"?"DIGITODD":signal==="RISE"?"CALL":signal==="FALL"?"PUT":"";
-  const detail={symbol:selected,signal,contract,barrier:ou?Number(ou[2]):undefined,duration:signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,evidenceScore:score,sample,tradeAllowed:!!current?.tradeAllowed,reason:ou?(current?.digitReason||""):current?.directionReason||"BERUR technical analysis signal",generatedAt:activeSignal.generatedAt,expiresAt:activeSignal.expiresAt,signalId:signature+"|"+activeSignal.generatedAt};
+  const detail={symbol:selected,signal,contract,barrier:ou?Number(ou[2]):undefined,duration:signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,evidenceScore:score,sample,tradeAllowed:!!current?.tradeAllowed,reason:ou?(current?.digitReason||""):current?.directionReason||"BERUR technical analysis signal",generatedAt:activeSignal.generatedAt,expiresAt:activeSignal.expiresAt,tickSequence:activeSignal.tickSequence,signalId:signature+"|"+activeSignal.generatedAt};
   window.dispatchEvent(new CustomEvent("berur:signal-update",{detail}));
 }
 
