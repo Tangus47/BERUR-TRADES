@@ -1365,7 +1365,7 @@ function analyze(m) {
      digitReason = strongest.label + " observed " + pct(strongest.observed * 100) +
        " versus " + pct(strongest.expected * 100) + " uniform baseline; z-score " +
        strongest.strength.toFixed(2) + " across " + strongest.validN +
-       " non-equal observations. Historical evidence only.";
+       " received observations. Historical evidence only.";
    } else {
      digitReason = "No Over/Under threshold has reached the minimum evidence score. WAIT.";
    }
@@ -1649,7 +1649,7 @@ function renderMarketOURanking(){
   const favourable=x.validN>=150&&x.deviation>0&&x.strength>=2;
   return signalStrengthMarkup(value,favourable,x.validN<150?"Collecting 150+ valid observations":(favourable?"Favourable historical evidence":"Not favourable — no positive statistical edge"));
  };
- const parity=(count,n,side)=>{const observed=n?count/n:0,se=n?Math.sqrt(.25/n):0,z=se?(observed-.5)/se:0;return signalStrengthMarkup(50+Math.max(-5,Math.min(5,z))*10,n>=150&&((side==="EVEN"&&z>=1.5)||(side==="ODD"&&z<=-1.5)),n<150?"Collecting 150+ ticks":(side==="EVEN"?"Even":"Odd")+" historical frequency "+pct(observed*100));};
+ const parity=(count,n,side)=>{const observed=n?count/n:0,se=n?Math.sqrt(.25/n):0,z=se?(observed-.5)/se:0;return signalStrengthMarkup(50+Math.max(-5,Math.min(5,z))*10,n>=150&&((side==="EVEN"&&z>=2)||(side==="ODD"&&z<=-2)),n<150?"Collecting 150+ ticks":(side==="EVEN"?"Even":"Odd")+" historical frequency "+pct(observed*100));};
  body.innerHTML=SYMBOLS.map(symbol=>{
   const m=markets[symbol],a=analyze(m),over=pick(a,"OVER"),under=pick(a,"UNDER"),overDisplay=displayPick(a,"OVER"),underDisplay=displayPick(a,"UNDER");
   recordMarketAlert(symbol,"OVER",over&&over.strength>=2?over:null);recordMarketAlert(symbol,"UNDER",under&&under.strength>=2?under:null);
@@ -1881,7 +1881,7 @@ function render() {
  const overRows = a.ouCandidates.filter(x=>x.side==="OVER" && x.barrier>=3 && x.barrier<=7).sort((x,y)=>x.barrier-y.barrier);
  const underRows = a.ouCandidates.filter(x=>x.side==="UNDER" && x.barrier>=4 && x.barrier<=6).sort((x,y)=>y.barrier-x.barrier);
  const renderProbabilityRows = rows => rows.length ? rows.map(x=>{
-   const cls = x.validN<150 ? "gold" : x.deviation>0 && x.strength>=1.5 ? "green" : x.deviation<0 ? "red" : "gold";
+   const cls = x.validN<150 ? "gold" : x.deviation>0 && x.strength>=2 ? "green" : x.deviation<0 ? "red" : "gold";
    const evidenceScore=50+Math.max(-5,Math.min(5,x.z))*10;
    const favourable=x.validN>=150&&x.deviation>0&&x.strength>=2;
    const strength=signalStrengthMarkup(evidenceScore,favourable,x.validN<150?"Collecting 150+ valid observations":(favourable?"Positive historical deviation":"No favourable statistical edge established"));
