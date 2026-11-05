@@ -99,7 +99,7 @@ function autoStep(){
  $("bt-duration").value=Math.max(1,Math.min(10,Number(signal.duration)||1));
  proposal=null;$("bt-buy").disabled=true;
  autoQuoteSignal={...signal,requestedAt:Date.now()};autoQuotePending=true;
- $("bt-quoteinfo").textContent="AUTO DEMO · "+marketLabel(signal.symbol)+" · "+signal.signal+" · evidence "+signal.evidenceScore+"/100 · waiting for matching live quote";
+ $("bt-quoteinfo").textContent="AUTO DEMO · "+marketLabel(signal.symbol)+" · "+signal.signal+" · "+signal.sample+" adaptive ticks · "+signal.evidenceScore+"/100 · requesting quote";
  try{quote();say("Requesting quote for selected best market and its exact recommended contract.");}
  catch(e){autoQuotePending=false;autoQuoteSignal=null;say("Auto quote request failed: "+e.message);}
 }
