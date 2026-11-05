@@ -1302,12 +1302,20 @@ function analyze(m) {
  };
 }
 
+function preferredSetup(a) {
+ const digit=a.ouCandidates?.find(x=>!x.impossible&&x.label===a.digitSignal&&x.validN>=500&&x.observed>0.40&&x.deviation>0&&x.strength>=2&&((x.side==="OVER"&&x.barrier>=3&&x.barrier<=4)||(x.side==="UNDER"&&x.barrier>=5&&x.barrier<=7)));
+ const digitScore=digit?Math.min(95,Math.round(65+(digit.strength-2)*15)):0;
+ const directionScore=a.directionSignal!=="WAIT"?a.directionScore:0;
+ if(digit&&digitScore>=directionScore)return {signal:a.digitSignal,score:digitScore,reason:a.digitReason};
+ if(a.directionSignal!=="WAIT")return {signal:a.directionSignal,score:directionScore,reason:a.directionReason||"Directional evidence passed the analysis filters."};
+ return {signal:"WAIT",score:0,reason:a.digitReason||a.directionReason||"No qualified setup."};
+}
 function rankScore(m) {
  const a=analyze(m);
  if(a.n<50) return 0;
  const movement=m.ticks.length>1 ? Math.abs(m.ticks[m.ticks.length-1]-m.ticks[0])/(Math.abs(m.ticks[0])||1)*100 : 0;
- const ouStrength = a.ouCandidates?.filter(x=>!x.impossible&&x.validN>=100&&x.deviation>0).reduce((v,x)=>Math.max(v,x.strength),0)||0;
- return Math.round(Math.min(100,a.directionScore*.45 + Math.min(45,ouStrength*10) + Math.min(10,movement)));
+ const setup=preferredSetup(a);
+ return Math.round(Math.min(100,setup.score+Math.min(5,movement)));
 }
 function updatePriceTrace(m) {
  const values=(m.ticks||[]).slice(-80);
@@ -1711,7 +1719,7 @@ function render() {
  $("learningState").style.color = state === "READY" ? "var(--green)" : "var(--gold)";
  $("learningProgress").textContent = Math.min(m.ticks.length,learningTarget) + " / " + learningTarget + " observations";
  $("radarMarket").textContent = bestEligible ? marketName(bestEligible.symbol) : "NO QUALIFIED MARKET";
- $("radarSignal").textContent = bestEligible ? (analyze(bestEligible).directionSignal !== "WAIT" ? analyze(bestEligible).directionSignal : analyze(bestEligible).digitSignal) : "WAIT";
+ $("radarSignal").textContent = bestEligible ? preferredSetup(analyze(bestEligible)).signal : "WAIT";
  $("radarReason").textContent = bestEligible ? "Highest-ranked market that passed the existing analysis safeguards. Manual review only." : "No market has passed the existing evidence filters. Keep waiting.";
  $("learningNote").textContent = state === "READY" ? "Learning sample reached. This does not itself create a trade signal; the separate 120/150-tick analysis safeguards remain active." : "Collecting observations. The learning target controls readiness only; signal safeguards still require larger samples before manual review.";
  $("riskGuardStatus").textContent = "Advisory limits: max stake " + $("maxStake").value + " • session loss " + $("sessionLoss").value + " • take-profit " + $("sessionProfit").value + ". Not enforced by Deriv.";
@@ -1745,8 +1753,9 @@ function render() {
  }).join("") || '<tr><td colspan="6">No markets discovered yet.</td></tr>';
  document.querySelectorAll("tr[data-symbol]").forEach(row=>row.addEventListener("click",()=>{selected=row.dataset.symbol;render();}));
  const a=analyze(m);
- const activeRecommendation = a.digitSignal !== "WAIT" ? a.digitSignal : a.directionSignal;
- refreshSignalValidity(activeRecommendation, a.directionScore, a.n);
+ const recommendation = preferredSetup(a);
+ const activeRecommendation = recommendation.signal;
+ refreshSignalValidity(activeRecommendation, recommendation.score, a.n);
  setBotSessionRecommendation(a, activeRecommendation);
  $("direction").textContent=a.directionSignal;
  $("direction").className="signal "+(a.directionSignal==="RISE"?"green":a.directionSignal==="FALL"?"red":"gold");
