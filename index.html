@@ -1446,6 +1446,23 @@ function refreshAutomaticBestSignal(){
 function preferredSetup(a) {
  return qualifiedSetups(a)[0]||{signal:"WAIT",score:0,reason:a.digitReason||a.parityReason||a.directionReason||"No qualified setup."};
 }
+window.addEventListener("berur:candidate-queue-update",event=>{
+ const radar=document.getElementById("radar");if(!radar)return;
+ let panel=document.getElementById("berur-candidate-queue");
+ if(!panel){panel=document.createElement("section");panel.id="berur-candidate-queue";panel.className="card section";panel.style.borderTop="2px solid var(--teal)";panel.innerHTML="<h3>LIVE PURCHASE CANDIDATE QUEUE</h3><div id='berur-candidate-count' class='small'>Waiting for qualified candidates…</div><div id='berur-candidate-rows' class='tablewrap'></div>";radar.insertAdjacentElement("afterend",panel);}
+ const list=Array.isArray(event.detail?.candidates)?event.detail.candidates:[];
+ const count=document.getElementById("berur-candidate-count"),body=document.getElementById("berur-candidate-rows");
+ if(count)count.textContent=list.length+" qualified candidates across scanned markets • only the highest-ranked eligible setup is sent for a quote";
+ if(!body)return;
+ body.replaceChildren();
+ if(!list.length){const p=document.createElement("p");p.className="note";p.textContent="NO QUALIFIED SETUP — waiting for fresh evidence. No forced purchases.";body.appendChild(p);return;}
+ const table=document.createElement("table");table.style.minWidth="560px";
+ const head=document.createElement("thead"),hr=document.createElement("tr");
+ ["Rank","Market","Contract","Evidence","Samples","Selection"].forEach(v=>{const th=document.createElement("th");th.textContent=v;hr.appendChild(th);});head.appendChild(hr);table.appendChild(head);
+ const tbody=document.createElement("tbody");
+ list.slice(0,15).forEach((x,i)=>{const tr=document.createElement("tr");[String(i+1),marketName(x.symbol),x.signal,String(x.score)+"/100",String(x.sample),i===0?"TOP CANDIDATE":"QUEUED"].forEach(v=>{const td=document.createElement("td");td.textContent=v;if(i===0)td.className="green";tr.appendChild(td);});tbody.appendChild(tr);});
+ table.appendChild(tbody);body.appendChild(table);
+});
 function rankScore(m) {
  const a=analyze(m);
  if(a.n<50) return 0;
