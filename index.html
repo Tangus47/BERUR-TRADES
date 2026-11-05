@@ -765,7 +765,7 @@ function refreshSignalValidity(signal, score, sample) {
   const current=currentMarket?analyze(currentMarket):null;
   const ou=String(signal).match(/^(OVER|UNDER) ([0-9])$/);
   const contract=ou?(ou[1]==="OVER"?"DIGITOVER":"DIGITUNDER"):signal==="EVEN"?"DIGITEVEN":signal==="ODD"?"DIGITODD":signal==="RISE"?"CALL":signal==="FALL"?"PUT":"";
-  const detail={symbol:selected,signal,contract,barrier:ou?Number(ou[2]):undefined,duration:signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,evidenceScore:score,sample,tradeAllowed:!!current?.tradeAllowed,reason:ou?(current?.digitReason||""):current?.directionReason||"BERUR technical analysis signal",generatedAt:activeSignal.generatedAt,expiresAt:activeSignal.expiresAt,tickSequence:activeSignal.tickSequence,signalId:signature+"|"+activeSignal.generatedAt};
+  const detail={symbol:selected,signal,contract,barrier:ou?Number(ou[2]):undefined,duration:signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,evidenceScore:score,sample,tradeAllowed:!!current?.tradeAllowed&&sample>=requiredEvidenceTicks(contract,signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,score),requiredTicks:requiredEvidenceTicks(contract,signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,score),reason:ou?(current?.digitReason||""):current?.directionReason||"BERUR technical analysis signal",generatedAt:activeSignal.generatedAt,expiresAt:activeSignal.expiresAt,tickSequence:activeSignal.tickSequence,signalId:signature+"|"+activeSignal.generatedAt};
   window.dispatchEvent(new CustomEvent("berur:signal-update",{detail}));
 }
 
@@ -864,9 +864,9 @@ function connect() {
      }else{
        const m = markets[info.symbol];
        if(m){
-         m.prices = prices.map(Number).filter(Number.isFinite).slice(-250);
+         m.prices = prices.map(Number).filter(Number.isFinite).slice(-1000);
          m.ticks = m.prices.slice();
-         m.tickPoints = m.prices.map((price,i)=>({price,time:Number(times[i])>0?Number(times[i])*1000:Date.now()-((m.prices.length-i)*1000)})).slice(-250);
+         m.tickPoints = m.prices.map((price,i)=>({price,time:Number(times[i])>0?Number(times[i])*1000:Date.now()-((m.prices.length-i)*1000)})).slice(-1000);
          m.loading = false;m.updated = Date.now();render();
        }
      }
@@ -902,10 +902,11 @@ function connect() {
      if (!m.ticks.length || m.ticks[m.ticks.length-1] !== q) {
        m.ticks.push(q);
        m.tickPoints.push({price:q,time:Number(data.tick.epoch)>0?Number(data.tick.epoch)*1000:Date.now()});
-       if (m.ticks.length > 250) m.ticks.shift();
-       if (m.tickPoints.length > 250) m.tickPoints.shift();
+       if (m.ticks.length > 1000) m.ticks.shift();
+       if (m.tickPoints.length > 1000) m.tickPoints.shift();
      }
-     render();
+     refreshAutomaticBestSignal();
+     scheduleRender();
    }
  };
  socket.onerror = () => {
@@ -1151,7 +1152,7 @@ function requestMarketCandles(symbol,granularity=candleTimeframe){
 }
 function loadMarket(symbol) {
  request({
-   ticks_history:symbol,count:200,end:"latest",style:"ticks"
+   ticks_history:symbol,count:1000,end:"latest",style:"ticks"
  },"history",symbol);
  if(symbol===selected)requestMarketCandles(symbol,candleTimeframe);
  request({ticks:symbol,subscribe:1},"tick",symbol);
@@ -1171,6 +1172,14 @@ function stop() {
  $("stopBtn").disabled = true;
  setStatus("Stopped","gold");
 }
+function requiredEvidenceTicks(contract,duration=1,score=70){
+  const base={DIGITOVER:100,DIGITUNDER:100,DIGITEVEN:100,DIGITODD:100,DIGITMATCH:250,DIGITDIFF:250,CALL:120,PUT:120}[contract]||100;
+  const ticks=Math.max(1,Math.min(10,Number(duration)||1));
+  const confidence=Math.max(0,Math.min(100,Number(score)||0));
+  const durationFactor=1+((ticks-1)*0.08);
+  const confidenceFactor=1+Math.max(0,80-confidence)/100;
+  return Math.max(10,Math.min(1000,Math.ceil(base*durationFactor*confidenceFactor)));
+}
 function digitsFor(prices) {
  return prices.map(p => {
    const str = String(p);
@@ -1186,7 +1195,7 @@ function ema(values, period) {
  return result;
 }
 function analyze(m) {
- const p = m.ticks || [];
+ const p = (m.ticks || []).slice(-1000);
  const ds = digitsFor(p);
  const counts = Array(10).fill(0);
  ds.forEach(d => counts[d]++);
@@ -1250,7 +1259,7 @@ function analyze(m) {
  const ouCandidates = [];
  let digitSignal = "WAIT";
  let digitReason = "Collect at least 150 ticks before assessing all Over/Under thresholds.";
- if (n >= 150) {
+ if (n >= 100) {
    for (let barrier = 0; barrier <= 9; barrier++) {
      const validN = n;
      const overCount = ds.filter(d => d > barrier).length;
@@ -1272,7 +1281,7 @@ function analyze(m) {
      }
    }
    const ranked = ouCandidates
-     .filter(x => !x.impossible && x.validN >= 500 && x.observed > 0.40 && x.deviation > 0 && x.strength >= 2 && ((x.side === "OVER" && x.barrier >= 3 && x.barrier <= 4) || (x.side === "UNDER" && x.barrier >= 5 && x.barrier <= 7)))
+     .filter(x => !x.impossible && x.validN >= 100 && x.observed > 0.40 && x.deviation > 0 && x.strength >= 2 && ((x.side === "OVER" && x.barrier >= 3 && x.barrier <= 4) || (x.side === "UNDER" && x.barrier >= 5 && x.barrier <= 7)))
      .sort((x,y) => y.strength - x.strength);
    const strongest = ranked[0];
    if (strongest && strongest.strength >= 2) {
@@ -1285,13 +1294,13 @@ function analyze(m) {
      digitReason = "No Over/Under threshold has reached the minimum evidence score. WAIT.";
    }
  }
- const enough = n >= 150;
+ const enough = n >= 100 && (digitSignal !== "WAIT" || n >= 120);
  const tradeAllowed =
    enough &&
    (directionSignal !== "WAIT" || digitSignal !== "WAIT");
 
- const quality = n >= 200 ? "GOOD" :
-                 n >= 120 ? "MEDIUM" : "LOW";
+ const quality = n >= 300 ? "GOOD" :
+                 n >= 100 ? "MEDIUM" : "LOW";
 
  return {
    counts, n, even, odd, over, under, neutral,
@@ -1302,12 +1311,40 @@ function analyze(m) {
  };
 }
 
+function refreshAutomaticBestSignal(){
+  const now=Date.now();
+  const candidates=SYMBOLS.map(symbol=>{
+    const market=markets[symbol];
+    if(!market||!market.available||!market.ticks?.length||!market.updated||now-market.updated>20000)return null;
+    const analysis=analyze(market);
+    if(!analysis.tradeAllowed)return null;
+    const setup=preferredSetup(analysis);
+    if(!setup||setup.signal==="WAIT"||!setup.score)return null;
+    return {symbol,market,analysis,setup};
+  }).filter(Boolean).sort((a,b)=>b.setup.score-a.setup.score||(b.market.updated-a.market.updated));
+  if(!candidates.length){
+    activeSignal=null;
+    window.dispatchEvent(new CustomEvent("berur:signal-update",{detail:{signalId:"",tradeAllowed:false}}));
+    return;
+  }
+  const best=candidates[0];
+  selected=best.symbol;
+  refreshSignalValidity(best.setup.signal,best.setup.score,best.analysis.n);
+}
+function preferredSetup(a) {
+ const digit=a.ouCandidates?.find(x=>!x.impossible&&x.label===a.digitSignal&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2&&((x.side==="OVER"&&x.barrier>=3&&x.barrier<=4)||(x.side==="UNDER"&&x.barrier>=5&&x.barrier<=7)));
+ const digitScore=digit?Math.min(95,Math.round(65+(digit.strength-2)*15)):0;
+ const directionScore=a.directionSignal!=="WAIT"?a.directionScore:0;
+ if(digit&&digitScore>=directionScore)return {signal:a.digitSignal,score:digitScore,reason:a.digitReason};
+ if(a.directionSignal!=="WAIT")return {signal:a.directionSignal,score:directionScore,reason:a.directionReason||"Directional evidence passed the analysis filters."};
+ return {signal:"WAIT",score:0,reason:a.digitReason||a.directionReason||"No qualified setup."};
+}
 function rankScore(m) {
  const a=analyze(m);
  if(a.n<50) return 0;
  const movement=m.ticks.length>1 ? Math.abs(m.ticks[m.ticks.length-1]-m.ticks[0])/(Math.abs(m.ticks[0])||1)*100 : 0;
- const ouStrength = a.ouCandidates?.filter(x=>!x.impossible&&x.validN>=100&&x.deviation>0).reduce((v,x)=>Math.max(v,x.strength),0)||0;
- return Math.round(Math.min(100,a.directionScore*.45 + Math.min(45,ouStrength*10) + Math.min(10,movement)));
+ const setup=preferredSetup(a);
+ return Math.round(Math.min(100,setup.score+Math.min(5,movement)));
 }
 function updatePriceTrace(m) {
  const values=(m.ticks||[]).slice(-80);
@@ -1479,7 +1516,7 @@ function renderTradeQualityFilter(){
  SYMBOLS.forEach(symbol=>{
   const m=markets[symbol],a=analyze(m);
   ["OVER","UNDER"].forEach(side=>{
-   const candidate=(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=500&&x.observed>0.40&&x.deviation>0&&x.strength>=2&&(side==="OVER"?x.barrier>=3&&x.barrier<=4:x.barrier>=5&&x.barrier<=7)).sort((x,y)=>y.strength-x.strength)[0];
+   const candidate=(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2&&(side==="OVER"?x.barrier>=3&&x.barrier<=4:x.barrier>=5&&x.barrier<=7)).sort((x,y)=>y.strength-x.strength)[0];
    if(!candidate)return;
    const feedAge=m.updated?Math.max(0,Math.floor((now-m.updated)/1000)):null;
    const monitor=marketSignalMonitor[symbol+"|"+side];
@@ -1523,7 +1560,7 @@ document.addEventListener("click",event=>{
 function renderMarketOURanking(){
  const body=$("marketOURankingRows");if(!body)return;
  const candidates=(a,side)=>(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&(side==="OVER"?x.barrier>=3&&x.barrier<=4:x.barrier>=5&&x.barrier<=7));
- const pick=(a,side)=>a.n>=500?candidates(a,side).filter(x=>x.validN>=500&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0]||null:null;
+ const pick=(a,side)=>a.n>=100?candidates(a,side).filter(x=>x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0]||null:null;
  const displayPick=(a,side)=>candidates(a,side).sort((x,y)=>(y.validN-x.validN)||((y.z||0)-(x.z||0)))[0]||null;
  const show=x=>x?'<b>'+x.label+'</b>':'—';
  const rate=x=>x?pct(x.observed*100)+' / '+pct(x.expected*100):'—';
@@ -1557,15 +1594,15 @@ function renderBestContractMarkets(){
  const candidates=[];
  const add=(type,symbol,label,count,observed,expected,n)=>{
   const isOU=type==="OVER"||type==="UNDER";
-  if(n<(isOU?500:150)||!count||expected<=0||expected>=1||(isOU&&observed<=0.40))return;
+  if(n<(isOU?100:150)||!count||expected<=0||expected>=1||(isOU&&observed<=0.40))return;
   const se=Math.sqrt(expected*(1-expected)/n),z=se?(observed-expected)/se:0;
   if(observed>expected&&z>=2)candidates.push({type,symbol,label,count,observed,expected,n,strength:z});
  };
  SYMBOLS.forEach(symbol=>{
   const m=markets[symbol],a=analyze(m),ds=digitsFor(m.ticks||[]),n=ds.length;
   if(n>=150){
-   const over=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.barrier>=3&&x.barrier<=4&&x.validN>=500&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
-   const under=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.barrier>=5&&x.barrier<=7&&x.validN>=500&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
+   const over=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.barrier>=3&&x.barrier<=4&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
+   const under=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.barrier>=5&&x.barrier<=7&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
    if(over)add("OVER",symbol,over.label,over.count,over.observed,over.expected,over.validN);
    if(under)add("UNDER",symbol,under.label,under.count,under.observed,under.expected,under.validN);
    const even=ds.filter(d=>d%2===0).length,odd=n-even;
@@ -1644,8 +1681,8 @@ function renderAllMarketIntelligence(){
    if(rate>base&&z>=2)all.push({symbol:sym,type,label,z,n:total,rate,base});
   };
   if(n>=150){
-   const ov=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.barrier>=3&&x.barrier<=4&&x.validN>=500&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
-   const un=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.barrier>=5&&x.barrier<=7&&x.validN>=500&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
+   const ov=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.barrier>=3&&x.barrier<=4&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
+   const un=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.barrier>=5&&x.barrier<=7&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
    if(ov)all.push({symbol:sym,type:"OVER",label:ov.label,z:ov.strength,n:ov.validN,rate:ov.observed,base:ov.expected});
    if(un)all.push({symbol:sym,type:"UNDER",label:un.label,z:un.strength,n:un.validN,rate:un.observed,base:un.expected});
    const even=ds.filter(d=>d%2===0).length;add("ODD","ODD",n-even,.5,n);add("EVEN","EVEN",even,.5,n);
@@ -1673,6 +1710,8 @@ function renderAllMarketIntelligence(){
  $("intelRotation").textContent=!previousIntelLeader?"Building baseline":sig&&sig!==previousIntelLeader?"LEADER CHANGED — review new candidate":sig?"Leader unchanged":"No qualified leader";
  if(sig)previousIntelLeader=sig;
 }
+let renderPending=false;
+function scheduleRender(){if(renderPending)return;renderPending=true;setTimeout(()=>{renderPending=false;render();},150);}
 function render() {
  renderCfdCentre();
  setupMarketAlerts();
@@ -1711,7 +1750,7 @@ function render() {
  $("learningState").style.color = state === "READY" ? "var(--green)" : "var(--gold)";
  $("learningProgress").textContent = Math.min(m.ticks.length,learningTarget) + " / " + learningTarget + " observations";
  $("radarMarket").textContent = bestEligible ? marketName(bestEligible.symbol) : "NO QUALIFIED MARKET";
- $("radarSignal").textContent = bestEligible ? (analyze(bestEligible).directionSignal !== "WAIT" ? analyze(bestEligible).directionSignal : analyze(bestEligible).digitSignal) : "WAIT";
+ $("radarSignal").textContent = bestEligible ? preferredSetup(analyze(bestEligible)).signal : "WAIT";
  $("radarReason").textContent = bestEligible ? "Highest-ranked market that passed the existing analysis safeguards. Manual review only." : "No market has passed the existing evidence filters. Keep waiting.";
  $("learningNote").textContent = state === "READY" ? "Learning sample reached. This does not itself create a trade signal; the separate 120/150-tick analysis safeguards remain active." : "Collecting observations. The learning target controls readiness only; signal safeguards still require larger samples before manual review.";
  $("riskGuardStatus").textContent = "Advisory limits: max stake " + $("maxStake").value + " • session loss " + $("sessionLoss").value + " • take-profit " + $("sessionProfit").value + ". Not enforced by Deriv.";
@@ -1745,8 +1784,9 @@ function render() {
  }).join("") || '<tr><td colspan="6">No markets discovered yet.</td></tr>';
  document.querySelectorAll("tr[data-symbol]").forEach(row=>row.addEventListener("click",()=>{selected=row.dataset.symbol;render();}));
  const a=analyze(m);
- const activeRecommendation = a.digitSignal !== "WAIT" ? a.digitSignal : a.directionSignal;
- refreshSignalValidity(activeRecommendation, a.directionScore, a.n);
+ const recommendation = preferredSetup(a);
+ const activeRecommendation = recommendation.signal;
+ refreshSignalValidity(activeRecommendation, recommendation.score, a.n);
  setBotSessionRecommendation(a, activeRecommendation);
  $("direction").textContent=a.directionSignal;
  $("direction").className="signal "+(a.directionSignal==="RISE"?"green":a.directionSignal==="FALL"?"red":"gold");
@@ -1901,7 +1941,7 @@ setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
 </script>
 <script src="./signal-intelligence.js"></script>
 <script src="./economic-news.js"></script>
-<script src="./deriv-trader.js?v=20261105-unified-auto-execution-2"></script>
+<script src="./deriv-trader.js?v=20261105-sequential-session-2"></script>
 <script>
 (function(){
   const greeting=document.getElementById("traderGreeting");

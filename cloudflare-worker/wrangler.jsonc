@@ -10,7 +10,8 @@
   "kv_namespaces": [
     {
       "binding": "BERUR_SESSIONS",
-      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+      "id": "538447f7b2e74fc5af9818b388e9217c"
     }
-  ]
+  ],
+  "previews": {}
 }
