@@ -1509,16 +1509,23 @@ document.addEventListener("click",event=>{
 });
 function renderMarketOURanking(){
  const body=$("marketOURankingRows");if(!body)return;
- const pick=(a,side)=>a.n>=500?(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=500&&x.observed>0.40&&x.deviation>0&&x.strength>=2&&(side==="OVER"?x.barrier>=3&&x.barrier<=4:x.barrier>=5&&x.barrier<=7)).sort((x,y)=>y.strength-x.strength)[0]||null:null;
+ const candidates=(a,side)=>(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&(side==="OVER"?x.barrier>=3&&x.barrier<=4:x.barrier>=5&&x.barrier<=7));
+ const pick=(a,side)=>a.n>=500?candidates(a,side).filter(x=>x.validN>=500&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0]||null:null;
+ const displayPick=(a,side)=>candidates(a,side).sort((x,y)=>(y.validN-x.validN)||((y.z||0)-(x.z||0)))[0]||null;
  const show=x=>x?'<b>'+x.label+'</b>':'—';
  const rate=x=>x?pct(x.observed*100)+' / '+pct(x.expected*100):'—';
- const score=x=>x?signalStrengthMarkup(50+Math.max(-5,Math.min(5,x.z))*10,x.validN>=150&&x.deviation>0&&x.strength>=1.5,"Historical deviation score; not a win probability"):'—';
+ const score=(x,n,side)=>{
+  if(!x||n<100)return signalStrengthMarkup(50,false,n<100?"Collecting 100+ market ticks":"No eligible contract data");
+  const value=50+Math.max(-5,Math.min(5,Number(x.z)||0))*10;
+  const favourable=x.validN>=150&&x.deviation>0&&x.strength>=1.5;
+  return signalStrengthMarkup(value,favourable,x.validN<150?"Collecting 150+ valid observations":(favourable?"Favourable historical evidence":"Not favourable — no positive statistical edge"));
+ };
  const parity=(count,n,side)=>{const observed=n?count/n:0,se=n?Math.sqrt(.25/n):0,z=se?(observed-.5)/se:0;return signalStrengthMarkup(50+Math.max(-5,Math.min(5,z))*10,n>=150&&((side==="EVEN"&&z>=1.5)||(side==="ODD"&&z<=-1.5)),n<150?"Collecting 150+ ticks":(side==="EVEN"?"Even":"Odd")+" historical frequency "+pct(observed*100));};
  body.innerHTML=SYMBOLS.map(symbol=>{
-  const m=markets[symbol],a=analyze(m),over=pick(a,"OVER"),under=pick(a,"UNDER");
+  const m=markets[symbol],a=analyze(m),over=pick(a,"OVER"),under=pick(a,"UNDER"),overDisplay=displayPick(a,"OVER"),underDisplay=displayPick(a,"UNDER");
   recordMarketAlert(symbol,"OVER",over&&over.strength>=2?over:null);recordMarketAlert(symbol,"UNDER",under&&under.strength>=2?under:null);
   updateMarketSignalMonitor(symbol,"OVER",over&&over.strength>=2?over:null);updateMarketSignalMonitor(symbol,"UNDER",under&&under.strength>=2?under:null);
-  return '<tr><td><b>'+marketName(symbol)+'</b></td><td>'+show(over)+'</td><td>'+rate(over)+'</td><td>'+score(over)+'</td><td>'+show(under)+'</td><td>'+rate(under)+'</td><td>'+score(under)+'</td><td>'+parity(a.even,a.n,"EVEN")+'</td><td>'+parity(a.odd,a.n,"ODD")+'</td><td>'+a.n+'/150</td></tr>';
+  return '<tr><td><b>'+marketName(symbol)+'</b></td><td>'+show(overDisplay)+'</td><td>'+rate(overDisplay)+'</td><td>'+score(overDisplay,a.n,"OVER")+'</td><td>'+show(underDisplay)+'</td><td>'+rate(underDisplay)+'</td><td>'+score(underDisplay,a.n,"UNDER")+'</td><td>'+parity(a.even,a.n,"EVEN")+'</td><td>'+parity(a.odd,a.n,"ODD")+'</td><td>'+a.n+'/150</td></tr>';
  }).join("");
 }
 function renderHomeBestMarkets(){
