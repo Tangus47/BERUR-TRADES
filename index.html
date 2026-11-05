@@ -803,6 +803,8 @@ function refreshSignalValidity(signal, score, sample, setupReason) {
     activeSignal.expiresAt=Date.now()+signalDurationMs(signal,score,sample);
     activeSignal.expired=false;
   }
+  activeSignal.score=score;
+  activeSignal.reason=setupReason||activeSignal.reason||"";
   $("signalGeneratedAt").textContent = "Generated: " + formatLocalTime(activeSignal.generatedAt);
   $("signalExpiresAt").textContent = "Valid until: " + formatLocalTime(activeSignal.expiresAt);
   $("signalTimezone").textContent = "Timezone: " + localZone;
