@@ -251,6 +251,38 @@ a{font-weight:700}
 .play-store-build #bt-desk,
 .play-store-build #bt-membership { display:none !important; }
 .play-store-build #play-store-notice { display:block; }
+
+/* BERUR independent tab visibility: override component display rules reliably */
+[hidden], [data-app-tab-hidden="true"]{display:none!important}
+/* Distinct, readable colour identity for every dashboard tab */
+.app-tabs .app-tab[data-tab="home"]{--tab-accent:#55c7ff}
+.app-tabs .app-tab[data-tab="markets"]{--tab-accent:#35d6b2}
+.app-tabs .app-tab[data-tab="analysis"]{--tab-accent:#b69aff}
+.app-tabs .app-tab[data-tab="digits"]{--tab-accent:#ffc66e}
+.app-tabs .app-tab[data-tab="ou"]{--tab-accent:#ff9b6b}
+.app-tabs .app-tab[data-tab="radar"]{--tab-accent:#8ce08b}
+.app-tabs .app-tab[data-tab="quality"]{--tab-accent:#f18db8}
+.app-tabs .app-tab[data-tab="execution"]{--tab-accent:#70a8ff}
+.app-tabs .app-tab[data-tab="forex"]{--tab-accent:#43d7c4}
+.app-tabs .app-tab[data-tab="xauusd"]{--tab-accent:#f4c75e}
+.app-tabs .app-tab[data-tab="derivcfd"]{--tab-accent:#9d9cff}
+.app-tabs .app-tab[data-tab="boomcrash"]{--tab-accent:#ff806e}
+.app-tabs .app-tab[data-tab="news"]{--tab-accent:#71c6ef}
+.app-tabs .app-tab{border-color:color-mix(in srgb,var(--tab-accent) 45%,transparent);background:color-mix(in srgb,var(--tab-accent) 10%,#0b1728);color:var(--tab-accent)}
+.app-tabs .app-tab.active{background:var(--tab-accent);border-color:var(--tab-accent);color:#071321;box-shadow:0 0 0 2px color-mix(in srgb,var(--tab-accent) 22%,transparent),0 5px 18px color-mix(in srgb,var(--tab-accent) 20%,transparent)}
+/* Matching accent stripe keeps the active panel visually distinct */
+#overview{border-top:3px solid #55c7ff}
+#candleWorkspace{border-top:3px solid #35d6b2}
+#analysis{border-top:3px solid #b69aff}
+#probability,#market-ou-ranking{border-top:3px solid #ffc66e}
+#market-ou-board{border-top:3px solid #ff9b6b}
+#radar,#all-market-command-centre{border-top:3px solid #8ce08b}
+#trade-quality-filter{border-top:3px solid #f18db8}
+#execution{border-top:3px solid #70a8ff}
+#forex-cfd-centre{border-top:3px solid #43d7c4}
+#boom-crash-centre{border-top:3px solid #ff806e}
+#economic-news-centre{border-top:3px solid #71c6ef}
+
 </style>
 </head>
 <body>
@@ -1924,7 +1956,7 @@ function setupAppTabs(){
  if(Object.values(anchors).some(x=>!x))return;
  const children=Array.from(content.children),idx=Object.fromEntries(Object.entries(anchors).map(([k,v])=>[k,children.indexOf(v)]));
  const ranges={home:[idx.home,idx.markets],markets:[idx.markets,idx.analysis],analysis:[idx.analysis,idx.execution],execution:[idx.execution,idx.radar],radar:[idx.radar,children.length]};
- const extra={digits:["probability","market-ou-ranking"],ou:["market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],derivcfd:["forex-cfd-centre"],xauusd:["forex-cfd-centre"],boomcrash:["boom-crash-centre"],news:["economic-news-centre"]};
+ const extra={digits:["probability","market-ou-ranking"],ou:["market-ou-board"],radar:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],derivcfd:["forex-cfd-centre"],xauusd:["forex-cfd-centre"],boomcrash:["boom-crash-centre"],news:["economic-news-centre"]};
  const panelNodes=Array.from(new Set(Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean)));
  const allRangeNodes=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
  function activate(name){
