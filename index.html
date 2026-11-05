@@ -470,7 +470,7 @@ a{font-weight:700}
       <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>CONTRACT TYPE</th><th>BEST MARKET</th><th>STRONGEST CONTRACT</th><th>OBSERVED</th><th>BASELINE</th><th>STRENGTH</th><th>SAMPLE</th><th>AI TICK DURATION</th><th>ASSESSMENT</th></tr></thead><tbody id="bestContractMarketRows"><tr><td colspan="9">Collecting independent market samples…</td></tr></tbody></table></div>
       <p class="note" id="bestContractMarketNote">Each contract family selects its own market. Digit contracts are set to 1 tick; Rise/Fall duration is selected from trend alignment and directional strength on that specific market. These are research suggestions, not guaranteed profitable durations.</p>
     </div>
-<div style="margin-top:16px"><h3 class="section-title">LIVE MARKET DATA FRESHNESS</h3><p class="note">A feed is marked stale after 20 seconds without a received tick update. This is a connection-health warning, not a trading signal.</p><div class="tablewrap"><table style="min-width:560px"><thead><tr><th>Market</th><th>Feed status</th><th>Last update</th><th>Age</th></tr></thead><tbody id="marketFeedHealthRows"><tr><td colspan="4">Waiting for market data…</td></tr></tbody></table></div><div id="marketFeedHealthSummary" class="note" aria-live="polite">Feed health will appear as markets connect.</div></div>
+<div style="margin-top:16px"><h3 class="section-title">LIVE MARKET DATA FRESHNESS</h3><p class="note">LIVE requires a received Deriv tick within the last 10 seconds; SLOW is 10–19 seconds and STALE is 20 seconds or more. History-only data is never labelled live. Counts are observations held for analysis, not trade guarantees.</p><div class="tablewrap"><table style="min-width:700px"><thead><tr><th>Market</th><th>Feed status</th><th>Observations</th><th>Last live tick</th><th>Tick age</th></tr></thead><tbody id="marketFeedHealthRows"><tr><td colspan="5">Waiting for market data…</td></tr></tbody></table></div><div id="marketFeedHealthSummary" class="note" aria-live="polite">Feed health will appear as markets connect.</div></div>
     <div style="margin-top:16px"><h3 class="section-title">LIVE SIGNAL STRENGTH &amp; EXPIRY MONITOR</h3><p class="note">Trend uses recent strength readings. A signal stays fresh only while new market ticks continue to confirm it; expiry is a review timer, not a prediction.</p><div class="tablewrap"><table style="min-width:700px"><thead><tr><th>Market / Side</th><th>Contract</th><th>Strength trend</th><th>Last confirmed</th><th>Review countdown</th></tr></thead><tbody id="marketSignalMonitorRows"><tr><td colspan="5">Waiting for qualified signals…</td></tr></tbody></table></div></div>
     <p class="note">“Strongest” means the largest positive standardized historical deviation (z-score) within that market and contract side. WATCH means the deviation is below 2.00; even a higher score is historical evidence only, not a prediction or guarantee. No candidate is displayed as qualified when its deviation is not positive.</p>
   </section>
@@ -889,6 +889,9 @@ function connect() {
      if (!m) return;
      m.quote = q;
      m.updated = Date.now();
+     m.lastTickAt = Date.now();
+     m.lastTickEpoch = Number(data.tick.epoch)>0?Number(data.tick.epoch):null;
+     m.liveTickCount = (m.liveTickCount||0)+1;
      if (!m.ticks.length || m.ticks[m.ticks.length-1] !== q) {
        m.ticks.push(q);
        m.tickPoints.push({price:q,time:Number(data.tick.epoch)>0?Number(data.tick.epoch)*1000:Date.now()});
@@ -1431,22 +1434,25 @@ function updateMarketSignalMonitor(symbol,side,candidate){
 const marketFeedWarnings={};
 function renderMarketFeedHealth(){
  const host=$("marketFeedHealthRows");if(!host)return;
- const now=Date.now(),stale=[];
+ const now=Date.now(),stale=[],historyOnly=[];
  host.innerHTML=SYMBOLS.map(symbol=>{
-  const m=markets[symbol],age=m.updated?Math.max(0,Math.floor((now-m.updated)/1000)):null;
-  const status=!m.available?"NOT LISTED":!m.updated?(m.loading?"LOADING":"WAITING"):age>=20?"STALE":age>=10?"SLOW":"LIVE";
+  const m=markets[symbol],age=m.lastTickAt?Math.max(0,Math.floor((now-m.lastTickAt)/1000)):null;
+  const observations=Array.isArray(m.ticks)?m.ticks.length:0;
+  const status=!m.available?"NOT LISTED":!m.lastTickAt?(m.loading?"LOADING":observations?"HISTORY ONLY":"WAITING"):age>=20?"STALE":age>=10?"SLOW":"LIVE";
   if(status==="STALE"||status==="SLOW")stale.push(symbol+" "+status.toLowerCase());
+  if(status==="HISTORY ONLY")historyOnly.push(symbol);
   if(status==="STALE"&&!marketFeedWarnings[symbol]){
    marketFeedWarnings[symbol]=true;
-   const msg="MARKET DATA STALE — "+marketName(symbol)+" · last update "+age+"s ago";
+   const msg="MARKET DATA STALE — "+marketName(symbol)+" · last live tick "+age+"s ago";
    const toast=$("marketAlertToast");if(toast)toast.textContent=msg;
    marketInvalidationBeep();
   }else if(status!=="STALE"){marketFeedWarnings[symbol]=false;}
-  const cls=status==="LIVE"?"green":status==="STALE"?"bad":status==="SLOW"?"gold":"";
-  return '<tr><td><b>'+marketName(symbol)+'</b></td><td><span class="pill '+cls+'">'+status+'</span></td><td>'+(m.updated?new Date(m.updated).toLocaleTimeString():"—")+'</td><td>'+(age===null?"—":age+"s")+'</td></tr>';
+  const cls=status==="LIVE"?"green":status==="STALE"?"bad":status==="SLOW"||status==="HISTORY ONLY"?"gold":"";
+  const tickTime=m.lastTickAt?new Date(m.lastTickAt).toLocaleTimeString():"—";
+  return '<tr><td><b>'+marketName(symbol)+'</b></td><td><span class="pill '+cls+'">'+status+'</span></td><td>'+observations+' stored'+(m.liveTickCount?' · '+m.liveTickCount+' live received':'')+'</td><td>'+tickTime+'</td><td>'+(age===null?"—":age+"s")+'</td></tr>';
  }).join("");
  const summary=$("marketFeedHealthSummary");
- if(summary)summary.textContent=stale.length?"Attention: "+stale.join(", ")+". Check the connection before relying on analysis.":"No stale feeds detected among the listed markets.";
+ if(summary)summary.textContent=stale.length?"Attention: "+stale.join(", ")+". Check the connection before relying on analysis.":historyOnly.length?"Historical observations loaded, but no live tick has yet been confirmed for: "+historyOnly.join(", ")+".":"All listed feeds with received ticks are currently within the freshness window. A LIVE label confirms recent tick receipt, not signal accuracy.";
 }
 function renderMarketSignalMonitor(){
  const host=$("marketSignalMonitorRows");if(!host)return;
