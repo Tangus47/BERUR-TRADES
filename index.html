@@ -258,7 +258,7 @@ a{font-weight:700}
   <div class="brand">BERUR <span>TRADES</span></div>
   <div class="sub">DERIV MARKET INTELLIGENCE • LIVE ANALYSIS • MANUAL EXECUTION</div>
 </header>
-<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="digits">Digit Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="ou">OVER / UNDER</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="quality">Quality</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="forex">Forex Signals</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="derivcfd">Deriv CFD Signals</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="boomcrash">Boom &amp; Crash</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="news">Economic News</button></nav>
+<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="digits">Digit Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="ou">OVER / UNDER</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="quality">Quality</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="forex">Forex Signals</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="xauusd">XAUUSD Gold</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="derivcfd">Deriv CFD Signals</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="boomcrash">Boom &amp; Crash</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="news">Economic News</button></nav>
 
 <main class="wrap">
   <div class="topline">
@@ -1135,11 +1135,11 @@ function renderCfdCentre(){
  const heatmapSection=document.querySelector("#forex-cfd-centre section[aria-label=\"Live currency strength heatmap\"]");
  if(patternSection)patternSection.hidden=cfdPanelMode!=="FOREX";if(heatmapSection)heatmapSection.hidden=cfdPanelMode!=="FOREX";
  const title=$("cfdPanelTitle"),description=$("cfdPanelDescription");
- if(title)title.textContent=cfdPanelMode==="FOREX"?"FOREX SIGNAL PANEL":"DERIV CFD SIGNAL PANEL";
- if(description)description.textContent=cfdPanelMode==="FOREX"?"Forex pairs only. High-impact news must be verified and outside the 30-minute pre/post-event blackout before a signal can qualify.":"Non-Forex Deriv CFDs only: metals, stock indices, commodities and crypto where listed. Each instrument is scanned independently with relevant mapped-news protection.";
+ if(title)title.textContent=cfdPanelMode==="FOREX"?"FOREX SIGNAL PANEL":cfdPanelMode==="XAUUSD"?"XAUUSD GOLD SIGNAL PANEL":"DERIV CFD SIGNAL PANEL";
+ if(description)description.textContent=cfdPanelMode==="FOREX"?"Forex pairs only. High-impact news must be verified and outside the 30-minute pre/post-event blackout before a signal can qualify.":cfdPanelMode==="XAUUSD"?"Gold (XAUUSD) only. Dedicated trend, momentum, multi-timeframe and USD-news analysis; no other instruments are mixed into this panel.":"Non-Forex Deriv CFDs excluding XAUUSD: other metals, stock indices, commodities and crypto where listed. Each instrument is scanned independently with relevant mapped-news protection.";
  if(cfdPanelMode==="FOREX")renderCfdPatterns();
  const body=$("cfdSignalRows");if(!body)return;
- const list=Object.values(cfdMarkets).filter(m=>m.category!=="BOOMCRASH"&&(cfdPanelMode==="FOREX"?m.category==="FOREX":m.category!=="FOREX")&&(cfdCategoryFilter==="ALL"||m.category===cfdCategoryFilter));
+ const list=Object.values(cfdMarkets).filter(m=>m.category!=="BOOMCRASH"&&(cfdPanelMode==="FOREX"?m.category==="FOREX":cfdPanelMode==="XAUUSD"?/XAUUSD/i.test(m.symbol+" "+m.name):m.category!=="FOREX"&&!/XAUUSD/i.test(m.symbol+" "+m.name))&&(cfdCategoryFilter==="ALL"||m.category===cfdCategoryFilter));
  const analysed=list.map(m=>({m,a:cfdAnalyze(m)}));
  renderCurrencyStrengthHeatmap();
  const qualified=analysed.filter(x=>x.a.signal!=="WAIT").sort((x,y)=>y.a.strength-x.a.strength);
@@ -1147,7 +1147,7 @@ function renderCfdCentre(){
  $("cfdQualified").textContent=qualified.length;
  $("cfdLeader").textContent=qualified[0]?qualified[0].m.name:"—";
  $("cfdLeaderInfo").textContent=qualified[0]?qualified[0].a.signal+" · "+qualified[0].a.strength+"/100":"No qualified live setup";
- if(!analysed.length){body.innerHTML='<tr><td colspan="16">'+(cfdPanelMode==="FOREX"?"No Forex pairs discovered from the Deriv active-symbol feed yet.":"No non-Forex Deriv CFD instruments discovered from the active-symbol feed yet.")+'</td></tr>';return;}
+ if(!analysed.length){body.innerHTML='<tr><td colspan="16">'+(cfdPanelMode==="FOREX"?"No Forex pairs discovered from the Deriv active-symbol feed yet.":cfdPanelMode==="XAUUSD"?"No XAUUSD gold instrument discovered from the Deriv active-symbol feed yet.":"No non-Forex Deriv CFD instruments discovered from the active-symbol feed yet.")+'</td></tr>';return;}
  body.innerHTML=analysed.sort((x,y)=>y.a.strength-x.a.strength).map(({m,a})=>{
    const state=cfdSignalState(m,a),key=m.symbol.replace(/[^a-z0-9]/gi,""),expired=state.expiresAt&&Date.now()>=state.expiresAt;
    const signal=expired?"EXPIRED":a.signal,cls=signal==="BUY"?"good":signal==="SELL"?"bad":"warn";
@@ -1924,7 +1924,7 @@ function setupAppTabs(){
  if(Object.values(anchors).some(x=>!x))return;
  const children=Array.from(content.children),idx=Object.fromEntries(Object.entries(anchors).map(([k,v])=>[k,children.indexOf(v)]));
  const ranges={home:[idx.home,idx.markets],markets:[idx.markets,idx.analysis],analysis:[idx.analysis,idx.execution],execution:[idx.execution,idx.radar],radar:[idx.radar,children.length]};
- const extra={digits:["probability","market-ou-ranking"],ou:["market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],derivcfd:["forex-cfd-centre"],boomcrash:["boom-crash-centre"],news:["economic-news-centre"]};
+ const extra={digits:["probability","market-ou-ranking"],ou:["market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],derivcfd:["forex-cfd-centre"],xauusd:["forex-cfd-centre"],boomcrash:["boom-crash-centre"],news:["economic-news-centre"]};
  const extraNodes=Array.from(new Set(Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean)));
  const allContent=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
  function activate(name){
@@ -1941,6 +1941,7 @@ function setupAppTabs(){
   if(name==="markets"&&typeof render==="function")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));
   if(name==="forex"){cfdPanelMode="FOREX";cfdCategoryFilter="ALL";if($("cfdCategoryFilter"))$("cfdCategoryFilter").value="ALL";renderCfdCentre();}
   if(name==="derivcfd"){cfdPanelMode="DERIV_CFD";cfdCategoryFilter="ALL";if($("cfdCategoryFilter"))$("cfdCategoryFilter").value="ALL";renderCfdCentre();}
+  if(name==="xauusd"){cfdPanelMode="XAUUSD";cfdCategoryFilter="ALL";if($("cfdCategoryFilter"))$("cfdCategoryFilter").value="ALL";renderCfdCentre();}
   if(name==="boomcrash")renderBoomCrashCentre();
  }
  nav.addEventListener("click",e=>{const btn=e.target.closest("[data-tab]");if(btn)activate(btn.dataset.tab);});
