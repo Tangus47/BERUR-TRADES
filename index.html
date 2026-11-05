@@ -603,7 +603,7 @@ window.BERUR_MARKET_NAME=marketName;
 const WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
 const cfdMarkets = {};
 const cfdRiskInputs = {};
-let usdNewsRiskState={active:[],soon:[],received:false};
+let usdNewsRiskState={active:[],medium:[],soon:[],received:false};
 let cfdAccountBalance = null;
 let cfdRiskPercent = 1;
 let cfdCategoryFilter = "ALL";
@@ -1013,10 +1013,12 @@ function cfdNewsGuard(m){
  }else if(category==="METALS")currencies=["USD"];
  else if(category==="INDICES"&&/(US30|NAS100|SPX500|US500|US100|DOW|NASDAQ|SANDP|USA)/.test(raw))currencies=["USD"];
  else if(category==="COMMODITIES"&&/(WTI|BRENT|OIL)/.test(raw))currencies=["USD"];
- if(!currencies.length)return {blocked:false,reason:"No direct currency mapping in available calendar filter"};
+ if(!currencies.length)return category==="FOREX"?{blocked:true,reason:"NEWS CURRENCY MAPPING UNAVAILABLE — Forex signal blocked"}:{blocked:false,reason:"No direct currency mapping in available calendar filter"};
  if(!usdNewsRiskState.received)return {blocked:true,reason:"NEWS FEED UNVERIFIED — affected-market signal blocked"};
  const affected=currencies.filter(x=>usdNewsRiskState.active.includes(x));
  if(affected.length)return {blocked:true,reason:"HIGH-IMPACT NEWS BLACKOUT — "+affected.join("/")+" event window"};
+ const medium=currencies.filter(x=>usdNewsRiskState.medium.includes(x));
+ if(medium.length)return {blocked:true,reason:"MEDIUM-IMPACT NEWS BLACKOUT — "+medium.join("/")+" event window"};
  const approaching=currencies.filter(x=>usdNewsRiskState.soon.includes(x));
  return {blocked:false,reason:approaching.length?"High-impact "+approaching.join("/")+" event approaching":"News calendar clear for mapped currencies"};
 }
@@ -1959,7 +1961,7 @@ const dxyControl=$("dxyDirectionInput");
 if(dxyControl)dxyControl.addEventListener("change",()=>renderCfdCentre());
 window.addEventListener("berur-news-risk-update",event=>{
  const d=event.detail||{};
- usdNewsRiskState={active:Array.isArray(d.active)?d.active:[],soon:Array.isArray(d.soon)?d.soon:[],received:!!d.received};
+ usdNewsRiskState={active:Array.isArray(d.active)?d.active:[],medium:Array.isArray(d.medium)?d.medium:[],soon:Array.isArray(d.soon)?d.soon:[],received:!!d.received};
  renderCfdCentre();
 });
 render();
