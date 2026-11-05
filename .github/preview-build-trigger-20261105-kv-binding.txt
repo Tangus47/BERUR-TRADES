@@ -1,0 +1,1 @@
+Trigger a fresh Cloudflare preview build after configuring the BERUR_SESSIONS KV binding for the preview environment.
