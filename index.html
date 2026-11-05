@@ -877,6 +877,9 @@ function connect() {
      let found = 0;
      SYMBOLS.forEach((symbol,index) => {
        const m = markets[symbol];
+       const meta=active.find(x=>(x.underlying_symbol||x.symbol)===symbol);
+       const pip=Number(meta?.pip);
+       m.decimals=Number.isFinite(pip)&&pip>0?Math.max(0,Math.min(10,(String(pip).split(".")[1]||"").length)):undefined;
        m.available = activeSet.has(symbol);
        if (m.available) {
          found++;
@@ -910,7 +913,8 @@ function connect() {
        const m = markets[info.symbol];
        if(m){
          m.prices = prices.map(Number).filter(Number.isFinite).slice(-1000);
-         m.ticks = m.prices.slice();
+         const precision=Number.isInteger(m.decimals)?m.decimals:undefined;
+         m.ticks = prices.map(v=>{const n=Number(v);return Number.isFinite(n)?(precision===undefined?String(v):n.toFixed(precision)):null;}).filter(v=>v!==null).slice(-1000);
          m.tickPoints = m.prices.map((price,i)=>({price,time:Number(times[i])>0?Number(times[i])*1000:Date.now()-((m.prices.length-i)*1000)})).slice(-1000);
          m.loading = false;m.updated = Date.now();render();
        }
@@ -944,12 +948,12 @@ function connect() {
      m.lastTickAt = Date.now();
      m.lastTickEpoch = Number(data.tick.epoch)>0?Number(data.tick.epoch):null;
      m.liveTickCount = (m.liveTickCount||0)+1;
-     if (!m.ticks.length || m.ticks[m.ticks.length-1] !== q) {
-       m.ticks.push(q);
-       m.tickPoints.push({price:q,time:Number(data.tick.epoch)>0?Number(data.tick.epoch)*1000:Date.now()});
-       if (m.ticks.length > 1000) m.ticks.shift();
-       if (m.tickPoints.length > 1000) m.tickPoints.shift();
-     }
+     const precision=Number.isInteger(m.decimals)?m.decimals:undefined;
+     const digitQuote=precision===undefined?String(data.tick.quote):q.toFixed(precision);
+     m.ticks.push(digitQuote);
+     m.tickPoints.push({price:q,time:Number(data.tick.epoch)>0?Number(data.tick.epoch)*1000:Date.now()});
+     if (m.ticks.length > 1000) m.ticks.shift();
+     if (m.tickPoints.length > 1000) m.tickPoints.shift();
      refreshAutomaticBestSignal();
      scheduleRender();
    }
@@ -1248,12 +1252,9 @@ function stop() {
  setStatus("Stopped","gold");
 }
 function requiredEvidenceTicks(contract,duration=1,score=70){
-  const base={DIGITOVER:150,DIGITUNDER:150,DIGITEVEN:150,DIGITODD:150,DIGITMATCH:250,DIGITDIFF:250,CALL:120,PUT:120}[contract]||100;
-  const ticks=Math.max(1,Math.min(10,Number(duration)||1));
-  const confidence=Math.max(0,Math.min(100,Number(score)||0));
-  const durationFactor=1+((ticks-1)*0.08);
-  const confidenceFactor=1+Math.max(0,80-confidence)/100;
-  return Math.max(10,Math.min(1000,Math.ceil(base*durationFactor*confidenceFactor)));
+  if(["DIGITOVER","DIGITUNDER","DIGITEVEN","DIGITODD"].includes(contract))return 150;
+  if(["DIGITMATCH","DIGITDIFF"].includes(contract))return 250;
+  return ({CALL:120,PUT:120}[contract]||100);
 }
 function digitsFor(prices) {
  return prices.map(p => {
@@ -1642,9 +1643,9 @@ function renderMarketOURanking(){
  const show=x=>x?'<b>'+x.label+'</b>':'—';
  const rate=x=>x?pct(x.observed*100)+' / '+pct(x.expected*100):'—';
  const score=(x,n,side)=>{
-  if(!x||n<100)return signalStrengthMarkup(50,false,n<100?"Collecting 100+ market ticks":"No eligible contract data");
+  if(!x||n<150)return signalStrengthMarkup(50,false,n<150?"Collecting 150+ valid observations":"No eligible contract data");
   const value=50+Math.max(-5,Math.min(5,Number(x.z)||0))*10;
-  const favourable=x.validN>=150&&x.deviation>0&&x.strength>=1.5;
+  const favourable=x.validN>=150&&x.deviation>0&&x.strength>=2;
   return signalStrengthMarkup(value,favourable,x.validN<150?"Collecting 150+ valid observations":(favourable?"Favourable historical evidence":"Not favourable — no positive statistical edge"));
  };
  const parity=(count,n,side)=>{const observed=n?count/n:0,se=n?Math.sqrt(.25/n):0,z=se?(observed-.5)/se:0;return signalStrengthMarkup(50+Math.max(-5,Math.min(5,z))*10,n>=150&&((side==="EVEN"&&z>=1.5)||(side==="ODD"&&z<=-1.5)),n<150?"Collecting 150+ ticks":(side==="EVEN"?"Even":"Odd")+" historical frequency "+pct(observed*100));};
@@ -1671,7 +1672,7 @@ function renderBestContractMarkets(){
  const candidates=[];
  const add=(type,symbol,label,count,observed,expected,n)=>{
   const isOU=type==="OVER"||type==="UNDER";
-  if(n<(isOU?100:150)||!count||expected<=0||expected>=1||(isOU&&observed<=0.40))return;
+  if(n<150||!count||expected<=0||expected>=1)return;
   const se=Math.sqrt(expected*(1-expected)/n),z=se?(observed-expected)/se:0;
   if(observed>expected&&z>=2)candidates.push({type,symbol,label,count,observed,expected,n,strength:z});
  };
@@ -1713,11 +1714,11 @@ function renderBestContractMarkets(){
  }).join("");
  body.innerHTML=rows;
  const ready=SYMBOLS.filter(symbol=>(markets[symbol].ticks||[]).length>=500).length;
- $("bestContractMarketNote").textContent="Over/Under requires more than 40% observed hit rate, at least 500 ticks and a positive deviation of at least 2.00 z from its theoretical baseline. Only Over 3–4 and Under 5–7 are shortlisted to avoid very low-payout extremes. Other contract families retain a 150-observation minimum. Historical evidence is not a prediction; live payout and break-even must still be checked.";
+ $("bestContractMarketNote").textContent="All Over/Under thresholds 0–9 are analysed for evidence. Automatic eligibility remains restricted to Over 3–7 and Under 3–6, with at least 150 received observations and positive deviation of at least 2.00 z. No arbitrary hit-rate cutoff is applied. Historical frequency is descriptive, not a forecast; live payout and break-even must still be checked.";
 }
 function renderMarketOUBoard(){
  const host=$("marketOUCards");if(!host)return;
- const overBarriers=[3,4,5,6,7],underBarriers=[6,5,4,3];
+ const overBarriers=[0,1,2,3,4,5,6,7,8,9],underBarriers=[0,1,2,3,4,5,6,7,8,9];
  const strengthText=x=>{
    if(!x)return "WAIT";
    if(x.deviation>0&&x.strength>=2)return "POSITIVE EDGE";
@@ -1881,7 +1882,7 @@ function render() {
  const renderProbabilityRows = rows => rows.length ? rows.map(x=>{
    const cls = x.validN<150 ? "gold" : x.deviation>0 && x.strength>=1.5 ? "green" : x.deviation<0 ? "red" : "gold";
    const evidenceScore=50+Math.max(-5,Math.min(5,x.z))*10;
-   const favourable=x.validN>=150&&x.deviation>0&&x.strength>=1.5;
+   const favourable=x.validN>=150&&x.deviation>0&&x.strength>=2;
    const strength=signalStrengthMarkup(evidenceScore,favourable,x.validN<150?"Collecting 150+ valid observations":(favourable?"Positive historical deviation":"No favourable statistical edge established"));
    return "<tr><td><b>"+x.label+"</b></td><td class='"+cls+"'>"+pct(x.observed*100)+"</td><td>"+pct(x.expected*100)+"</td><td>"+strength+"</td><td>"+x.validN+"</td></tr>";
  }).join("") : '<tr><td colspan="5">Collect at least 150 ticks to calculate empirical hit rates.</td></tr>';
