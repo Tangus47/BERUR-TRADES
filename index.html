@@ -1904,7 +1904,7 @@ function render() {
  }).sort((x,y)=>y.strength-x.strength);
  $("halfOddsRows").innerHTML = a.n>=150 ? halfOdds.map((x,i)=>{
    const cls=x.deviation>0?"green":x.deviation<0?"red":"gold";
-   const favourable=a.n>=150&&x.deviation>0&&x.strength>=1.5;
+   const favourable=a.n>=150&&x.deviation>0&&x.strength>=2;
    const score=signalStrengthMarkup(50+Math.max(-5,Math.min(5,x.z))*10,favourable,a.n<150?"Collecting 150+ observations":(favourable?"Positive historical deviation":"No favourable statistical edge established"));
    return "<tr><td>"+(i+1)+"</td><td><b>"+x.label+"</b></td><td>"+pct(x.observed*100)+"</td><td>50.0%</td><td>"+score+"</td><td>"+a.n+"</td></tr>";
  }).join("") : '<tr><td colspan="6">Collect at least 100 ticks to compare all four contracts.</td></tr>';
