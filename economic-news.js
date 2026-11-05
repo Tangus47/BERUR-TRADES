@@ -22,7 +22,7 @@ const fmt=ts=>new Intl.DateTimeFormat(undefined,{weekday:"short",day:"2-digit",m
 const countdown=s=>{const n=Math.max(0,Math.floor(Math.abs(s))),d=Math.floor(n/86400),h=Math.floor(n%86400/3600),m=Math.floor(n%3600/60);return (s<0?"Released ":"In ")+(d?d+"d ":"")+(h?String(h).padStart(2,"0")+"h ":"")+String(m).padStart(2,"0")+"m";};
 const pairsFor=ccy=>PAIRS.filter(p=>p.value!=="ALL"&&p.ccy.includes(ccy)).map(p=>p.label);
 const filtered=()=>state.events.filter(e=>(state.impact==="all"||e.impact===state.impact)&&(state.pair==="ALL"||PAIRS.find(p=>p.value===state.pair).ccy.includes(e.currency)));
-function eventRisk(e,now){const d=e.ts-now;if(e.impact==="high"&&d>=-state.after*60&&d<=state.before*60)return"ACTIVE";if(e.impact==="high"&&d>state.before*60&&d<=3600)return"SOON";return"";}
+function eventRisk(e,now){const d=e.ts-now;if(e.impact==="high"&&d>=-state.after*60&&d<=state.before*60)return"ACTIVE";if(e.impact==="medium"&&d>=-Math.min(15,state.after)*60&&d<=Math.min(15,state.before)*60)return"ACTIVE_MEDIUM";if(e.impact==="high"&&d>state.before*60&&d<=3600)return"SOON";return"";}
 function bannerMarkup(){
 const now=calendarNow();
 const hot=state.events.filter(e=>e.impact==="high"&&eventRisk(e,now)==="ACTIVE").sort((a,b)=>Math.abs(a.ts-now)-Math.abs(b.ts-now))[0];
@@ -50,8 +50,9 @@ const summary=$("newsResultSummary");if(summary)summary.textContent=events.lengt
 const banners=bannerMarkup();["newsHomeBanner","newsForexBanner"].forEach(id=>{const el=$(id);if(el)el.innerHTML=banners;});
 const nowForRisk=calendarNow();
 const activeCurrencies=[...new Set(state.events.filter(e=>e.impact==="high"&&e.ts-nowForRisk>=-state.after*60&&e.ts-nowForRisk<=state.before*60).map(e=>e.currency))];
+const mediumCurrencies=[...new Set(state.events.filter(e=>e.impact==="medium"&&e.ts-nowForRisk>=-Math.min(15,state.after)*60&&e.ts-nowForRisk<=Math.min(15,state.before)*60).map(e=>e.currency))];
 const soonCurrencies=[...new Set(state.events.filter(e=>e.impact==="high"&&e.ts-nowForRisk>state.before*60&&e.ts-nowForRisk<=3600).map(e=>e.currency))];
-window.dispatchEvent(new CustomEvent("berur-news-risk-update",{detail:{active:activeCurrencies,soon:soonCurrencies,received:!!state.lastSuccess&&Date.now()-state.lastSuccess<=1200000}}));
+window.dispatchEvent(new CustomEvent("berur-news-risk-update",{detail:{active:activeCurrencies,medium:mediumCurrencies,soon:soonCurrencies,received:!!state.lastSuccess&&Date.now()-state.lastSuccess<=1200000}}));
 const syn=$("newsSyntheticNotice");if(syn)syn.textContent="Synthetic Volatility indices (including 1-second indices), Boom and Crash are not mapped to macroeconomic releases. This panel does not apply economic-news blackout warnings to those markets.";
 }
 async function refresh(){
