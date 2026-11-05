@@ -199,7 +199,7 @@ function autoStep(){
  if(["DIGITOVER","DIGITUNDER"].includes(signal.contract))$("bt-digit").value=String(Math.max(0,Math.min(9,Number(signal.barrier)||0)));
  $("bt-duration").value=Math.max(1,Math.min(10,Number(signal.duration)||1));
  proposal=null;$("bt-buy").disabled=true;
- autoQuoteSignal={...signal,requestedAt:Date.now()};auditPurchase("SIGNAL SELECTED",{signal,symbol:signal.symbol,label:signal.signal,contract:signal.contract,note:"Evidence "+signal.evidenceScore+"/100; sample "+signal.sample});autoQuotePending=true;auditPurchase("QUOTE REQUESTED",{signal,symbol:signal.symbol,label:signal.signal,contract:signal.contract});
+ autoQuoteSignal={...signal,requestedAt:Date.now()};auditPurchase("SIGNAL SELECTED",{signal,symbol:signal.symbol,label:signal.signal,contract:signal.contract,note:"Evidence "+signal.evidenceScore+"/100; sample "+signal.sample+"; reason: "+(signal.reason||"qualified statistical setup")});autoQuotePending=true;auditPurchase("QUOTE REQUESTED",{signal,symbol:signal.symbol,label:signal.signal,contract:signal.contract});
  $("bt-quoteinfo").textContent="AUTO DEMO · "+marketLabel(signal.symbol)+" · "+signal.signal+" · "+signal.sample+" adaptive ticks · "+signal.evidenceScore+"/100 · requesting quote";
  try{quote();say("Requesting quote for selected best market and its exact recommended contract.");}
  catch(e){if(autoQuoteSignal){auditPurchase("QUOTE FAILED",{signal:autoQuoteSignal,note:e.message});window.dispatchEvent(new CustomEvent("berur:candidate-rejected",{detail:{symbol:autoQuoteSignal.symbol,signal:autoQuoteSignal.signal,reason:e.message}}));}autoQuotePending=false;autoQuoteSignal=null;say("Auto quote request failed: "+e.message);}
