@@ -258,7 +258,7 @@ a{font-weight:700}
   <div class="brand">BERUR <span>TRADES</span></div>
   <div class="sub">DERIV MARKET INTELLIGENCE • LIVE ANALYSIS • MANUAL EXECUTION</div>
 </header>
-<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="digits">Digit Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="ou">OVER / UNDER</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="quality">Quality</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="forex">Forex &amp; CFDs</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="boomcrash">Boom &amp; Crash</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="news">Economic News</button></nav>
+<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="digits">Digit Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="ou">OVER / UNDER</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="quality">Quality</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="forex">Forex Signals</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="derivcfd">Deriv CFD Signals</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="boomcrash">Boom &amp; Crash</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="news">Economic News</button></nav>
 
 <main class="wrap">
   <div class="topline">
@@ -503,14 +503,14 @@ a{font-weight:700}
 
   <section class="section card" id="forex-cfd-centre" hidden>
     <div id="newsForexBanner"></div>
-    <div class="radar-head"><div><h2 class="section-title">FOREX & CFD INTELLIGENCE CENTRE</h2><p class="note">Live Deriv instruments discovered from the active-symbol feed. Tick-derived technical analysis; signal strength is an evidence score, not a win probability.</p></div><span class="pill">MANUAL REVIEW ONLY</span></div>
+    <div class="radar-head"><div><h2 class="section-title" id="cfdPanelTitle">FOREX SIGNAL PANEL</h2><p class="note" id="cfdPanelDescription">Forex pairs are scanned independently. High-impact news must be verified and outside the blackout window before a signal can qualify.</p></div><span class="pill">MANUAL REVIEW ONLY</span></div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
       <div class="box"><b>DISCOVERED INSTRUMENTS</b><div class="large" id="cfdDiscovered">0</div></div>
       <div class="box"><b>QUALIFIED SETUPS</b><div class="large" id="cfdQualified">0</div></div>
       <div class="box"><b>LEADING SIGNAL</b><div class="large" id="cfdLeader">—</div><div class="note" id="cfdLeaderInfo">Waiting for live feed</div></div>
     </div>
     <section class="box" style="margin:14px 0;padding:14px" aria-label="Forex Japanese candlestick pattern scanner">
-      <div class="radar-head"><div><span class="eyebrow">FOREX & CFD PRICE ACTION</span><h3 class="section-title">JAPANESE CANDLESTICK PATTERN SCANNER</h3><p class="note">Scans available Forex pairs and metals independently using completed Deriv OHLC candles.</p></div><span class="pill">MULTI-INSTRUMENT SCAN</span></div>
+      <div class="radar-head"><div><span class="eyebrow">FOREX PRICE ACTION</span><h3 class="section-title">JAPANESE CANDLESTICK PATTERN SCANNER</h3><p class="note">Scans available Forex pairs independently using completed Deriv OHLC candles.</p></div><span class="pill">MULTI-INSTRUMENT SCAN</span></div>
       <div class="candle-controls" role="group" aria-label="Forex pattern timeframe"><button type="button" data-pattern-tf="60" class="active">1M</button><button type="button" data-pattern-tf="300">5M</button><button type="button" data-pattern-tf="900">15M</button><button type="button" data-pattern-tf="3600">1H</button></div>
       <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>INSTRUMENT</th><th>TIMEFRAME</th><th>DETECTED PATTERN</th><th>DIRECTION</th><th>CONTEXT</th><th>QUALITY</th></tr></thead><tbody id="cfdPatternRows"><tr><td colspan="6">Waiting for Forex candle history…</td></tr></tbody></table></div>
       <p class="note">Patterns are not standalone entries. Confirm with trend, support/resistance, price close and macro/news risk.</p>
@@ -523,7 +523,7 @@ a{font-weight:700}
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0">
       <label class="box">Account balance <input id="cfdBalance" type="number" min="0" step="any" placeholder="Enter balance" style="width:100%;margin-top:7px"></label>
       <label class="box">Risk per trade (%) <input id="cfdRiskPct" type="number" min="0.1" max="5" step="0.1" value="1" style="width:100%;margin-top:7px"></label>
-      <label class="box">Instrument filter <select id="cfdCategoryFilter" style="width:100%;margin-top:7px"><option value="ALL">All discovered CFDs</option><option value="METALS">Metals (Gold / Silver)</option><option value="FOREX">Forex pairs</option><option value="INDICES">Stock indices</option><option value="COMMODITIES">Other commodities</option><option value="CRYPTO">Crypto CFDs</option></select></label>
+      <label class="box">Instrument filter <select id="cfdCategoryFilter" style="width:100%;margin-top:7px"><option value="ALL">All instruments in this panel</option><option value="METALS">Metals (Gold / Silver)</option><option value="INDICES">Stock indices</option><option value="COMMODITIES">Other commodities</option><option value="CRYPTO">Crypto CFDs</option></select></label>
     </div>
     <div class="tablewrap"><table style="min-width:1500px"><thead><tr><th>INSTRUMENT</th><th>TECH STRENGTH</th><th>USD CONFIRMATION SCORE</th><th>MACRO AGREEMENT</th><th>SIGNAL</th><th>1M</th><th>5M</th><th>15M</th><th>1H</th><th>LIVE ENTRY</th><th>POTENTIAL STOP LOSS</th><th>POTENTIAL TAKE PROFIT</th><th>R:R</th><th>VALIDITY</th><th>VALUE / 1.00 MOVE / LOT</th><th>SUGGESTED LOT</th></tr></thead><tbody id="cfdSignalRows"><tr><td colspan="10">Connect to Deriv and discover available Forex / CFD instruments.</td></tr></tbody></table></div>
     <p class="note" id="cfdCentreNote">Lot size requires your account balance and the verified monetary value of a 1.00 price move per 1.00 lot for each instrument. Do not guess contract specifications. Stops and targets are technical estimates, not guaranteed fill prices. This panel does not place trades.</p>
@@ -563,8 +563,8 @@ a{font-weight:700}
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0">
       <label class="box">Instrument / pair filter<select id="newsPairFilter" style="width:100%;margin-top:7px"><option value="ALL">All tracked pairs</option><option value="EUR/USD">EUR/USD</option><option value="GBP/USD">GBP/USD</option><option value="USD/JPY">USD/JPY</option><option value="AUD/USD">AUD/USD</option><option value="USD/CAD">USD/CAD</option><option value="USD/CHF">USD/CHF</option><option value="NZD/USD">NZD/USD</option><option value="XAU/USD">XAU/USD (Gold)</option></select></label>
       <label class="box">Impact filter<select id="newsImpactFilter" style="width:100%;margin-top:7px"><option value="all">High + Medium + Low</option><option value="high">High impact only</option><option value="medium">Medium impact only</option><option value="low">Low impact only</option></select></label>
-      <label class="box">Pause before high impact (minutes)<input id="newsBefore" type="number" min="0" max="180" value="15" style="width:100%;margin-top:7px"></label>
-      <label class="box">Pause after high impact (minutes)<input id="newsAfter" type="number" min="0" max="180" value="15" style="width:100%;margin-top:7px"></label>
+      <label class="box">Pause before high impact (minutes)<input id="newsBefore" type="number" min="0" max="180" value="30" style="width:100%;margin-top:7px"></label>
+      <label class="box">Pause after high impact (minutes)<input id="newsAfter" type="number" min="0" max="180" value="30" style="width:100%;margin-top:7px"></label>
     </div>
     <div class="radar-head"><div><h3 class="section-title">UPCOMING EVENTS &amp; AFFECTED PAIRS</h3><p class="note" id="newsClockNote">Calendar time and local display timezone will appear after the first update.</p></div><button type="button" id="newsRefreshBtn">REFRESH NEWS</button></div>
     <p class="note" id="newsResultSummary">Waiting for calendar data…</p>
@@ -607,6 +607,7 @@ let usdNewsRiskState={active:[],soon:[],received:false};
 let cfdAccountBalance = null;
 let cfdRiskPercent = 1;
 let cfdCategoryFilter = "ALL";
+let cfdPanelMode = "FOREX";
 const markets = {};
 SYMBOLS.forEach(s => markets[s] = {
  symbol:s, prices:[], ticks:[], tickPoints:[], quote:null, updated:null,
@@ -1001,12 +1002,33 @@ function cfdMultiTimeframe(m){
  const ready=values.every(x=>x.direction!=="WAIT"),dirs=values.map(x=>x.direction),aligned=ready&&dirs.every(x=>x===dirs[0]);
  return {values,ready,aligned,direction:aligned?dirs[0]:"WAIT"};
 }
+function cfdNewsGuard(m){
+ const category=String(m.category||"").toUpperCase();
+ if(category==="BOOMCRASH")return {blocked:false,reason:"Synthetic index: macro calendar filter not applicable"};
+ const raw=(String(m.symbol||"")+" "+String(m.name||"")).toUpperCase().replace(/[^A-Z0-9]/g,"");
+ let currencies=[];
+ if(category==="FOREX"){
+  const pairs=["EURUSD","GBPUSD","AUDUSD","NZDUSD","USDJPY","USDCHF","USDCAD","EURGBP","EURJPY","GBPJPY","AUDJPY","NZDJPY","EURCHF","GBPCHF","EURAUD","GBPAUD","AUDNZD","CADJPY","CHFJPY"];
+  const pair=pairs.find(x=>raw.includes(x));if(pair)currencies=[pair.slice(0,3),pair.slice(3,6)];
+ }else if(category==="METALS")currencies=["USD"];
+ else if(category==="INDICES"&&/(US30|NAS100|SPX500|US500|US100|DOW|NASDAQ|SANDP|USA)/.test(raw))currencies=["USD"];
+ else if(category==="COMMODITIES"&&/(WTI|BRENT|OIL)/.test(raw))currencies=["USD"];
+ if(!currencies.length)return {blocked:false,reason:"No direct currency mapping in available calendar filter"};
+ if(!usdNewsRiskState.received)return {blocked:true,reason:"NEWS FEED UNVERIFIED — affected-market signal blocked"};
+ const affected=currencies.filter(x=>usdNewsRiskState.active.includes(x));
+ if(affected.length)return {blocked:true,reason:"HIGH-IMPACT NEWS BLACKOUT — "+affected.join("/")+" event window"};
+ const approaching=currencies.filter(x=>usdNewsRiskState.soon.includes(x));
+ return {blocked:false,reason:approaching.length?"High-impact "+approaching.join("/")+" event approaching":"News calendar clear for mapped currencies"};
+}
 function cfdAnalyze(m){
  const a=cfdBaseAnalyze(m),mtf=cfdMultiTimeframe(m);a.timeframes=mtf;
  if(a.signal!=="WAIT"){
   if(!mtf.ready||!mtf.aligned||mtf.direction!==a.signal){a.signal="WAIT";a.reason="Multi-timeframe confirmation missing or conflicting";}
   else {a.strength=Math.min(98,a.strength+4);a.reason+=" · 1m/5m/15m/1h aligned";}
  }
+ const news=cfdNewsGuard(m);a.newsGuard=news;
+ if(a.signal!=="WAIT"&&news.blocked){a.signal="WAIT";a.reason=news.reason;}
+ else if(a.signal!=="WAIT"&&news.reason&&news.reason!=="News calendar clear for mapped currencies")a.reason+=" · "+news.reason;
  return a;
 }
 function cfdSignalState(m,a){
@@ -1078,6 +1100,7 @@ function cfdUsdMacroScore(m,a){
 }
 function renderCurrencyStrengthHeatmap(){
  const root=$("currencyStrengthHeatmap"),note=$("currencyStrengthNote");if(!root)return;
+ if(cfdPanelMode!=="FOREX"){root.innerHTML='<div class="box">Currency strength heatmap is available in the Forex Signals panel.</div>';if(note)note.textContent="Deriv CFD instruments are analysed independently and are not pooled into Forex currency rankings.";return;}
  const currencies=["USD","EUR","GBP","JPY","AUD","NZD","CAD","CHF"];
  const stats=Object.fromEntries(currencies.map(c=>[c,{net:0,count:0,pairs:[]}]));
  const seen=new Set();
@@ -1106,17 +1129,23 @@ function renderCurrencyStrengthHeatmap(){
  if(note)note.textContent="Based on "+seen.size+" discovered currency pairs; "+active.length+" currencies currently have confirmed directional evidence. Scores are normalized relative-strength estimates, not probabilities or trade guarantees.";
 }
 function renderCfdCentre(){
- renderCfdPatterns();
+ const patternSection=document.querySelector("#forex-cfd-centre section[aria-label=\"Forex Japanese candlestick pattern scanner\"]");
+ const heatmapSection=document.querySelector("#forex-cfd-centre section[aria-label=\"Live currency strength heatmap\"]");
+ if(patternSection)patternSection.hidden=cfdPanelMode!=="FOREX";if(heatmapSection)heatmapSection.hidden=cfdPanelMode!=="FOREX";
+ const title=$("cfdPanelTitle"),description=$("cfdPanelDescription");
+ if(title)title.textContent=cfdPanelMode==="FOREX"?"FOREX SIGNAL PANEL":"DERIV CFD SIGNAL PANEL";
+ if(description)description.textContent=cfdPanelMode==="FOREX"?"Forex pairs only. High-impact news must be verified and outside the 30-minute pre/post-event blackout before a signal can qualify.":"Non-Forex Deriv CFDs only: metals, stock indices, commodities and crypto where listed. Each instrument is scanned independently with relevant mapped-news protection.";
+ if(cfdPanelMode==="FOREX")renderCfdPatterns();
  const body=$("cfdSignalRows");if(!body)return;
- const list=Object.values(cfdMarkets).filter(m=>m.category!=="BOOMCRASH"&&(cfdCategoryFilter==="ALL"||m.category===cfdCategoryFilter));
+ const list=Object.values(cfdMarkets).filter(m=>m.category!=="BOOMCRASH"&&(cfdPanelMode==="FOREX"?m.category==="FOREX":m.category!=="FOREX")&&(cfdCategoryFilter==="ALL"||m.category===cfdCategoryFilter));
  const analysed=list.map(m=>({m,a:cfdAnalyze(m)}));
  renderCurrencyStrengthHeatmap();
  const qualified=analysed.filter(x=>x.a.signal!=="WAIT").sort((x,y)=>y.a.strength-x.a.strength);
- $("cfdDiscovered").textContent=Object.values(cfdMarkets).filter(m=>m.category!=="BOOMCRASH").length;
+ $("cfdDiscovered").textContent=list.length;
  $("cfdQualified").textContent=qualified.length;
  $("cfdLeader").textContent=qualified[0]?qualified[0].m.name:"—";
  $("cfdLeaderInfo").textContent=qualified[0]?qualified[0].a.signal+" · "+qualified[0].a.strength+"/100":"No qualified live setup";
- if(!analysed.length){body.innerHTML='<tr><td colspan="16">No Forex / CFD instruments discovered from this Deriv feed yet. Confirm the account API exposes CFD symbols.</td></tr>';return;}
+ if(!analysed.length){body.innerHTML='<tr><td colspan="16">'+(cfdPanelMode==="FOREX"?"No Forex pairs discovered from the Deriv active-symbol feed yet.":"No non-Forex Deriv CFD instruments discovered from the active-symbol feed yet.")+'</td></tr>';return;}
  body.innerHTML=analysed.sort((x,y)=>y.a.strength-x.a.strength).map(({m,a})=>{
    const state=cfdSignalState(m,a),key=m.symbol.replace(/[^a-z0-9]/gi,""),expired=state.expiresAt&&Date.now()>=state.expiresAt;
    const signal=expired?"EXPIRED":a.signal,cls=signal==="BUY"?"good":signal==="SELL"?"bad":"warn";
@@ -1124,7 +1153,7 @@ function renderCfdCentre(){
    return '<tr><td><b>'+cfdEscape(m.name)+'</b><div class="note">'+cfdEscape(m.category)+' · '+cfdEscape(m.symbol)+'</div></td>'+
     '<td>'+signalStrengthMarkup(a.strength,(a.signal==="BUY"||a.signal==="SELL")&&!expired,a.reason)+'</td>'+
     '<td><b>'+(macro.score===null?"—":macro.score+"/100")+'</b><div class="note">'+(macro.score===null?"Awaiting complete DXY and calendar data":"Tech "+macro.technical+" · DXY "+macro.dxyPoints+" · News "+macro.newsPoints)+'</div></td>'+
-    '<td><span class="note">'+cfdEscape(macro.label)+'</span><div class="note">'+cfdEscape(macro.dxy+" · "+macro.news)+'</div></td>'+
+    '<td><span class="note">'+cfdEscape(macro.label)+'</span><div class="note">'+cfdEscape((a.newsGuard?.reason||macro.news)+" · "+macro.dxy)+'</div></td>'+
     '<td><span class="pill '+cls+'">'+signal+'</span></td>'+
     '<td>'+cfdTfCell(a,60)+'</td><td>'+cfdTfCell(a,300)+'</td><td>'+cfdTfCell(a,900)+'</td><td>'+cfdTfCell(a,3600)+'</td>'+
     '<td>'+ (Number.isFinite(a.entry)?a.entry.toFixed(5):"—")+'</td>'+
@@ -1413,7 +1442,7 @@ function renderSyntheticPatterns(m){
 }
 function renderCfdPatterns(){
  const body=$("cfdPatternRows");if(!body)return;
- const list=Object.values(cfdMarkets).filter(m=>m.category==="FOREX"||m.category==="METALS"),rows=[];
+ const list=cfdPanelMode==="FOREX"?Object.values(cfdMarkets).filter(m=>m.category==="FOREX"):[],rows=[];
  list.forEach(m=>{const bars=m.timeframes&&m.timeframes[cfdPatternTimeframe]||[];detectJapanesePatterns(bars).slice(0,2).forEach(p=>rows.push({m,p}));});
  rows.sort((a,b)=>b.p.quality-a.p.quality);
  if(!rows.length){body.innerHTML='<tr><td colspan="6">No confirmed candle structures yet. Collecting closed candles for the selected timeframe.</td></tr>';return;}
@@ -1893,8 +1922,8 @@ function setupAppTabs(){
  if(Object.values(anchors).some(x=>!x))return;
  const children=Array.from(content.children),idx=Object.fromEntries(Object.entries(anchors).map(([k,v])=>[k,children.indexOf(v)]));
  const ranges={home:[idx.home,idx.markets],markets:[idx.markets,idx.analysis],analysis:[idx.analysis,idx.execution],execution:[idx.execution,idx.radar],radar:[idx.radar,children.length]};
- const extra={digits:["probability","market-ou-ranking"],ou:["market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],boomcrash:["boom-crash-centre"],news:["economic-news-centre"]};
- const extraNodes=Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean);
+ const extra={digits:["probability","market-ou-ranking"],ou:["market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],derivcfd:["forex-cfd-centre"],boomcrash:["boom-crash-centre"],news:["economic-news-centre"]};
+ const extraNodes=Array.from(new Set(Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean)));
  const allContent=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
  function activate(name){
   const range=ranges[name],external=extra[name]||[];
@@ -1908,7 +1937,8 @@ function setupAppTabs(){
   nav.querySelectorAll("[data-tab]").forEach(btn=>{const active=btn.dataset.tab===name;btn.classList.toggle("active",active);btn.setAttribute("aria-selected",active?"true":"false");});
   try{sessionStorage.setItem("berur-active-tab",name);}catch{}
   if(name==="markets"&&typeof render==="function")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));
-  if(name==="forex")renderCfdCentre();
+  if(name==="forex"){cfdPanelMode="FOREX";cfdCategoryFilter="ALL";if($("cfdCategoryFilter"))$("cfdCategoryFilter").value="ALL";renderCfdCentre();}
+  if(name==="derivcfd"){cfdPanelMode="DERIV_CFD";cfdCategoryFilter="ALL";if($("cfdCategoryFilter"))$("cfdCategoryFilter").value="ALL";renderCfdCentre();}
   if(name==="boomcrash")renderBoomCrashCentre();
  }
  nav.addEventListener("click",e=>{const btn=e.target.closest("[data-tab]");if(btn)activate(btn.dataset.tab);});
@@ -1952,7 +1982,7 @@ setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
 })();
 </script>
 <script src="./signal-intelligence.js"></script>
-<script src="./economic-news.js"></script>
+<script src="./economic-news.js?v=20261105-signal-panels-news-1"></script>
 <script src="./deriv-trader.js?v=20261105-session-family-analytics-3"></script>
 <script>
 (function(){
