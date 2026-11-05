@@ -1388,7 +1388,8 @@ function analyze(m) {
 }
 
 let recentLossAvoidance=null;
-window.addEventListener("berur:trade-settled",event=>{const d=event.detail||{};if(d.won){recentLossAvoidance=null;}else{recentLossAvoidance={symbol:d.market,signal:String(d.barrier||"").toUpperCase(),until:Date.now()+60000};}refreshAutomaticBestSignal();});
+function signalFamily(signal){const v=String(signal||"").toUpperCase();if(v.startsWith("OVER"))return "DIGITOVER";if(v.startsWith("UNDER"))return "DIGITUNDER";if(v==="EVEN")return "DIGITEVEN";if(v==="ODD")return "DIGITODD";if(v==="RISE")return "CALL";if(v==="FALL")return "PUT";return v;}
+window.addEventListener("berur:trade-settled",event=>{const d=event.detail||{};if(d.won){recentLossAvoidance=null;}else{recentLossAvoidance={symbol:d.market,family:signalFamily(d.barrier),until:Date.now()+60000};}refreshAutomaticBestSignal();});
 function refreshAutomaticBestSignal(){
   const now=Date.now();
   const candidates=SYMBOLS.map(symbol=>{
@@ -1399,7 +1400,7 @@ function refreshAutomaticBestSignal(){
     const setup=preferredSetup(analysis);
     if(!setup||setup.signal==="WAIT"||!setup.score)return null;
     return {symbol,market,analysis,setup};
-  }).filter(Boolean).filter(x=>!(recentLossAvoidance&&now<recentLossAvoidance.until&&x.symbol===recentLossAvoidance.symbol&&x.setup.signal===recentLossAvoidance.signal)).sort((a,b)=>b.setup.score-a.setup.score||(b.market.updated-a.market.updated));
+  }).filter(Boolean).filter(x=>!(recentLossAvoidance&&now<recentLossAvoidance.until&&(x.symbol===recentLossAvoidance.symbol||signalFamily(x.setup.signal)===recentLossAvoidance.family))).sort((a,b)=>b.setup.score-a.setup.score||(b.market.updated-a.market.updated));
   if(!candidates.length){
     activeSignal=null;
     window.dispatchEvent(new CustomEvent("berur:signal-update",{detail:{signalId:"",tradeAllowed:false}}));
