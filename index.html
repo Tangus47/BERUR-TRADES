@@ -1370,19 +1370,31 @@ function analyze(m) {
      digitReason = "No Over/Under threshold has reached the minimum evidence score. WAIT.";
    }
  }
- const enough = n >= 150 && (digitSignal !== "WAIT" || n >= 150);
- const tradeAllowed =
-   enough &&
-   (directionSignal !== "WAIT" || digitSignal !== "WAIT");
-
- const quality = n >= 300 ? "GOOD" :
-                 n >= 100 ? "MEDIUM" : "LOW";
-
+ const parityCandidates = [];
+ let paritySignal = "WAIT";
+ let parityReason = "Parity contracts need at least 150 observations and a positive statistical edge.";
+ if (n >= 150) {
+   const evenRate = even / n, oddRate = odd / n;
+   const paritySE = Math.sqrt(0.25 / n);
+   const evenZ = paritySE ? (evenRate - 0.5) / paritySE : 0;
+   const oddZ = paritySE ? (oddRate - 0.5) / paritySE : 0;
+   if (evenZ >= 2) parityCandidates.push({signal:"EVEN",observed:evenRate,z:evenZ,strength:evenZ});
+   if (oddZ >= 2) parityCandidates.push({signal:"ODD",observed:oddRate,z:oddZ,strength:oddZ});
+   parityCandidates.sort((x,y)=>y.strength-x.strength);
+   if (parityCandidates.length) {
+     paritySignal = parityCandidates[0].signal;
+     parityReason = paritySignal+" observed "+pct(parityCandidates[0].observed*100)+" versus 50.0% baseline; z-score "+parityCandidates[0].z.toFixed(2)+" across "+n+" observations. Historical evidence only.";
+   }
+ }
+ const enough = n >= 150;
+ const tradeAllowed = enough && (directionSignal !== "WAIT" || digitSignal !== "WAIT" || paritySignal !== "WAIT");
+ const quality = n >= 300 ? "GOOD" : n >= 100 ? "MEDIUM" : "LOW";
  return {
    counts, n, even, odd, over, under, neutral,
    hot, cold, up, down, trend,
    directionScore, directionSignal,
    digitSignal, digitReason, ouCandidates,
+   paritySignal, parityReason, parityCandidates,
    tradeAllowed, quality, digitEdge
  };
 }
@@ -1413,10 +1425,15 @@ function refreshAutomaticBestSignal(){
 function preferredSetup(a) {
  const digit=a.ouCandidates?.find(x=>!x.impossible&&x.label===a.digitSignal&&x.validN>=150&&x.deviation>0&&x.strength>=2&&((x.side==="OVER"&&x.barrier>=3&&x.barrier<=7)||(x.side==="UNDER"&&x.barrier>=3&&x.barrier<=6)));
  const digitScore=digit?Math.min(95,Math.round(65+(digit.strength-2)*15)):0;
+ const parity=a.parityCandidates?.find(x=>x.signal===a.paritySignal&&x.strength>=2&&a.n>=150);
+ const parityScore=parity?Math.min(95,Math.round(65+(parity.strength-2)*15)):0;
  const directionScore=a.directionSignal!=="WAIT"?a.directionScore:0;
- if(digit&&digitScore>=directionScore)return {signal:a.digitSignal,score:digitScore,reason:a.digitReason};
- if(a.directionSignal!=="WAIT")return {signal:a.directionSignal,score:directionScore,reason:a.directionReason||"Directional evidence passed the analysis filters."};
- return {signal:"WAIT",score:0,reason:a.digitReason||a.directionReason||"No qualified setup."};
+ const ranked=[
+  digit?{signal:a.digitSignal,score:digitScore,reason:a.digitReason}:null,
+  parity?{signal:parity.signal,score:parityScore,reason:a.parityReason}:null,
+  directionScore?{signal:a.directionSignal,score:directionScore,reason:a.directionReason||"Directional evidence passed the analysis filters."}:null
+ ].filter(Boolean).sort((x,y)=>y.score-x.score);
+ return ranked[0]||{signal:"WAIT",score:0,reason:a.digitReason||a.parityReason||a.directionReason||"No qualified setup."};
 }
 function rankScore(m) {
  const a=analyze(m);
@@ -1649,7 +1666,7 @@ function renderMarketOURanking(){
   const favourable=x.validN>=150&&x.deviation>0&&x.strength>=2;
   return signalStrengthMarkup(value,favourable,x.validN<150?"Collecting 150+ valid observations":(favourable?"Favourable historical evidence":"Not favourable — no positive statistical edge"));
  };
- const parity=(count,n,side)=>{const observed=n?count/n:0,se=n?Math.sqrt(.25/n):0,z=se?(observed-.5)/se:0;return signalStrengthMarkup(50+Math.max(-5,Math.min(5,z))*10,n>=150&&((side==="EVEN"&&z>=2)||(side==="ODD"&&z<=-2)),n<150?"Collecting 150+ ticks":(side==="EVEN"?"Even":"Odd")+" historical frequency "+pct(observed*100));};
+ const parity=(count,n,side)=>{const observed=n?count/n:0,se=n?Math.sqrt(.25/n):0,z=se?(observed-.5)/se:0;return signalStrengthMarkup(50+Math.max(-5,Math.min(5,z))*10,n>=150&&z>=2,n<150?"Collecting 150+ ticks":(side==="EVEN"?"Even":"Odd")+" historical frequency "+pct(observed*100));};
  body.innerHTML=SYMBOLS.map(symbol=>{
   const m=markets[symbol],a=analyze(m),over=pick(a,"OVER"),under=pick(a,"UNDER"),overDisplay=displayPick(a,"OVER"),underDisplay=displayPick(a,"UNDER");
   recordMarketAlert(symbol,"OVER",over&&over.strength>=2?over:null);recordMarketAlert(symbol,"UNDER",under&&under.strength>=2?under:null);
