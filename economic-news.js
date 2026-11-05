@@ -14,7 +14,7 @@ const PAIRS=[
 {value:"XAU/USD",label:"XAU/USD (Gold)",ccy:["USD"]}
 ];
 const CURRENCIES=["USD","EUR","GBP","JPY","AUD","NZD","CAD","CHF","CNY"];
-const state={events:[],lastSuccess:0,serverTime:null,error:"",loading:false,pair:"ALL",impact:"all",before:15,after:15};
+const state={events:[],lastSuccess:0,serverTime:null,error:"",loading:false,pair:"ALL",impact:"all",before:30,after:30};
 const $=id=>document.getElementById(id);
 const calendarNow=()=>state.serverTime?state.serverTime+(Date.now()-state.lastSuccess)/1000:Date.now()/1000;
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -70,8 +70,8 @@ const host=$("economic-news-centre");if(!host||host.dataset.ready)return;host.da
 const pair=$("newsPairFilter"),impact=$("newsImpactFilter"),before=$("newsBefore"),after=$("newsAfter");
 if(pair)pair.addEventListener("change",()=>{state.pair=pair.value;render();});
 if(impact)impact.addEventListener("change",()=>{state.impact=impact.value;render();});
-if(before)before.addEventListener("change",()=>{state.before=Math.max(0,Math.min(180,Number(before.value)||0));render();});
-if(after)after.addEventListener("change",()=>{state.after=Math.max(0,Math.min(180,Number(after.value)||0));render();});
+if(before)before.addEventListener("change",()=>{state.before=Math.max(0,Math.min(180,Number(before.value)||30));render();});
+if(after)after.addEventListener("change",()=>{state.after=Math.max(0,Math.min(180,Number(after.value)||30));render();});
 const btn=$("newsRefreshBtn");if(btn)btn.addEventListener("click",refresh);
 refresh();setInterval(()=>{if(document.visibilityState!=="hidden")refresh();},REFRESH_MS);setInterval(render,15000);
 }
