@@ -2,7 +2,14 @@
 const MARKET_NAMES={R_10:"Volatility 10",R_25:"Volatility 25",R_50:"Volatility 50",R_75:"Volatility 75",R_100:"Volatility 100","1HZ10V":"Volatility 10 (1s)","1HZ25V":"Volatility 25 (1s)","1HZ50V":"Volatility 50 (1s)","1HZ75V":"Volatility 75 (1s)","1HZ100V":"Volatility 100 (1s)","1HZ150V":"Volatility 150 (1s)","1HZ250V":"Volatility 250 (1s)","1HZ300V":"Volatility 300 (1s)"};
 const marketLabel=symbol=>MARKET_NAMES[symbol]||symbol;
 const marketCode=value=>Object.keys(MARKET_NAMES).find(k=>MARKET_NAMES[k]===value)||value;
-const APP="34RcebpeLamDpn5C515Yg",WORKER="https://berur-trades-backend.tangusvincent47.workers.dev",API="https://api.derivws.com";
+const APP="34RcebpeLamDpn5C515Yg";
+const PRODUCTION_WORKER="https://berur-trades-backend.tangusvincent47.workers.dev";
+const PREVIEW_WORKER="https://fix-demo-auto-execution-paused-berur-trades-backend.tangusvincent47.workers.dev";
+const backendChoice=new URLSearchParams(location.search).get("backend");
+if(backendChoice==="preview")localStorage.setItem("berur-worker-mode","preview");
+if(backendChoice==="production")localStorage.setItem("berur-worker-mode","production");
+const WORKER=localStorage.getItem("berur-worker-mode")==="preview"?PREVIEW_WORKER:PRODUCTION_WORKER;
+const API="https://api.derivws.com";
 let sessionId=null,accounts=[],account=null,ws=null,proposal=null,auto=false,timer=null,busy=false,pl=0,trades=0,qualityQuoteOnly=false,qualityQuoteContext=null;
 let reconnectTimer=null,reconnectAttempts=0,manualDisconnect=false;
 let latestAnalysisSignal=null,lastAutoSignalKey="",lastAutoTickSequence=0;
