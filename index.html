@@ -1925,27 +1925,48 @@ function setupAppTabs(){
  const children=Array.from(content.children),idx=Object.fromEntries(Object.entries(anchors).map(([k,v])=>[k,children.indexOf(v)]));
  const ranges={home:[idx.home,idx.markets],markets:[idx.markets,idx.analysis],analysis:[idx.analysis,idx.execution],execution:[idx.execution,idx.radar],radar:[idx.radar,children.length]};
  const extra={digits:["probability","market-ou-ranking"],ou:["market-ou-board"],smart:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],derivcfd:["forex-cfd-centre"],xauusd:["forex-cfd-centre"],boomcrash:["boom-crash-centre"],news:["economic-news-centre"]};
- const extraNodes=Array.from(new Set(Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean)));
- const allContent=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
+ const panelNodes=Array.from(new Set(Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean)));
+ const allRangeNodes=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
  function activate(name){
-  const range=ranges[name],external=extra[name]||[];
-  if(range){
-   const visible=new Set(children.slice(range[0],range[1]));
-   children.forEach(node=>{if(allContent.includes(node)){const hide=!visible.has(node);if(hide)node.dataset.appTabHidden="true";else delete node.dataset.appTabHidden;}});
-  }else{
-   children.forEach(node=>{if(allContent.includes(node))node.dataset.appTabHidden="true";});
-  }
-  extraNodes.forEach(node=>{const isExternal=external.includes(node.id);if(isExternal){node.hidden=false;delete node.dataset.appTabHidden;}else if(!allContent.includes(node)){node.hidden=true;}else{node.hidden=false;}});
-  nav.querySelectorAll("[data-tab]").forEach(btn=>{const active=btn.dataset.tab===name;btn.classList.toggle("active",active);btn.setAttribute("aria-selected",active?"true":"false");});
+  if(!ranges[name]&&!extra[name])name="home";
+  const range=ranges[name],visibleRange=range?new Set(children.slice(range[0],range[1])):new Set();
+  children.forEach(node=>{
+   if(!allRangeNodes.includes(node))return;
+   const show=visibleRange.has(node);
+   node.hidden=!show;
+   if(show)delete node.dataset.appTabHidden;else node.dataset.appTabHidden="true";
+  });
+  panelNodes.forEach(node=>{
+   const show=(extra[name]||[]).includes(node.id);
+   node.hidden=!show;
+   if(show){
+    delete node.dataset.appTabHidden;
+    const root=direct(node);
+    if(root){root.hidden=false;delete root.dataset.appTabHidden;}
+   }
+  });
+  nav.querySelectorAll("[data-tab]").forEach(btn=>{
+   const active=btn.dataset.tab===name;
+   btn.classList.toggle("active",active);
+   btn.setAttribute("aria-selected",active?"true":"false");
+  });
   try{sessionStorage.setItem("berur-active-tab",name);}catch{}
-  if(name==="markets"&&typeof render==="function")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));
-  if(name==="forex"){cfdPanelMode="FOREX";cfdCategoryFilter="ALL";if($("cfdCategoryFilter"))$("cfdCategoryFilter").value="ALL";renderCfdCentre();}
-  if(name==="derivcfd"){cfdPanelMode="DERIV_CFD";cfdCategoryFilter="ALL";if($("cfdCategoryFilter"))$("cfdCategoryFilter").value="ALL";renderCfdCentre();}
-  if(name==="xauusd"){cfdPanelMode="XAUUSD";cfdCategoryFilter="ALL";if($("cfdCategoryFilter"))$("cfdCategoryFilter").value="ALL";renderCfdCentre();}
+  if(name==="markets")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));
+  if(name==="forex"||name==="derivcfd"||name==="xauusd"){
+   cfdPanelMode=name==="forex"?"FOREX":name==="derivcfd"?"DERIV_CFD":"XAUUSD";
+   cfdCategoryFilter="ALL";
+   if($("cfdCategoryFilter"))$("cfdCategoryFilter").value="ALL";
+   renderCfdCentre();
+  }
   if(name==="boomcrash")renderBoomCrashCentre();
  }
- nav.addEventListener("click",e=>{const btn=e.target.closest("[data-tab]");if(btn)activate(btn.dataset.tab);});
- let initial="home";try{const saved=sessionStorage.getItem("berur-active-tab");if(saved&&[...Object.keys(ranges),...Object.keys(extra)].includes(saved))initial=saved;}catch{}
+ nav.addEventListener("click",e=>{
+  const btn=e.target.closest("button[data-tab]");
+  if(!btn||!nav.contains(btn))return;
+  e.preventDefault();e.stopPropagation();activate(btn.dataset.tab);
+ },true);
+ let initial="home";
+ try{const saved=sessionStorage.getItem("berur-active-tab");if(saved&&[...Object.keys(ranges),...Object.keys(extra)].includes(saved))initial=saved;}catch{}
  activate(initial);
 }
 setupAppTabs();
