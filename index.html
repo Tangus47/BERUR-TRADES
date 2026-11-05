@@ -1613,8 +1613,8 @@ function renderBestContractMarkets(){
  SYMBOLS.forEach(symbol=>{
   const m=markets[symbol],a=analyze(m),ds=digitsFor(m.ticks||[]),n=ds.length;
   if(n>=150){
-   const over=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.barrier>=3&&x.barrier<=4&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
-   const under=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.barrier>=5&&x.barrier<=7&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
+   const over=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.barrier>=3&&x.barrier<=7&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
+   const under=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.barrier>=4&&x.barrier<=6&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
    if(over)add("OVER",symbol,over.label,over.count,over.observed,over.expected,over.validN);
    if(under)add("UNDER",symbol,under.label,under.count,under.observed,under.expected,under.validN);
    const even=ds.filter(d=>d%2===0).length,odd=n-even;
@@ -1693,8 +1693,8 @@ function renderAllMarketIntelligence(){
    if(rate>base&&z>=2)all.push({symbol:sym,type,label,z,n:total,rate,base});
   };
   if(n>=150){
-   const ov=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.barrier>=3&&x.barrier<=4&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
-   const un=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.barrier>=5&&x.barrier<=7&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
+   const ov=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.barrier>=3&&x.barrier<=7&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
+   const un=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.barrier>=4&&x.barrier<=6&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0];
    if(ov)all.push({symbol:sym,type:"OVER",label:ov.label,z:ov.strength,n:ov.validN,rate:ov.observed,base:ov.expected});
    if(un)all.push({symbol:sym,type:"UNDER",label:un.label,z:un.strength,n:un.validN,rate:un.observed,base:un.expected});
    const even=ds.filter(d=>d%2===0).length;add("ODD","ODD",n-even,.5,n);add("EVEN","EVEN",even,.5,n);
