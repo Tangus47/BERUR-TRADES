@@ -1,6 +1,5 @@
 const APP_ORIGIN = "https://tangus47.github.io";
 const APP_URL = APP_ORIGIN + "/BERUR-TRADES/";
-const PRODUCTION_REDIRECT_URI = "https://berur-trades-backend.tangusvincent47.workers.dev/oauth/callback";
 const AUTH_URL = "https://auth.deriv.com/oauth2/auth";
 const TOKEN_URL = "https://auth.deriv.com/oauth2/token";
 const ALLOWED_ORIGIN = APP_ORIGIN;
