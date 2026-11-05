@@ -64,7 +64,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin") || "";
-    const redirectUri = env.DERIV_redirectUri || new URL("/oauth/callback", url.origin).toString();
+    const redirectUri = env.DERIV_REDIRECT_URI || new URL("/oauth/callback", url.origin).toString();
 
     if (url.pathname === "/health" && request.method === "GET") {
       return json({ status: "ok", service: "BERUR TRADES OAuth backend" });
