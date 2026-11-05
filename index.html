@@ -463,7 +463,7 @@ a{font-weight:700}
 
   <section class="section card" id="market-ou-ranking">
     <div class="radar-head"><div><h2 class="section-title">STRONGEST OVER / UNDER — MARKET RANKING</h2><p class="note">Each market gets its own strongest Over and strongest Under candidate, ranked by positive historical deviation from the uniform-digit baseline.</p></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button id="marketAlertToggle" type="button" class="btn">Enable sound alerts</button><span id="marketAlertState" class="pill">SOUND OFF</span></div></div><div id="marketAlertToast" class="note" role="status" aria-live="polite" style="margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:10px">Alerts appear here when a new qualified market setup is detected.</div><div id="marketAlertLog" class="note" style="margin-bottom:10px">No new alerts yet.</div>
-    <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Market</th><th>Strongest Over</th><th>Observed / Baseline</th><th>Strength</th><th>Strongest Under</th><th>Observed / Baseline</th><th>Strength</th><th>Sample</th></tr></thead><tbody id="marketOURankingRows"><tr><td colspan="8">Collecting independent market samples…</td></tr></tbody></table></div>
+    <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Market</th><th>Strongest Over</th><th>Observed / Baseline</th><th>Strength</th><th>Strongest Under</th><th>Observed / Baseline</th><th>Strength</th><th>Even strength</th><th>Odd strength</th><th>Sample</th></tr></thead><tbody id="marketOURankingRows"><tr><td colspan="10">Collecting independent market samples…</td></tr></tbody></table></div>
     <div style="margin-top:18px" id="best-contract-markets">
       <h3 class="section-title">BEST MARKET — INDEPENDENT CONTRACT RANKINGS</h3>
       <p class="note">Each contract family is ranked independently across all 13 Volatility markets. Different contracts may select different markets. Historical evidence only; no market is guaranteed to remain strongest.</p>
@@ -1512,12 +1512,13 @@ function renderMarketOURanking(){
  const pick=(a,side)=>a.n>=500?(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=500&&x.observed>0.40&&x.deviation>0&&x.strength>=2&&(side==="OVER"?x.barrier>=3&&x.barrier<=4:x.barrier>=5&&x.barrier<=7)).sort((x,y)=>y.strength-x.strength)[0]||null:null;
  const show=x=>x?'<b>'+x.label+'</b>':'—';
  const rate=x=>x?pct(x.observed*100)+' / '+pct(x.expected*100):'—';
- const score=x=>x?(x.strength>=2?'<span class="green">QUALIFIED DEVIATION</span>':'<span class="gold">WATCH</span>')+' · '+x.strength.toFixed(2):'—';
+ const score=x=>x?signalStrengthMarkup(50+Math.max(-5,Math.min(5,x.z))*10,x.validN>=150&&x.deviation>0&&x.strength>=1.5,"Historical deviation score; not a win probability"):'—';
+ const parity=(count,n,side)=>{const observed=n?count/n:0,se=n?Math.sqrt(.25/n):0,z=se?(observed-.5)/se:0;return signalStrengthMarkup(50+Math.max(-5,Math.min(5,z))*10,n>=150&&((side==="EVEN"&&z>=1.5)||(side==="ODD"&&z<=-1.5)),n<150?"Collecting 150+ ticks":(side==="EVEN"?"Even":"Odd")+" historical frequency "+pct(observed*100));};
  body.innerHTML=SYMBOLS.map(symbol=>{
   const m=markets[symbol],a=analyze(m),over=pick(a,"OVER"),under=pick(a,"UNDER");
   recordMarketAlert(symbol,"OVER",over&&over.strength>=2?over:null);recordMarketAlert(symbol,"UNDER",under&&under.strength>=2?under:null);
   updateMarketSignalMonitor(symbol,"OVER",over&&over.strength>=2?over:null);updateMarketSignalMonitor(symbol,"UNDER",under&&under.strength>=2?under:null);
-  return '<tr><td><b>'+symbol+'</b></td><td>'+show(over)+'</td><td>'+rate(over)+'</td><td>'+score(over)+'</td><td>'+show(under)+'</td><td>'+rate(under)+'</td><td>'+score(under)+'</td><td>'+a.n+'/150</td></tr>';
+  return '<tr><td><b>'+marketName(symbol)+'</b></td><td>'+show(over)+'</td><td>'+rate(over)+'</td><td>'+score(over)+'</td><td>'+show(under)+'</td><td>'+rate(under)+'</td><td>'+score(under)+'</td><td>'+parity(a.even,a.n,"EVEN")+'</td><td>'+parity(a.odd,a.n,"ODD")+'</td><td>'+a.n+'/150</td></tr>';
  }).join("");
 }
 function renderHomeBestMarkets(){
@@ -1741,10 +1742,11 @@ function render() {
  const overRows = a.ouCandidates.filter(x=>x.side==="OVER" && x.barrier>=5 && x.barrier<=8).sort((x,y)=>x.barrier-y.barrier);
  const underRows = a.ouCandidates.filter(x=>x.side==="UNDER" && x.barrier>=1 && x.barrier<=5).sort((x,y)=>y.barrier-x.barrier);
  const renderProbabilityRows = rows => rows.length ? rows.map(x=>{
-   const cls = x.validN<150 ? "gold" : x.deviation>0 && x.strength>=2 ? "green" : x.deviation<0 ? "red" : "gold";
-   const strength = x.validN<150 ? "COLLECTING" : x.deviation>0 && x.strength>=2.5 ? "STRONG EVIDENCE" : x.deviation>0 && x.strength>=1.5 ? "MODERATE" : "WEAK / WAIT";
-   const bar = Math.max(0,Math.min(100,x.observed*100));
-   return "<tr><td><b>"+x.label+"</b></td><td class='"+cls+"'>"+pct(x.observed*100)+"</td><td>"+pct(x.expected*100)+"</td><td class='"+cls+"'>"+strength+"<div class='bar'><i style='width:"+bar+"%;background:var(--"+(cls==="green"?"green":cls==="red"?"red":"gold")+")'></i></div></td><td>"+x.validN+"</td></tr>";
+   const cls = x.validN<150 ? "gold" : x.deviation>0 && x.strength>=1.5 ? "green" : x.deviation<0 ? "red" : "gold";
+   const evidenceScore=50+Math.max(-5,Math.min(5,x.z))*10;
+   const favourable=x.validN>=150&&x.deviation>0&&x.strength>=1.5;
+   const strength=signalStrengthMarkup(evidenceScore,favourable,x.validN<150?"Collecting 150+ valid observations":(favourable?"Positive historical deviation":"No favourable statistical edge established"));
+   return "<tr><td><b>"+x.label+"</b></td><td class='"+cls+"'>"+pct(x.observed*100)+"</td><td>"+pct(x.expected*100)+"</td><td>"+strength+"</td><td>"+x.validN+"</td></tr>";
  }).join("") : '<tr><td colspan="5">Collect at least 150 ticks to calculate empirical hit rates.</td></tr>';
  $("overProbabilityRows").innerHTML = renderProbabilityRows(overRows);
  $("underProbabilityRows").innerHTML = renderProbabilityRows(underRows);
@@ -1763,7 +1765,9 @@ function render() {
  }).sort((x,y)=>y.strength-x.strength);
  $("halfOddsRows").innerHTML = a.n>=100 ? halfOdds.map((x,i)=>{
    const cls=x.deviation>0?"green":x.deviation<0?"red":"gold";
-   return "<tr><td>"+(i+1)+"</td><td><b>"+x.label+"</b></td><td>"+pct(x.observed*100)+"</td><td>50.0%</td><td class='"+cls+"'>"+(x.deviation>=0?"+":"")+(x.deviation*100).toFixed(1)+" pp (z "+x.z.toFixed(2)+")</td><td>"+a.n+"</td></tr>";
+   const favourable=a.n>=150&&x.deviation>0&&x.strength>=1.5;
+   const score=signalStrengthMarkup(50+Math.max(-5,Math.min(5,x.z))*10,favourable,a.n<150?"Collecting 150+ observations":(favourable?"Positive historical deviation":"No favourable statistical edge established"));
+   return "<tr><td>"+(i+1)+"</td><td><b>"+x.label+"</b></td><td>"+pct(x.observed*100)+"</td><td>50.0%</td><td>"+score+"</td><td>"+a.n+"</td></tr>";
  }).join("") : '<tr><td colspan="6">Collect at least 100 ticks to compare all four contracts.</td></tr>';
  const halfTop=halfOdds[0];
  $("halfOddsSummary").textContent = a.n>=100 ? "Largest historical deviation by absolute z-score: "+halfTop.label+" ("+(halfTop.deviation>=0?"+":"")+(halfTop.deviation*100).toFixed(1)+" percentage points). This is descriptive evidence, not a trade guarantee." : "Waiting for at least 100 observations.";
