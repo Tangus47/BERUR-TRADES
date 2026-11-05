@@ -1,0 +1,17 @@
+{
+  "$schema": "cloudflare-worker/node_modules/wrangler/config-schema.json",
+  "name": "berur-trades-backend",
+  "main": "cloudflare-worker/src/index.js",
+  "compatibility_date": "2026-11-04",
+  "workers_dev": true,
+  "vars": {
+    "DERIV_CLIENT_ID": "34RcebpeLamDpn5C515Yg"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "BERUR_SESSIONS",
+      "id": "538447f7b2e74fc5af9818b388e9217c"
+    }
+  ],
+  "previews": {}
+}
