@@ -1402,8 +1402,24 @@ function analyze(m) {
 }
 
 let recentLossAvoidance=null;
+const candidateCooldowns=new Map();
+let activeCandidateKey=null;
 function signalFamily(signal){const v=String(signal||"").toUpperCase();if(v.startsWith("OVER"))return "DIGITOVER";if(v.startsWith("UNDER"))return "DIGITUNDER";if(v==="EVEN")return "DIGITEVEN";if(v==="ODD")return "DIGITODD";if(v==="RISE")return "CALL";if(v==="FALL")return "PUT";return v;}
-window.addEventListener("berur:trade-settled",event=>{const d=event.detail||{};if(d.won){recentLossAvoidance=null;}else{recentLossAvoidance={symbol:d.market,family:signalFamily(d.barrier),until:Date.now()+60000};}refreshAutomaticBestSignal();});
+function candidateKey(symbol,setup){return symbol+"|"+setup.contract+"|"+setup.signal;}
+window.addEventListener("berur:trade-settled",event=>{
+ const d=event.detail||{},family=signalFamily(d.barrier),market=markets[d.market];
+ if(d.market&&family)candidateCooldowns.set(d.market+"|"+family,(Number(market?.liveTickCount)||0)+3);
+ if(d.won){recentLossAvoidance=null;}
+ else{recentLossAvoidance={symbol:d.market,family,until:Date.now()+60000};}
+ activeCandidateKey=null;
+ refreshAutomaticBestSignal();
+});
+window.addEventListener("berur:candidate-rejected",event=>{
+ const d=event.detail||{},family=signalFamily(d.signal),market=markets[d.symbol];
+ if(d.symbol&&family)candidateCooldowns.set(d.symbol+"|"+family,(Number(market?.liveTickCount)||0)+3);
+ activeCandidateKey=null;
+ refreshAutomaticBestSignal();
+});
 let autoCandidateCursor=0;
 function qualifiedSetups(a){
  const ranked=[];
@@ -1426,24 +1442,33 @@ function refreshAutomaticBestSignal(){
   if(!market||!market.available||!market.ticks?.length||!market.updated||now-market.updated>20000)return;
   const analysis=analyze(market);
   qualifiedSetups(analysis).forEach(setup=>{
-   if(recentLossAvoidance&&now<recentLossAvoidance.until&&(symbol===recentLossAvoidance.symbol||signalFamily(setup.signal)===recentLossAvoidance.family))return;
+   const family=signalFamily(setup.signal),cooldownUntil=candidateCooldowns.get(symbol+"|"+family);
+   if(cooldownUntil!==undefined&&(Number(market.liveTickCount)||0)<=cooldownUntil)return;
+   if(recentLossAvoidance&&now<recentLossAvoidance.until&&(symbol===recentLossAvoidance.symbol||family===recentLossAvoidance.family))return;
    candidates.push({symbol,market,analysis,setup});
   });
  });
- candidates.sort((a,b)=>b.setup.score-a.setup.score||b.setup.strength-a.setup.strength||b.market.updated-a.market.updated);
+ candidates.sort((a,b)=>b.setup.score-a.setup.score||b.setup.strength-a.setup.strength||b.setup.sample-a.setup.sample||b.market.updated-a.market.updated);
  window.dispatchEvent(new CustomEvent("berur:candidate-queue-update",{detail:{count:candidates.length,candidates:candidates.slice(0,30).map(x=>({symbol:x.symbol,signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier,score:x.setup.score,sample:x.setup.sample,reason:x.setup.reason}))}}));
  if(!candidates.length){
-  activeSignal=null;
+  activeCandidateKey=null;activeSignal=null;
   window.dispatchEvent(new CustomEvent("berur:signal-update",{detail:{signalId:"",tradeAllowed:false}}));
   return;
  }
- // Rotate fairly among near-equal top candidates so one threshold cannot monopolise entries.
- const topScore=candidates[0].setup.score;
- const nearTop=candidates.filter(x=>x.setup.score>=topScore-2);
- const best=nearTop[autoCandidateCursor%nearTop.length];
- autoCandidateCursor=(autoCandidateCursor+1)%Math.max(1,nearTop.length);
- selected=best.symbol;
- refreshSignalValidity(best.setup.signal,best.setup.score,best.analysis.n,best.setup.reason);
+ const best=candidates[0],current=candidates.find(x=>candidateKey(x.symbol,x.setup)===activeCandidateKey);
+ let chosen,selectionReason;
+ if(current&&current.setup.score>=best.setup.score-7){
+  chosen=current;selectionReason="Retained stable candidate; no materially stronger alternative.";
+ }else{
+  const topScore=best.setup.score,nearTop=candidates.filter(x=>x.setup.score>=topScore-2);
+  chosen=nearTop[autoCandidateCursor%nearTop.length];
+  autoCandidateCursor=(autoCandidateCursor+1)%Math.max(1,nearTop.length);
+  activeCandidateKey=candidateKey(chosen.symbol,chosen.setup);
+  selectionReason=current?"Rotated to a materially stronger qualified candidate.":"Selected strongest eligible candidate.";
+ }
+ activeCandidateKey=candidateKey(chosen.symbol,chosen.setup);
+ selected=chosen.symbol;
+ refreshSignalValidity(chosen.setup.signal,chosen.setup.score,chosen.analysis.n,selectionReason+" "+chosen.setup.reason);
 }
 function preferredSetup(a) {
  return qualifiedSetups(a)[0]||{signal:"WAIT",score:0,reason:a.digitReason||a.parityReason||a.directionReason||"No qualified setup."};
