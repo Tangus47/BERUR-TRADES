@@ -905,7 +905,7 @@ function connect() {
        if (m.ticks.length > 1000) m.ticks.shift();
        if (m.tickPoints.length > 1000) m.tickPoints.shift();
      }
-     if(symbol===selected){const a=analyze(m),pick=preferredSetup(a);refreshSignalValidity(pick.signal,pick.score,a.n);}
+     refreshAutomaticBestSignal();
      scheduleRender();
    }
  };
@@ -1311,6 +1311,26 @@ function analyze(m) {
  };
 }
 
+function refreshAutomaticBestSignal(){
+  const now=Date.now();
+  const candidates=SYMBOLS.map(symbol=>{
+    const market=markets[symbol];
+    if(!market||!market.available||!market.ticks?.length||!market.updated||now-market.updated>20000)return null;
+    const analysis=analyze(market);
+    if(!analysis.tradeAllowed)return null;
+    const setup=preferredSetup(analysis);
+    if(!setup||setup.signal==="WAIT"||!setup.score)return null;
+    return {symbol,market,analysis,setup};
+  }).filter(Boolean).sort((a,b)=>b.setup.score-a.setup.score||(b.market.updated-a.market.updated));
+  if(!candidates.length){
+    activeSignal=null;
+    window.dispatchEvent(new CustomEvent("berur:signal-update",{detail:{signalId:"",tradeAllowed:false}}));
+    return;
+  }
+  const best=candidates[0];
+  selected=best.symbol;
+  refreshSignalValidity(best.setup.signal,best.setup.score,best.analysis.n);
+}
 function preferredSetup(a) {
  const digit=a.ouCandidates?.find(x=>!x.impossible&&x.label===a.digitSignal&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2&&((x.side==="OVER"&&x.barrier>=3&&x.barrier<=4)||(x.side==="UNDER"&&x.barrier>=5&&x.barrier<=7)));
  const digitScore=digit?Math.min(95,Math.round(65+(digit.strength-2)*15)):0;
