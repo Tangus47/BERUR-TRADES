@@ -227,6 +227,18 @@ a{font-weight:700}
 .welcome-actions a.whatsapp{background:#126b4b;border-color:#26b77c}
 @media(max-width:520px){.welcome-panel{padding:15px}.welcome-actions a{flex:1 1 135px}}
 
+
+/* Expanded, quieter signal workspace */
+#analysis{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
+#analysis>.card{min-height:390px;padding:22px;border-color:rgba(99,200,255,.30);background:linear-gradient(145deg,rgba(18,39,62,.99),rgba(8,22,39,.99))}
+#analysis>.card h3{font-size:13px;letter-spacing:.12em;margin-bottom:18px}
+#analysis .signal{font-size:clamp(28px,3vw,38px);line-height:1.15;margin:12px 0}
+#analysis .small{font-size:12px;line-height:1.65}
+#analysis #contractReason{min-height:76px;padding:12px;border:1px solid rgba(118,183,255,.18);border-radius:10px;background:rgba(7,17,31,.42)}
+#analysis #directionReason{min-height:58px}
+#analysis .metric{font-size:clamp(24px,2.7vw,34px)}
+@media(max-width:800px){#analysis{grid-template-columns:1fr}#analysis>.card{min-height:0;padding:18px}#analysis #contractReason{min-height:0}}
+
 </style>
 <script>
 (function(){
@@ -364,7 +376,7 @@ a{font-weight:700}
     <p class="note">Both panels below use only the selected volatility market shown above. Switch markets to refresh the Over and Under hit rates, baselines, strength and sample counts. Historical frequency is descriptive, not a forecast or guaranteed chance on the next tick. Exact barrier digits are losses and remain in the denominator.</p>
     <div class="two probability-panels">
       <section class="card probability-card">
-        <h3 class="section-title green" id="overProbabilityTitle">OVER CONTRACTS — 5 TO 8 • MARKET: —</h3>
+        <h3 class="section-title green" id="overProbabilityTitle">OVER CONTRACTS — 3 TO 7 • MARKET: —</h3>
         <div class="tablewrap"><table style="min-width:490px">
           <thead><tr><th>CONTRACT</th><th>HIT RATE</th><th>BASELINE</th><th>STRENGTH</th><th>SAMPLES</th></tr></thead>
           <tbody id="overProbabilityRows"><tr><td colspan="5">Connect and collect at least 150 ticks.</td></tr></tbody>
@@ -1258,7 +1270,7 @@ function analyze(m) {
 
  const ouCandidates = [];
  let digitSignal = "WAIT";
- let digitReason = "Collect at least 150 ticks before assessing all Over/Under thresholds.";
+ let digitReason = "Scan Over 3–7 and Under 4–6; collect at least 150 ticks before qualification.";
  if (n >= 100) {
    for (let barrier = 0; barrier <= 9; barrier++) {
      const validN = n;
@@ -1281,7 +1293,7 @@ function analyze(m) {
      }
    }
    const ranked = ouCandidates
-     .filter(x => !x.impossible && x.validN >= 100 && x.observed > 0.40 && x.deviation > 0 && x.strength >= 2 && ((x.side === "OVER" && x.barrier >= 3 && x.barrier <= 4) || (x.side === "UNDER" && x.barrier >= 5 && x.barrier <= 7)))
+     .filter(x => !x.impossible && x.validN >= 100 && x.observed > 0.40 && x.deviation > 0 && x.strength >= 2 && ((x.side === "OVER" && x.barrier >= 3 && x.barrier <= 7) || (x.side === "UNDER" && x.barrier >= 4 && x.barrier <= 6)))
      .sort((x,y) => y.strength - x.strength);
    const strongest = ranked[0];
    if (strongest && strongest.strength >= 2) {
@@ -1332,7 +1344,7 @@ function refreshAutomaticBestSignal(){
   refreshSignalValidity(best.setup.signal,best.setup.score,best.analysis.n);
 }
 function preferredSetup(a) {
- const digit=a.ouCandidates?.find(x=>!x.impossible&&x.label===a.digitSignal&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2&&((x.side==="OVER"&&x.barrier>=3&&x.barrier<=4)||(x.side==="UNDER"&&x.barrier>=5&&x.barrier<=7)));
+ const digit=a.ouCandidates?.find(x=>!x.impossible&&x.label===a.digitSignal&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2&&((x.side==="OVER"&&x.barrier>=3&&x.barrier<=7)||(x.side==="UNDER"&&x.barrier>=4&&x.barrier<=6)));
  const digitScore=digit?Math.min(95,Math.round(65+(digit.strength-2)*15)):0;
  const directionScore=a.directionSignal!=="WAIT"?a.directionScore:0;
  if(digit&&digitScore>=directionScore)return {signal:a.digitSignal,score:digitScore,reason:a.digitReason};
@@ -1516,7 +1528,7 @@ function renderTradeQualityFilter(){
  SYMBOLS.forEach(symbol=>{
   const m=markets[symbol],a=analyze(m);
   ["OVER","UNDER"].forEach(side=>{
-   const candidate=(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2&&(side==="OVER"?x.barrier>=3&&x.barrier<=4:x.barrier>=5&&x.barrier<=7)).sort((x,y)=>y.strength-x.strength)[0];
+   const candidate=(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2&&(side==="OVER"?x.barrier>=3&&x.barrier<=7:x.barrier>=4&&x.barrier<=6)).sort((x,y)=>y.strength-x.strength)[0];
    if(!candidate)return;
    const feedAge=m.updated?Math.max(0,Math.floor((now-m.updated)/1000)):null;
    const monitor=marketSignalMonitor[symbol+"|"+side];
@@ -1559,7 +1571,7 @@ document.addEventListener("click",event=>{
 });
 function renderMarketOURanking(){
  const body=$("marketOURankingRows");if(!body)return;
- const candidates=(a,side)=>(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&(side==="OVER"?x.barrier>=3&&x.barrier<=4:x.barrier>=5&&x.barrier<=7));
+ const candidates=(a,side)=>(a.ouCandidates||[]).filter(x=>x.side===side&&!x.impossible&&(side==="OVER"?x.barrier>=3&&x.barrier<=7:x.barrier>=4&&x.barrier<=6));
  const pick=(a,side)=>a.n>=100?candidates(a,side).filter(x=>x.validN>=100&&x.observed>0.40&&x.deviation>0&&x.strength>=2).sort((x,y)=>y.strength-x.strength)[0]||null:null;
  const displayPick=(a,side)=>candidates(a,side).sort((x,y)=>(y.validN-x.validN)||((y.z||0)-(x.z||0)))[0]||null;
  const show=x=>x?'<b>'+x.label+'</b>':'—';
@@ -1799,8 +1811,8 @@ function render() {
  $("duration").textContent=a.n>=100?(a.directionScore>=80?"3 ticks":a.directionScore>=70?"5 ticks":"10 ticks"):"—";
  $("contract").textContent=a.digitSignal;
  $("contractReason").textContent=a.digitReason;
- const overRows = a.ouCandidates.filter(x=>x.side==="OVER" && x.barrier>=5 && x.barrier<=8).sort((x,y)=>x.barrier-y.barrier);
- const underRows = a.ouCandidates.filter(x=>x.side==="UNDER" && x.barrier>=1 && x.barrier<=5).sort((x,y)=>y.barrier-x.barrier);
+ const overRows = a.ouCandidates.filter(x=>x.side==="OVER" && x.barrier>=3 && x.barrier<=7).sort((x,y)=>x.barrier-y.barrier);
+ const underRows = a.ouCandidates.filter(x=>x.side==="UNDER" && x.barrier>=4 && x.barrier<=6).sort((x,y)=>y.barrier-x.barrier);
  const renderProbabilityRows = rows => rows.length ? rows.map(x=>{
    const cls = x.validN<150 ? "gold" : x.deviation>0 && x.strength>=1.5 ? "green" : x.deviation<0 ? "red" : "gold";
    const evidenceScore=50+Math.max(-5,Math.min(5,x.z))*10;
