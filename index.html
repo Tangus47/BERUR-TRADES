@@ -1374,7 +1374,7 @@ function analyze(m) {
  }
  const parityCandidates = [];
  let paritySignal = "WAIT";
- let parityReason = "Parity contracts need at least 150 observations and a positive statistical edge.";
+ let parityReason = "Parity contracts need at least 300 observations, z-score 2.25 and a positive statistical edge.";
  if (n >= 300) {
    const evenRate = even / n, oddRate = odd / n;
    const paritySE = Math.sqrt(0.25 / n);
