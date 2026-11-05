@@ -866,7 +866,7 @@ function connect() {
        if(m){
          m.prices = prices.map(Number).filter(Number.isFinite).slice(-500);
          m.ticks = m.prices.slice();
-         m.tickPoints = m.prices.map((price,i)=>({price,time:Number(times[i])>0?Number(times[i])*1000:Date.now()-((m.prices.length-i)*1000)})).slice(-250);
+         m.tickPoints = m.prices.map((price,i)=>({price,time:Number(times[i])>0?Number(times[i])*1000:Date.now()-((m.prices.length-i)*1000)})).slice(-500);
          m.loading = false;m.updated = Date.now();render();
        }
      }
