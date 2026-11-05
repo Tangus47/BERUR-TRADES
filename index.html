@@ -1455,17 +1455,11 @@ function refreshAutomaticBestSignal(){
   window.dispatchEvent(new CustomEvent("berur:signal-update",{detail:{signalId:"",tradeAllowed:false}}));
   return;
  }
- const best=candidates[0],current=candidates.find(x=>candidateKey(x.symbol,x.setup)===activeCandidateKey);
- let chosen,selectionReason;
- if(current&&current.setup.score>=best.setup.score-7){
-  chosen=current;selectionReason="Retained stable candidate; no materially stronger alternative.";
- }else{
-  const topScore=best.setup.score,nearTop=candidates.filter(x=>x.setup.score>=topScore-2);
-  chosen=nearTop[autoCandidateCursor%nearTop.length];
-  autoCandidateCursor=(autoCandidateCursor+1)%Math.max(1,nearTop.length);
-  activeCandidateKey=candidateKey(chosen.symbol,chosen.setup);
-  selectionReason=current?"Rotated to a materially stronger qualified candidate.":"Selected strongest eligible candidate.";
- }
+ const best=candidates[0];
+ // The queue is ranked strongest-first. Always select rank #1; never rotate to a
+ // lower-ranked near-tie or retain a weaker candidate merely for stability.
+ const chosen=best;
+ const selectionReason="Selected rank #1 strongest qualified candidate.";
  activeCandidateKey=candidateKey(chosen.symbol,chosen.setup);
  selected=chosen.symbol;
  refreshSignalValidity(chosen.setup.signal,chosen.setup.score,chosen.analysis.n,selectionReason+" "+chosen.setup.reason);
@@ -1479,7 +1473,7 @@ window.addEventListener("berur:candidate-queue-update",event=>{
  if(!panel){panel=document.createElement("section");panel.id="berur-candidate-queue";panel.className="card section";panel.style.borderTop="2px solid var(--teal)";panel.innerHTML="<h3>LIVE PURCHASE CANDIDATE QUEUE</h3><div id='berur-candidate-count' class='small'>Waiting for qualified candidates…</div><div id='berur-candidate-rows' class='tablewrap'></div>";radar.insertAdjacentElement("afterend",panel);}
  const list=Array.isArray(event.detail?.candidates)?event.detail.candidates:[];
  const count=document.getElementById("berur-candidate-count"),body=document.getElementById("berur-candidate-rows");
- if(count)count.textContent=list.length+" qualified candidates across scanned markets • only the highest-ranked eligible setup is sent for a quote";
+ if(count)count.textContent=list.length+" qualified candidates across scanned markets • rank #1 is the only candidate sent for a quote";
  if(!body)return;
  body.replaceChildren();
  if(!list.length){const p=document.createElement("p");p.className="note";p.textContent="NO QUALIFIED SETUP — waiting for fresh evidence. No forced purchases.";body.appendChild(p);return;}
