@@ -1818,7 +1818,18 @@ $("learningTarget").addEventListener("change",event => {
 $("connectBtn").addEventListener("click",connect);
 $("stopBtn").addEventListener("click",stop);
 $("sendAnalysisBtn").addEventListener("click",()=>{const m=markets[selected],a=analyze(m);if(!activeSignal||activeSignal.expired||Date.now()>=activeSignal.expiresAt){$("executionHandoffStatus").textContent="NO TRADE: signal is missing or expired. Wait for a fresh Radar signal.";return;}let contract="";const ouMatch=a.digitSignal.match(/^(OVER|UNDER) ([0-9])$/);if(ouMatch)contract=ouMatch[1]==="OVER"?"DIGITOVER":"DIGITUNDER";else if(a.directionSignal==="RISE")contract="CALL";else if(a.directionSignal==="FALL")contract="PUT";if(!a.tradeAllowed||!contract){$("executionHandoffStatus").textContent="NO TRADE: analysis has not produced a supported contract signal.";return;}const detail={symbol:selected,contract,barrier:ouMatch?Number(ouMatch[2]):undefined,duration:a.directionSignal!=="WAIT"?(a.directionScore>=80?3:a.directionScore>=70?5:10):1,evidenceScore:a.directionScore,sample:a.n,reason:a.digitSignal!=="WAIT"?a.digitReason:"Directional trend "+a.trend+" confirmed by recent tick balance.",signal:a.digitSignal!=="WAIT"?a.digitSignal:a.directionSignal};window.dispatchEvent(new CustomEvent("berur:analysis-ready",{detail}));$("executionHandoffStatus").textContent="Sent "+detail.signal+" on "+selected+" to execution desk. Review the quote and approve manually.";});
-$("botBtn").addEventListener("click",()=>window.open("https://bot.deriv.com/","_blank","noopener"));
+$("botBtn").addEventListener("click",()=>{
+ let panel=document.getElementById("berurDerivBotPanel");
+ if(!panel){
+  panel=document.createElement("div");
+  panel.id="berurDerivBotPanel";
+  panel.style.cssText="position:fixed;inset:0;z-index:99999;background:#07111f;color:#f5f8ff;display:flex;flex-direction:column;padding:10px;box-sizing:border-box";
+  panel.innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:8px 4px 12px;flex-wrap:wrap"><strong style="font-size:16px;flex:1">DERIV BOT · LIVE TRADING</strong><a href="https://bot.deriv.com/" target="_blank" rel="noopener noreferrer" style="color:#64d8ff;font-weight:700;padding:9px;border:1px solid #31506d;border-radius:9px;text-decoration:none">Open full Deriv Bot</a><button type="button" id="berurDerivBotClose" style="background:#20344b;color:white;border:0;border-radius:9px;padding:10px 14px;font-weight:700">CLOSE</button></div><div style="font-size:12px;color:#b9cce3;padding:0 4px 9px">If Deriv blocks the embedded view or sign-in, choose “Open full Deriv Bot”.</div><iframe title="Deriv Bot" src="https://bot.deriv.com/" allow="clipboard-read; clipboard-write; fullscreen" style="width:100%;flex:1;min-height:0;border:1px solid #31506d;border-radius:12px;background:white"></iframe>';
+  document.body.appendChild(panel);
+  document.getElementById("berurDerivBotClose").addEventListener("click",()=>panel.remove());
+ }
+ panel.style.display="flex";
+});
 $("copyBtn").addEventListener("click",()=>{
  const m=markets[selected],a=analyze(m);
  const text=`BERUR TRADES\nMarket: ${selected}\nPrice: ${m.quote===null?"Unavailable":m.quote}\nDirection: ${a.directionSignal}\nDigit contract observation: ${a.digitSignal}\nHot digit: ${a.hot} | Cold digit: ${a.cold}\nTicks analyzed: ${a.n}\nEvidence score: ${a.directionScore}/100\nStatus: ${a.tradeAllowed?"Review manually":"NO TRADE"}\nThis is technical analysis, not a guaranteed prediction.`;
