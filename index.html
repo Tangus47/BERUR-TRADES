@@ -1424,7 +1424,7 @@ let autoCandidateCursor=0;
 function qualifiedSetups(a){
  const ranked=[];
  (a.ouCandidates||[]).forEach(x=>{
-  const allowed=(x.side==="OVER"&&x.barrier>=3&&x.barrier<=5)||(x.side==="UNDER"&&x.barrier>=5&&x.barrier<=7);
+  const allowed=(x.side==="UNDER"&&(x.barrier===2||x.barrier===3))||(x.side==="OVER"&&(x.barrier===6||x.barrier===7||x.barrier===8));
   if(!allowed||x.impossible||x.validN<300||x.deviation<=0||x.strength<2.25)return;
   ranked.push({signal:x.label,score:Math.min(95,Math.round(65+(x.strength-2.25)*15)),strength:x.strength,sample:x.validN,reason:x.label+" qualified: observed "+(x.observed*100).toFixed(1)+"% vs baseline "+(x.expected*100).toFixed(1)+"%; positive edge, z="+x.strength.toFixed(2)+", n="+x.validN,contract:x.side==="OVER"?"DIGITOVER":"DIGITUNDER",barrier:x.barrier});
  });
@@ -1454,7 +1454,7 @@ function refreshAutomaticBestSignal(){
   });
  });
  candidates.sort((a,b)=>b.setup.score-a.setup.score||b.setup.strength-a.setup.strength||b.setup.sample-a.setup.sample||b.market.updated-a.market.updated);
- window.dispatchEvent(new CustomEvent("berur:candidate-queue-update",{detail:{count:candidates.length,candidates:candidates.slice(0,2).map((x,i)=>({rank:i+1,symbol:x.symbol,signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier,score:x.setup.score,sample:x.setup.sample,reason:x.setup.reason}))}}));
+ window.dispatchEvent(new CustomEvent("berur:candidate-queue-update",{detail:{count:candidates.length,candidates:candidates.slice(0,3).map((x,i)=>({rank:i+1,symbol:x.symbol,signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier,score:x.setup.score,sample:x.setup.sample,reason:x.setup.reason}))}}));
  if(!candidates.length){
   activeCandidateKey=null;activeSignal=null;
   window.dispatchEvent(new CustomEvent("berur:signal-update",{detail:{signalId:"",tradeAllowed:false}}));
@@ -1464,7 +1464,7 @@ function refreshAutomaticBestSignal(){
  // The queue is ranked strongest-first. Always select rank #1; never rotate to a
  // lower-ranked near-tie or retain a weaker candidate merely for stability.
  const chosen=best;
- const selectionReason="Selected rank #1 strongest qualified candidate.";
+ const selectionReason="Selected rank #1 strongest qualified candidate from the top-three purchase queue.";
  activeCandidateKey=candidateKey(chosen.symbol,chosen.setup);
  selected=chosen.symbol;
  refreshSignalValidity(chosen.setup.signal,chosen.setup.score,chosen.analysis.n,selectionReason+" "+chosen.setup.reason);
@@ -1478,7 +1478,7 @@ window.addEventListener("berur:candidate-queue-update",event=>{
  if(!panel){panel=document.createElement("section");panel.id="berur-candidate-queue";panel.className="card section";panel.style.borderTop="2px solid var(--teal)";panel.innerHTML="<h3>LIVE PURCHASE CANDIDATE QUEUE</h3><div id='berur-candidate-count' class='small'>Waiting for qualified candidates…</div><div id='berur-candidate-rows' class='tablewrap'></div>";radar.insertAdjacentElement("afterend",panel);}
  const list=Array.isArray(event.detail?.candidates)?event.detail.candidates:[];
  const count=document.getElementById("berur-candidate-count"),body=document.getElementById("berur-candidate-rows");
- if(count)count.textContent=Number(event.detail?.count||0)+" qualified candidates found • top 2 eligible; rank #1 first, rank #2 standby";
+ if(count)count.textContent=Number(event.detail?.count||0)+" qualified candidates found • top 3 purchase-eligible; rank #1 first, ranks #2–#3 standby";
  if(!body)return;
  body.replaceChildren();
  if(!list.length){const p=document.createElement("p");p.className="note";p.textContent="NO QUALIFIED SETUP — waiting for fresh evidence. No forced purchases.";body.appendChild(p);return;}
@@ -1486,13 +1486,13 @@ window.addEventListener("berur:candidate-queue-update",event=>{
  const head=document.createElement("thead"),hr=document.createElement("tr");
  ["Rank","Market","Contract","Evidence","Samples","Selection"].forEach(v=>{const th=document.createElement("th");th.textContent=v;hr.appendChild(th);});head.appendChild(hr);table.appendChild(head);
  const tbody=document.createElement("tbody");
- list.slice(0,2).forEach((x,i)=>{const tr=document.createElement("tr");[String(i+1),marketName(x.symbol),x.signal,String(x.score)+"/100",String(x.sample),i===0?"PURCHASE FIRST":"STANDBY #2"].forEach(v=>{const td=document.createElement("td");td.textContent=v;if(i===0)td.className="green";tr.appendChild(td);});tbody.appendChild(tr);});
+ list.slice(0,3).forEach((x,i)=>{const tr=document.createElement("tr");[String(i+1),marketName(x.symbol),x.signal,String(x.score)+"/100",String(x.sample),i===0?"PURCHASE FIRST":("STANDBY #"+(i+1))].forEach(v=>{const td=document.createElement("td");td.textContent=v;if(i===0)td.className="green";tr.appendChild(td);});tbody.appendChild(tr);});
  table.appendChild(tbody);body.appendChild(table);
  let reasonPanel=document.getElementById("berur-purchase-reason-panel");
  if(!reasonPanel){reasonPanel=document.createElement("section");reasonPanel.id="berur-purchase-reason-panel";reasonPanel.className="card section";reasonPanel.style.borderTop="2px solid var(--amber)";reasonPanel.innerHTML="<h3>PURCHASE REASON & DECISION PANEL</h3><div id='berur-purchase-reason-main' class='note'></div><div id='berur-purchase-reason-next' class='note' style='margin-top:8px'></div><div class='note' style='margin-top:8px'>ENTRY GATES: Over/Under/Even/Odd require 300 observations and z-score ≥ 2.25. Rise/Fall require 120 observations, trend confirmation, direction score ≥ 70 and 3–5 tick duration. All require fresh feed, no cooldown and exact quote match. One open contract at a time.</div>";panel.insertAdjacentElement("afterend",reasonPanel);}
  const main=document.getElementById("berur-purchase-reason-main"),next=document.getElementById("berur-purchase-reason-next");
  if(main)main.textContent=list[0]?"RANK #1 — "+marketName(list[0].symbol)+" · "+list[0].signal+" · "+list[0].score+"/100 · "+list[0].sample+" observations. WHY: "+list[0].reason+". This candidate is sent for a quote first.":"NO PURCHASE: no candidate passed all strict entry gates. Waiting; no forced signal or trade.";
- if(next)next.textContent=list[1]?"RANK #2 STANDBY — "+marketName(list[1].symbol)+" · "+list[1].signal+" · "+list[1].score+"/100. WHY: "+list[1].reason+". It is considered if rank #1 is rejected or after the current trade settles.":"RANK #2 — no second candidate currently qualifies.";
+ if(next)next.textContent=[list[1]?"RANK #2 STANDBY — "+marketName(list[1].symbol)+" · "+list[1].signal+" · "+list[1].score+"/100. WHY: "+list[1].reason+". Eligible if rank #1 is rejected or after the current trade settles.":"RANK #2 — no second candidate currently qualifies.",list[2]?"RANK #3 STANDBY — "+marketName(list[2].symbol)+" · "+list[2].signal+" · "+list[2].score+"/100. WHY: "+list[2].reason+". Eligible when it becomes the strongest available candidate.":"RANK #3 — no third candidate currently qualifies."].join(" ");
 });
 function rankScore(m) {
  const a=analyze(m);
