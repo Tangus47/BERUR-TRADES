@@ -864,7 +864,7 @@ function connect() {
      }else{
        const m = markets[info.symbol];
        if(m){
-         m.prices = prices.map(Number).filter(Number.isFinite).slice(-250);
+         m.prices = prices.map(Number).filter(Number.isFinite).slice(-500);
          m.ticks = m.prices.slice();
          m.tickPoints = m.prices.map((price,i)=>({price,time:Number(times[i])>0?Number(times[i])*1000:Date.now()-((m.prices.length-i)*1000)})).slice(-250);
          m.loading = false;m.updated = Date.now();render();
@@ -902,10 +902,11 @@ function connect() {
      if (!m.ticks.length || m.ticks[m.ticks.length-1] !== q) {
        m.ticks.push(q);
        m.tickPoints.push({price:q,time:Number(data.tick.epoch)>0?Number(data.tick.epoch)*1000:Date.now()});
-       if (m.ticks.length > 250) m.ticks.shift();
-       if (m.tickPoints.length > 250) m.tickPoints.shift();
+       if (m.ticks.length > 500) m.ticks.shift();
+       if (m.tickPoints.length > 500) m.tickPoints.shift();
      }
-     render();
+     if(symbol===selected){const a=analyze(m),pick=preferredSetup(a);refreshSignalValidity(pick.signal,pick.score,a.n);}
+     scheduleRender();
    }
  };
  socket.onerror = () => {
@@ -1151,7 +1152,7 @@ function requestMarketCandles(symbol,granularity=candleTimeframe){
 }
 function loadMarket(symbol) {
  request({
-   ticks_history:symbol,count:200,end:"latest",style:"ticks"
+   ticks_history:symbol,count:500,end:"latest",style:"ticks"
  },"history",symbol);
  if(symbol===selected)requestMarketCandles(symbol,candleTimeframe);
  request({ticks:symbol,subscribe:1},"tick",symbol);
@@ -1681,6 +1682,8 @@ function renderAllMarketIntelligence(){
  $("intelRotation").textContent=!previousIntelLeader?"Building baseline":sig&&sig!==previousIntelLeader?"LEADER CHANGED — review new candidate":sig?"Leader unchanged":"No qualified leader";
  if(sig)previousIntelLeader=sig;
 }
+let renderPending=false;
+function scheduleRender(){if(renderPending)return;renderPending=true;setTimeout(()=>{renderPending=false;render();},150);}
 function render() {
  renderCfdCentre();
  setupMarketAlerts();
