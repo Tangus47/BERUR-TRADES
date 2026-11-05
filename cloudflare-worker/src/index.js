@@ -1,6 +1,6 @@
 const APP_ORIGIN = "https://tangus47.github.io";
 const APP_URL = APP_ORIGIN + "/BERUR-TRADES/";
-const REDIRECT_URI = "https://berur-trades-backend.tangusvincent47.workers.dev/oauth/callback";
+const PRODUCTION_REDIRECT_URI = "https://berur-trades-backend.tangusvincent47.workers.dev/oauth/callback";
 const AUTH_URL = "https://auth.deriv.com/oauth2/auth";
 const TOKEN_URL = "https://auth.deriv.com/oauth2/token";
 const ALLOWED_ORIGIN = APP_ORIGIN;
@@ -64,6 +64,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin") || "";
+    const redirectUri = env.DERIV_redirectUri || new URL("/oauth/callback", url.origin).toString();
 
     if (url.pathname === "/health" && request.method === "GET") {
       return json({ status: "ok", service: "BERUR TRADES OAuth backend" });
@@ -87,7 +88,7 @@ export default {
       const auth = new URL(AUTH_URL);
       auth.searchParams.set("response_type", "code");
       auth.searchParams.set("client_id", env.DERIV_CLIENT_ID);
-      auth.searchParams.set("redirect_uri", REDIRECT_URI);
+      auth.searchParams.set("redirect_uri", redirectUri);
       auth.searchParams.set("scope", "trade");
       auth.searchParams.set("state", state);
       auth.searchParams.set("code_challenge", challenge);
@@ -117,7 +118,7 @@ export default {
         client_id: env.DERIV_CLIENT_ID,
         code,
         code_verifier: saved.verifier,
-        redirect_uri: REDIRECT_URI
+        redirect_uri: redirectUri
       });
 
       let tokenResponse;
