@@ -497,7 +497,7 @@ a{font-weight:700}
   </div><!-- terminal-layout -->
 
   <section class="section card" id="market-ou-ranking">
-    <div class="radar-head"><div><h2 class="section-title">STRONGEST OVER / UNDER — MARKET RANKING</h2><p class="note">Each market gets its own strongest Over and strongest Under candidate, ranked by positive historical deviation from the uniform-digit baseline.</p></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button id="marketAlertToggle" type="button" class="btn">Enable sound alerts</button><span id="marketAlertState" class="pill">SOUND OFF</span></div></div><div id="marketAlertToast" class="note" role="status" aria-live="polite" style="margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:10px">Alerts appear here when a new qualified market setup is detected.</div><div id="marketAlertLog" class="note" style="margin-bottom:10px">No new alerts yet.</div>
+    <div class="radar-head"><div><h2 class="section-title">STRONGEST OVER / UNDER — MARKET RANKING</h2><p class="note">Each market gets its own strongest Over and strongest Under candidate, ranked by positive historical deviation from the uniform-digit baseline. Sound is reserved for broker-confirmed trade execution and settlement—not signal generation.</p></div></div><div id="marketAlertToast" class="note" role="status" aria-live="polite" style="margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:10px">Visual alerts only. No sound is played for new or invalidated signals.</div><div id="marketAlertLog" class="note" style="margin-bottom:10px">No new alerts yet.</div>
     <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Market</th><th>Strongest Over</th><th>Observed / Baseline</th><th>Strength</th><th>Strongest Under</th><th>Observed / Baseline</th><th>Strength</th><th>Even strength</th><th>Odd strength</th><th>Sample</th></tr></thead><tbody id="marketOURankingRows"><tr><td colspan="10">Collecting independent market samples…</td></tr></tbody></table></div>
     <div style="margin-top:18px" id="best-contract-markets">
       <h3 class="section-title">BEST MARKET — INDEPENDENT CONTRACT RANKINGS</h3>
@@ -780,7 +780,7 @@ function updateBotSessionTimer(){
   }else if(botSessionRunning&&Date.now()>=botSessionEndsAt){botSessionRunning=false;botSessionFinished=true;botSessionEndReason="complete";}
   renderBotSessionClock();
 }
-function refreshSignalValidity(signal, score, sample, setupReason) {
+function refreshSignalValidity(signal, score, sample, setupReason, marketGuard=null) {
   const signature = selected + "|" + signal;
   if (!signal || signal === "WAIT") {
     activeSignal = null;
@@ -812,7 +812,8 @@ function refreshSignalValidity(signal, score, sample, setupReason) {
   const current=currentMarket?analyze(currentMarket):null;
   const ou=String(signal).match(/^(OVER|UNDER) ([0-9])$/);
   const contract=ou?(ou[1]==="OVER"?"DIGITOVER":"DIGITUNDER"):signal==="EVEN"?"DIGITEVEN":signal==="ODD"?"DIGITODD":signal==="RISE"?"CALL":signal==="FALL"?"PUT":"";
-  const detail={symbol:selected,signal,contract,barrier:ou?Number(ou[2]):undefined,duration:signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,evidenceScore:score,sample,tradeAllowed:!!current?.tradeAllowed&&sample>=requiredEvidenceTicks(contract,signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,score),requiredTicks:requiredEvidenceTicks(contract,signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,score),reason:setupReason|| (ou?((current?.ouCandidates||[]).find(x=>x.label===signal)?.label+" passed positive historical evidence"||current?.digitReason||""):signal==="EVEN"||signal==="ODD"?(current?.parityReason||"Parity evidence qualified"):current?.directionReason||"BERUR technical analysis signal"),generatedAt:activeSignal.generatedAt,expiresAt:activeSignal.expiresAt,tickSequence:activeSignal.tickSequence,signalId:signature+"|"+activeSignal.generatedAt};
+  const requiredTicks=requiredEvidenceTicks(contract,signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,score);
+  const detail={symbol:selected,signal,contract,barrier:ou?Number(ou[2]):undefined,duration:signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,evidenceScore:score,sample,tradeAllowed:!!current?.tradeAllowed&&sample>=requiredTicks&&marketGuard?.passed===true,requiredTicks,marketGuard,reason:(setupReason|| (ou?((current?.ouCandidates||[]).find(x=>x.label===signal)?.label+" passed positive historical evidence"||current?.digitReason||""):signal==="EVEN"||signal==="ODD"?(current?.parityReason||"Parity evidence qualified"):current?.directionReason||"BERUR technical analysis signal"))+" · "+(marketGuard?.reason||"Market guard not passed"),generatedAt:activeSignal.generatedAt,expiresAt:activeSignal.expiresAt,tickSequence:activeSignal.tickSequence,signalId:signature+"|"+activeSignal.generatedAt};
   window.dispatchEvent(new CustomEvent("berur:signal-update",{detail}));
 }
 
@@ -1448,10 +1449,39 @@ function qualifiedSetups(a){
  }
  return ranked.sort((x,y)=>y.score-x.score||y.strength-x.strength||x.signal.localeCompare(y.signal));
 }
+function evaluateUnifiedMarketGuard(m,setup,analysis,now=Date.now()){
+ const symbol=m?.symbol||"UNKNOWN",liveObservations=Number(m?.liveTickCount)||0;
+ const lastTickAt=Number(m?.lastTickAt||0),freshnessSeconds=lastTickAt?Math.max(0,(now-lastTickAt)/1000):Infinity;
+ const prices=(m?.ticks||[]).slice(-30).map(Number).filter(Number.isFinite);
+ const failures=[];
+ let regime="INSUFFICIENT OBSERVATIONS",rangeBps=null,efficiency=null;
+ if(!m?.available)failures.push("market unavailable");
+ if(liveObservations<20||prices.length<20)failures.push("need at least 20 live observations");
+ if(!lastTickAt||freshnessSeconds>15)failures.push("feed stale or older than 15 seconds");
+ if(prices.length>=20){
+  const window=prices.slice(-30),mean=window.reduce((sum,value)=>sum+value,0)/window.length;
+  rangeBps=(Math.max(...window)-Math.min(...window))/(Math.abs(mean)||1)*10000;
+  let path=0;for(let i=1;i<window.length;i++)path+=Math.abs(window[i]-window[i-1]);
+  efficiency=path?Math.abs(window[window.length-1]-window[0])/path:0;
+  const net=window[window.length-1]-window[0];
+  if(rangeBps>25)regime="HIGH MOVEMENT";
+  else if(efficiency<.2)regime="LOW DIRECTIONALITY";
+  else if(efficiency>.62&&net>0)regime="DIRECTIONAL UP";
+  else if(efficiency>.62&&net<0)regime="DIRECTIONAL DOWN";
+  else regime="RANGING / CHOPPY";
+  if(regime==="HIGH MOVEMENT")failures.push("movement too elevated");
+  else if(regime==="LOW DIRECTIONALITY"||regime==="RANGING / CHOPPY")failures.push("market is not directional");
+ }
+ const directionScore=Number(analysis?.directionScore);
+ if(!Number.isFinite(directionScore)||directionScore<70)failures.push("direction score below 70");
+ if(setup?.contract==="CALL"&&(analysis?.directionSignal!=="RISE"||regime!=="DIRECTIONAL UP"))failures.push("Rise requires an upward directional market");
+ if(setup?.contract==="PUT"&&(analysis?.directionSignal!=="FALL"||regime!=="DIRECTIONAL DOWN"))failures.push("Fall requires a downward directional market");
+ return {passed:failures.length===0,symbol,regime,liveObservations,freshnessSeconds:Number.isFinite(freshnessSeconds)?Number(freshnessSeconds.toFixed(1)):null,directionScore,rangeBps:rangeBps===null?null:Number(rangeBps.toFixed(2)),efficiency:efficiency===null?null:Number(efficiency.toFixed(3)),reason:failures.length?failures.join("; "):"Market guard passed: fresh feed, sufficient live observations, directional conditions and direction score ≥ 70."};
+}
 let automaticCandidateRefreshTimer=null;
 function scheduleAutomaticBestSignal(){if(automaticCandidateRefreshTimer)return;automaticCandidateRefreshTimer=setTimeout(()=>{automaticCandidateRefreshTimer=null;refreshAutomaticBestSignal();},300);}
 function refreshAutomaticBestSignal(){
- const now=Date.now(),candidates=[];
+ const now=Date.now(),candidates=[],rejected=[];
  SYMBOLS.forEach(symbol=>{
   const market=markets[symbol];
   if(!market||!market.available||!market.ticks?.length||!market.updated||now-market.updated>20000)return;
@@ -1460,24 +1490,24 @@ function refreshAutomaticBestSignal(){
    const family=signalFamily(setup.signal),cooldownUntil=candidateCooldowns.get(symbol+"|"+family);
    if(cooldownUntil!==undefined&&(Number(market.liveTickCount)||0)<=cooldownUntil)return;
    if(recentLossAvoidance&&now<recentLossAvoidance.until&&(symbol===recentLossAvoidance.symbol||family===recentLossAvoidance.family))return;
-   candidates.push({symbol,market,analysis,setup});
+   const marketGuard=evaluateUnifiedMarketGuard(market,setup,analysis,now);
+   if(!marketGuard.passed){rejected.push({symbol,signal:setup.signal,reason:marketGuard.reason});return;}
+   candidates.push({symbol,market,analysis,setup,marketGuard});
   });
  });
  candidates.sort((a,b)=>b.setup.score-a.setup.score||b.setup.strength-a.setup.strength||b.setup.sample-a.setup.sample||b.market.updated-a.market.updated);
- window.dispatchEvent(new CustomEvent("berur:candidate-queue-update",{detail:{count:candidates.length,candidates:candidates.slice(0,3).map((x,i)=>({rank:i+1,symbol:x.symbol,signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier,score:x.setup.score,sample:x.setup.sample,reason:x.setup.reason}))}}));
+ const blockedReasons=Array.from(new Set(rejected.map(x=>x.reason))).slice(0,4);
+ window.dispatchEvent(new CustomEvent("berur:candidate-queue-update",{detail:{count:candidates.length,blockedCount:rejected.length,blockedReasons,candidates:candidates.slice(0,3).map((x,i)=>({rank:i+1,symbol:x.symbol,signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier,score:x.setup.score,sample:x.setup.sample,reason:x.setup.reason,marketGuard:x.marketGuard}))}}));
  if(!candidates.length){
   activeCandidateKey=null;activeSignal=null;
-  window.dispatchEvent(new CustomEvent("berur:signal-update",{detail:{signalId:"",tradeAllowed:false}}));
+  refreshSignalValidity("WAIT",0,0,blockedReasons.length?"Unified eligibility blocked candidates: "+blockedReasons.join(" · "):"No candidate passed all eligibility gates.",{passed:false,reason:blockedReasons.join(" · ")||"No statistically qualified candidate."});
   return;
  }
- const best=candidates[0];
- // The queue is ranked strongest-first. Always select rank #1; never rotate to a
- // lower-ranked near-tie or retain a weaker candidate merely for stability.
- const chosen=best;
- const selectionReason="Selected rank #1 strongest qualified candidate from the top-three purchase queue.";
+ const chosen=candidates[0];
+ const selectionReason="Selected rank #1 after statistical, live-feed, market-condition and direction-score gates all passed.";
  activeCandidateKey=candidateKey(chosen.symbol,chosen.setup);
  selected=chosen.symbol;
- refreshSignalValidity(chosen.setup.signal,chosen.setup.score,chosen.analysis.n,selectionReason+" "+chosen.setup.reason);
+ refreshSignalValidity(chosen.setup.signal,chosen.setup.score,chosen.analysis.n,selectionReason+" "+chosen.setup.reason,chosen.marketGuard);
 }
 function preferredSetup(a) {
  return qualifiedSetups(a)[0]||{signal:"WAIT",score:0,reason:a.digitReason||a.parityReason||a.directionReason||"No qualified setup."};
@@ -1488,20 +1518,20 @@ window.addEventListener("berur:candidate-queue-update",event=>{
  if(!panel){panel=document.createElement("section");panel.id="berur-candidate-queue";panel.className="card section";panel.style.borderTop="2px solid var(--teal)";panel.innerHTML="<h3>LIVE PURCHASE CANDIDATE QUEUE</h3><div id='berur-candidate-count' class='small'>Waiting for qualified candidates…</div><div id='berur-candidate-rows' class='tablewrap'></div>";radar.insertAdjacentElement("afterend",panel);}
  const list=Array.isArray(event.detail?.candidates)?event.detail.candidates:[];
  const count=document.getElementById("berur-candidate-count"),body=document.getElementById("berur-candidate-rows");
- if(count)count.textContent=Number(event.detail?.count||0)+" qualified candidates found • top 3 purchase-eligible; rank #1 first, ranks #2–#3 standby";
+ if(count)count.textContent=Number(event.detail?.count||0)+" fully eligible candidates • "+Number(event.detail?.blockedCount||0)+" blocked by the unified market guard; top 3 eligible only";
  if(!body)return;
  body.replaceChildren();
  if(!list.length){const p=document.createElement("p");p.className="note";p.textContent="NO QUALIFIED SETUP — waiting for fresh evidence. No forced purchases.";body.appendChild(p);return;}
  const table=document.createElement("table");table.style.minWidth="560px";
  const head=document.createElement("thead"),hr=document.createElement("tr");
- ["Rank","Market","Contract","Evidence","Samples","Selection"].forEach(v=>{const th=document.createElement("th");th.textContent=v;hr.appendChild(th);});head.appendChild(hr);table.appendChild(head);
+ ["Rank","Market","Contract","Evidence","Samples","Market guard","Selection"].forEach(v=>{const th=document.createElement("th");th.textContent=v;hr.appendChild(th);});head.appendChild(hr);table.appendChild(head);
  const tbody=document.createElement("tbody");
- list.slice(0,3).forEach((x,i)=>{const tr=document.createElement("tr");[String(i+1),marketName(x.symbol),x.signal,String(x.score)+"/100",String(x.sample),i===0?"PURCHASE FIRST":("STANDBY #"+(i+1))].forEach(v=>{const td=document.createElement("td");td.textContent=v;if(i===0)td.className="green";tr.appendChild(td);});tbody.appendChild(tr);});
+ list.slice(0,3).forEach((x,i)=>{const tr=document.createElement("tr");[String(i+1),marketName(x.symbol),x.signal,String(x.score)+"/100",String(x.sample),x.marketGuard?.regime||"GUARD PASS",i===0?"PURCHASE FIRST":("STANDBY #"+(i+1))].forEach(v=>{const td=document.createElement("td");td.textContent=v;if(i===0)td.className="green";tr.appendChild(td);});tbody.appendChild(tr);});
  table.appendChild(tbody);body.appendChild(table);
  let reasonPanel=document.getElementById("berur-purchase-reason-panel");
  if(!reasonPanel){reasonPanel=document.createElement("section");reasonPanel.id="berur-purchase-reason-panel";reasonPanel.className="card section";reasonPanel.style.borderTop="2px solid var(--amber)";reasonPanel.innerHTML="<h3>PURCHASE REASON & DECISION PANEL</h3><div id='berur-purchase-reason-main' class='note'></div><div id='berur-purchase-reason-next' class='note' style='margin-top:8px'></div><div class='note' style='margin-top:8px'>ENTRY GATES: Over/Under/Even/Odd require 300 observations and z-score ≥ 2.25. Rise/Fall require 120 observations, trend confirmation, direction score ≥ 70 and 3–5 tick duration. All require fresh feed, no cooldown and exact quote match. One open contract at a time.</div>";panel.insertAdjacentElement("afterend",reasonPanel);}
  const main=document.getElementById("berur-purchase-reason-main"),next=document.getElementById("berur-purchase-reason-next");
- if(main)main.textContent=list[0]?"RANK #1 — "+marketName(list[0].symbol)+" · "+list[0].signal+" · "+list[0].score+"/100 · "+list[0].sample+" observations. WHY: "+list[0].reason+". This candidate is sent for a quote first.":"NO PURCHASE: no candidate passed all strict entry gates. Waiting; no forced signal or trade.";
+ if(main)main.textContent=list[0]?"RANK #1 — "+marketName(list[0].symbol)+" · "+list[0].signal+" · "+list[0].score+"/100 · "+list[0].sample+" observations · "+(list[0].marketGuard?.regime||"GUARD PASS")+". WHY: "+list[0].reason+". "+(list[0].marketGuard?.reason||"Market guard passed")+". This candidate may proceed to quote validation.":"NO PURCHASE: "+Number(event.detail?.blockedCount||0)+" statistically qualified candidate(s) were blocked by the unified market guard. "+((event.detail?.blockedReasons||[]).join(" · ")||"No candidate passed all entry gates.")+". Waiting; no forced signal or trade.";
  if(next)next.textContent=[list[1]?"RANK #2 STANDBY — "+marketName(list[1].symbol)+" · "+list[1].signal+" · "+list[1].score+"/100. WHY: "+list[1].reason+". Eligible if rank #1 is rejected or after the current trade settles.":"RANK #2 — no second candidate currently qualifies.",list[2]?"RANK #3 STANDBY — "+marketName(list[2].symbol)+" · "+list[2].signal+" · "+list[2].score+"/100. WHY: "+list[2].reason+". Eligible when it becomes the strongest available candidate.":"RANK #3 — no third candidate currently qualifies."].join(" ");
 });
 function rankScore(m) {
@@ -1616,7 +1646,7 @@ function setupMarketAlerts(){
  const btn=$("marketAlertToggle");if(!btn||btn.dataset.ready)return;btn.dataset.ready="1";
  btn.addEventListener("click",async()=>{
   marketAlertSoundOn=!marketAlertSoundOn;
-  if(marketAlertSoundOn){const AC=window.AudioContext||window.webkitAudioContext;if(AC){marketAlertAudio=marketAlertAudio||new AC();try{await marketAlertAudio.resume();marketAlertPrimed=marketAlertAudio.state==="running";}catch(e){marketAlertPrimed=false;}}if(!marketAlertPrimed){marketAlertSoundOn=false;$("marketAlertToast").textContent="Sound is unavailable or blocked by this browser. Try again after allowing audio.";return;}btn.textContent="Disable sound alerts";$("marketAlertState").textContent="SOUND ON";marketAlertBeep();$("marketAlertToast").textContent="Sound alerts enabled. A short chime plays for new qualified Over/Under deviations.";}else{btn.textContent="Enable sound alerts";$("marketAlertState").textContent="SOUND OFF";$("marketAlertToast").textContent="Sound alerts are off. Visual alert history remains active.";}
+  if(marketAlertSoundOn){const AC=window.AudioContext||window.webkitAudioContext;if(AC){marketAlertAudio=marketAlertAudio||new AC();try{await marketAlertAudio.resume();marketAlertPrimed=marketAlertAudio.state==="running";}catch(e){marketAlertPrimed=false;}}if(!marketAlertPrimed){marketAlertSoundOn=false;$("marketAlertToast").textContent="Sound is unavailable or blocked by this browser. Try again after allowing audio.";return;}btn.textContent="Disable sound alerts";$("marketAlertState").textContent="SOUND ON";/* signal sounds disabled */$("marketAlertToast").textContent="Sound alerts enabled. A short chime plays for new qualified Over/Under deviations.";}else{btn.textContent="Enable sound alerts";$("marketAlertState").textContent="SOUND OFF";$("marketAlertToast").textContent="Sound alerts are off. Visual alert history remains active.";}
  });
 }
 function recordMarketAlert(symbol,side,candidate){
@@ -1629,7 +1659,7 @@ function recordMarketAlert(symbol,side,candidate){
  const msg=marketName(item.symbol)+" · "+item.label+" · evidence "+item.strength.toFixed(2)+" · "+item.time;
  const toast=$("marketAlertToast");if(toast)toast.textContent="NEW QUALIFIED SETUP — "+msg;
  const log=$("marketAlertLog");if(log)log.innerHTML="<b>Recent alerts:</b> "+marketAlertLog.map(x=>marketName(x.symbol)+" "+x.label+" ("+x.strength.toFixed(2)+") · "+x.time).join(" &nbsp; | &nbsp; ");
- marketAlertBeep();
+ /* signal sounds disabled */
 }
 const marketSignalMonitor={};
 function updateMarketSignalMonitor(symbol,side,candidate){
@@ -1638,7 +1668,7 @@ function updateMarketSignalMonitor(symbol,side,candidate){
   if(!item||item.label!==candidate.label){item=marketSignalMonitor[key]={label:candidate.label,history:[],lastSampleAt:0,lastConfirmed:now};}
   if(now-item.lastSampleAt>=15000||!item.history.length){item.history.push(candidate.strength);item.history=item.history.slice(-5);item.lastSampleAt=now;item.lastConfirmed=now;}
   item.strength=candidate.strength;item.active=true;
- }else if(item&&item.active){item.active=false;item.invalidatedAt=now;item.invalidationNotified=true;const toast=$("marketAlertToast");if(toast)toast.textContent="SIGNAL INVALIDATED — "+key.replace("|"," · ")+" "+item.label+" · "+new Date(now).toLocaleTimeString();marketInvalidationBeep();}
+ }else if(item&&item.active){item.active=false;item.invalidatedAt=now;item.invalidationNotified=true;const toast=$("marketAlertToast");if(toast)toast.textContent="SIGNAL INVALIDATED — "+key.replace("|"," · ")+" "+item.label+" · "+new Date(now).toLocaleTimeString();}
 }
 const marketFeedWarnings={};
 function renderMarketFeedHealth(){
@@ -1654,7 +1684,7 @@ function renderMarketFeedHealth(){
    marketFeedWarnings[symbol]=true;
    const msg="MARKET DATA STALE — "+marketName(symbol)+" · last live tick "+age+"s ago";
    const toast=$("marketAlertToast");if(toast)toast.textContent=msg;
-   marketInvalidationBeep();
+   /* signal/data sounds disabled */
   }else if(status!=="STALE"){marketFeedWarnings[symbol]=false;}
   const cls=status==="LIVE"?"green":status==="STALE"?"bad":status==="SLOW"||status==="HISTORY ONLY"?"gold":"";
   const tickTime=m.lastTickAt?new Date(m.lastTickAt).toLocaleTimeString():"—";
