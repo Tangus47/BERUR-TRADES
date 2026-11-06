@@ -124,7 +124,9 @@ test("persistent uncertain-purchase lock is saved before Deriv buy request",()=>
 function extractFunctionForConnectionTest(src,name){
  const start=src.indexOf("function "+name+"(");
  assert.ok(start>=0,"missing "+name);
- const open=src.indexOf("{",start);
+ const signatureEnd=src.indexOf("){",start);
+ assert.ok(signatureEnd>=0,"missing function body for "+name);
+ const open=signatureEnd+1;
  let depth=0;
  for(let i=open;i<src.length;i++){
   if(src[i]==="{")depth++;
