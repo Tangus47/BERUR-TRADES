@@ -5,6 +5,7 @@ on:
       - "adaptive-market-selection.js"
       - "index.html"
       - "tests/**"
+      - "cloudflare-worker/**"
       - ".github/workflows/adaptive-selector-tests.yml"
   push:
     branches:
