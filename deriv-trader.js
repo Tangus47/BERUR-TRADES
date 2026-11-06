@@ -148,7 +148,7 @@ window.addEventListener("online",()=>classifyConnectionIssue("NETWORK","Browser 
 function todayKey(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function riskStorageKey(){return "berur-risk-v1:"+(account?.account_id||account?.id||"unselected");}
 function riskControlsKey(){return "berur-risk-controls-v1:"+(account?.account_id||account?.id||"unselected");}
-function moneyFromCapital(pct){const balance=Number(accountBalance);return Number.isFinite(balance)&&balance>0?Math.round((balance*pct/100+Number.EPSILON)*100)/100:0;}
+function moneyFromCapital(pct){const balance=Number(accountBalance);return Number.isFinite(balance)&&balance>0?Math.floor((balance*pct/100+Number.EPSILON)*100)/100:0;}
 function saveRiskControls(){try{localStorage.setItem(riskControlsKey(),JSON.stringify({mode:"capital-percentage-v1"}));}catch{}}
 function loadRiskControls(){syncCapitalRisk(true);}
 function syncCapitalRisk(resetStake=false){
