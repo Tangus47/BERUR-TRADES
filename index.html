@@ -1479,7 +1479,7 @@ function refreshAutomaticBestSignal(){
  const selectionReason="Selected adaptive rank #1 ("+chosen.adaptiveScore+"/100). "+chosen.adaptiveMeta.reason+".";
  activeCandidateKey=candidateKey(chosen.symbol,chosen.setup);
  selected=chosen.symbol;
- refreshSignalValidity(chosen.setup.signal,chosen.adaptiveScore,chosen.analysis.n,selectionReason+" "+chosen.setup.reason);
+ refreshSignalValidity(chosen.setup.signal,chosen.setup.score,chosen.analysis.n,selectionReason+" "+chosen.setup.reason);
 }
 function preferredSetup(a) {
  return qualifiedSetups(a)[0]||{signal:"WAIT",score:0,reason:a.digitReason||a.parityReason||a.directionReason||"No qualified setup."};
@@ -1496,7 +1496,7 @@ window.addEventListener("berur:candidate-queue-update",event=>{
  if(!list.length){const p=document.createElement("p");p.className="note";p.textContent="NO QUALIFIED SETUP — waiting for fresh evidence. No forced purchases.";body.appendChild(p);return;}
  const table=document.createElement("table");table.style.minWidth="560px";
  const head=document.createElement("thead"),hr=document.createElement("tr");
- ["Rank","Market","Contract","Evidence","Samples","Selection"].forEach(v=>{const th=document.createElement("th");th.textContent=v;hr.appendChild(th);});head.appendChild(hr);table.appendChild(head);
+ ["Rank","Market","Contract","Adaptive","Samples","Selection"].forEach(v=>{const th=document.createElement("th");th.textContent=v;hr.appendChild(th);});head.appendChild(hr);table.appendChild(head);
  const tbody=document.createElement("tbody");
  list.slice(0,3).forEach((x,i)=>{const tr=document.createElement("tr");[String(i+1),marketName(x.symbol),x.signal,String(x.score)+"/100",String(x.sample),i===0?"PURCHASE FIRST":("STANDBY #"+(i+1))].forEach(v=>{const td=document.createElement("td");td.textContent=v;if(i===0)td.className="green";tr.appendChild(td);});tbody.appendChild(tr);});
  table.appendChild(tbody);body.appendChild(table);
