@@ -3,7 +3,30 @@ const APP_URL = APP_ORIGIN + "/BERUR-TRADES/";
 const REDIRECT_URI = "https://berur-trades-backend.tangusvincent47.workers.dev/oauth/callback";
 const AUTH_URL = "https://auth.deriv.com/oauth2/auth";
 const TOKEN_URL = "https://auth.deriv.com/oauth2/token";
-const ALLOWED_ORIGIN = APP_ORIGIN;
+const PREVIEW_ORIGINS = [
+  "https://berur-trades-adaptive-preview.pages.dev",
+  "https://adaptive-preview.berur-trades-adaptive-preview.pages.dev"
+];
+const ALLOWED_ORIGINS = new Set([APP_ORIGIN, ...PREVIEW_ORIGINS]);
+
+function isAllowedOrigin(origin) {
+  return ALLOWED_ORIGINS.has(origin);
+}
+
+function appUrlForOrigin(origin) {
+  if (!isAllowedOrigin(origin)) return APP_URL;
+  return origin === APP_ORIGIN ? APP_URL : origin + "/";
+}
+
+function requestReturnOrigin(request) {
+  const referer = request.headers.get("Referer") || "";
+  try {
+    const origin = new URL(referer).origin;
+    return isAllowedOrigin(origin) ? origin : APP_ORIGIN;
+  } catch {
+    return APP_ORIGIN;
+  }
+}
 
 function hex(bytes) {
   return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
@@ -25,9 +48,9 @@ async function challengeFor(verifier) {
 }
 
 function corsHeaders(origin) {
-  if (origin !== ALLOWED_ORIGIN) return {};
+  if (!isAllowedOrigin(origin)) return {};
   return {
-    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+    "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Admin-Key",
     "Access-Control-Max-Age": "600",
@@ -54,8 +77,8 @@ function redirect(url) {
   });
 }
 
-function appError(code) {
-  const target = new URL(APP_URL);
+function appError(code, returnOrigin = APP_ORIGIN) {
+  const target = new URL(appUrlForOrigin(returnOrigin));
   target.searchParams.set("oauth_error", code);
   return redirect(target.toString());
 }
@@ -76,11 +99,12 @@ export default {
 
       const state = randomHex(32);
       const verifier = randomHex(32);
+      const returnOrigin = requestReturnOrigin(request);
       const challenge = await challengeFor(verifier);
 
       await env.BERUR_SESSIONS.put(
         `oauth:${state}`,
-        JSON.stringify({ verifier, createdAt: Date.now() }),
+        JSON.stringify({ verifier, createdAt: Date.now(), returnOrigin }),
         { expirationTtl: 600 }
       );
 
@@ -98,19 +122,20 @@ export default {
 
     if (url.pathname === "/oauth/callback" && request.method === "GET") {
       const oauthError = url.searchParams.get("error");
-      if (oauthError) return appError("authorization_denied");
-
       const code = url.searchParams.get("code");
       const state = url.searchParams.get("state");
-      if (!code || !state || !/^[a-f0-9]{64}$/.test(state)) {
-        return appError("invalid_callback");
+      let saved = null;
+      if (state && /^[a-f0-9]{64}$/.test(state)) {
+        const sessionKey = `oauth:${state}`;
+        saved = await env.BERUR_SESSIONS.get(sessionKey, "json");
+        await env.BERUR_SESSIONS.delete(sessionKey);
       }
-
-      const sessionKey = `oauth:${state}`;
-      const saved = await env.BERUR_SESSIONS.get(sessionKey, "json");
-      await env.BERUR_SESSIONS.delete(sessionKey);
-
-      if (!saved || !saved.verifier) return appError("state_expired_or_invalid");
+      const returnOrigin = isAllowedOrigin(saved?.returnOrigin) ? saved.returnOrigin : APP_ORIGIN;
+      if (oauthError) return appError("authorization_denied", returnOrigin);
+      if (!code || !state || !/^[a-f0-9]{64}$/.test(state)) {
+        return appError("invalid_callback", returnOrigin);
+      }
+      if (!saved || !saved.verifier) return appError("state_expired_or_invalid", returnOrigin);
 
       const form = new URLSearchParams({
         grant_type: "authorization_code",
@@ -128,12 +153,12 @@ export default {
           body: form
         });
       } catch {
-        return appError("token_service_unavailable");
+        return appError("token_service_unavailable", returnOrigin);
       }
 
       const tokenData = await tokenResponse.json().catch(() => null);
       if (!tokenResponse.ok || !tokenData?.access_token) {
-        return appError("token_exchange_failed");
+        return appError("token_exchange_failed", returnOrigin);
       }
 
       const ticket = randomHex(32);
@@ -147,14 +172,14 @@ export default {
         { expirationTtl: 90 }
       );
 
-      const destination = new URL(APP_URL);
+      const destination = new URL(appUrlForOrigin(returnOrigin));
       destination.hash = new URLSearchParams({ oauth_ticket: ticket }).toString();
       return redirect(destination.toString());
     }
 
     if (url.pathname.startsWith("/api/subscription/")) {
       if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) });
-      if (origin !== ALLOWED_ORIGIN) return json({ error: "Origin not allowed" }, 403);
+      if (!isAllowedOrigin(origin)) return json({ error: "Origin not allowed" }, 403);
       const plans = { weekly: { days: 7, price: 150 }, monthly: { days: 30, price: 500 }, yearly: { days: 365, price: 4000 } };
       if (url.pathname === "/api/subscription/request" && request.method === "POST") {
         const body = await request.json().catch(() => null);
