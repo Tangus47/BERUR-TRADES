@@ -10,6 +10,8 @@ on:
       - "signal-intelligence.js"
       - "economic-news.js"
       - "deriv-trader.js"
+      - "cloudflare-worker/**"
+      - "tests/**"
       - ".github/workflows/preview-cloudflare-pages.yml"
   workflow_dispatch:
 
@@ -59,5 +61,20 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           npx --yes wrangler@4 pages deploy . --project-name=berur-trades-adaptive-preview --branch=adaptive-preview
+
+      - name: Verify isolated preview Worker health and CORS
+        env:
+          PREVIEW_WORKER: https://fix-demo-auto-execution-paused-berur-trades-backend.tangusvincent47.workers.dev
+          PREVIEW_ORIGIN: https://adaptive-preview.berur-trades-adaptive-preview.pages.dev
+        run: |
+          curl --fail --silent --show-error "$PREVIEW_WORKER/health" | grep -F '"status":"ok'
+          headers="$(mktemp)"
+          status="$(curl --silent --show-error --output /dev/null --dump-header "$headers" --write-out '%{http_code}' --request OPTIONS "$PREVIEW_WORKER/oauth/redeem" --header "Origin: $PREVIEW_ORIGIN" --header 'Access-Control-Request-Method: POST' --header 'Access-Control-Request-Headers: content-type')"
+          if [ "$status" != "204" ] || ! grep -iF "Access-Control-Allow-Origin: $PREVIEW_ORIGIN" "$headers"; then
+            echo "Preview Worker is not ready: expected a 204 CORS preflight response allowing $PREVIEW_ORIGIN."
+            cat "$headers"
+            exit 1
+          fi
+          echo "Isolated preview Worker health and CORS checks passed."
 
 # Keep this workflow on the adaptive branch until its isolated preview is validated.
