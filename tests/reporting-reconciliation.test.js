@@ -117,3 +117,50 @@ test("risk panel and connection header display the same session P/L",()=>{
  assert.equal(elements["bt-risk-daily-pl"].textContent,"4.81");
  assert.equal(elements["bt-risk-trades"].textContent,"149");
 });
+
+test("purchase acknowledgement retains the pending lock until portfolio reconciliation",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ const start=trader.indexOf('if(d.msg_type==="buy"&&d.buy)');
+ const end=trader.indexOf('if(d.msg_type==="proposal_open_contract"',start);
+ assert.ok(start>=0&&end>start,"expected purchase acknowledgement handler");
+ const handler=trader.slice(start,end);
+ assert.match(handler,/if\(!d\.buy\.contract_id\)/);
+ assert.doesNotMatch(handler,/clearPendingPurchase\(\)/);
+ assert.match(handler,/send\(\{portfolio:1\}\)/);
+});
+
+test("duplicate settlement event is ignored before audit and payout side effects",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ const start=trader.indexOf('if(d.msg_type==="proposal_open_contract"');
+ const end=trader.indexOf('ws.onerror=',start);
+ const handler=trader.slice(start,end);
+ const guard=handler.indexOf("riskState.settledContractIds.includes(settledId)");
+ const audit=handler.indexOf('auditPurchase("SETTLED"');
+ assert.ok(guard>=0&&audit>guard,"duplicate settlement guard must run before settlement audit");
+ assert.match(handler,/recordRiskTrade\(v,c\.contract_id\)/);
+});
+
+test("purchase rows do not count as settled trades",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ const addRow=extractFunction("addRow");
+ const record=extractFunction("recordRiskTrade");
+ assert.doesNotMatch(addRow,/dailyTrades\s*(\+\+|\+=|=)/);
+ assert.match(record,/dailyTrades=\(Number\(riskState\.dailyTrades\)\|\|0\)\+1/);
+ assert.match(record,/settledContractIds\.includes\(id\)/);
+});
+
+test("recovered broker contract metadata uses the broker's symbol, contract, barrier and purchase time",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ const context={account:{account_type:"demo",account_id:"demo-1",currency:"USD"},
+  riskState:{sessionNo:9},activeSessionNo:9,todayKey:()=>"2026-11-06",
+  Date,Number,String};
+ const recovered=loadFunction("recoveredTradeMeta",context);
+ const meta=recovered("12345",{contract_id:12345,underlying:"R_10",contract_type:"DIGITOVER",
+  barrier:4,duration:1,duration_unit:"t",buy_price:0.35,purchase_time:1793980000},{});
+ assert.equal(meta.market,"R_10");
+ assert.equal(meta.contractCode,"DIGITOVER");
+ assert.equal(meta.contractLabel,"Over 4");
+ assert.equal(meta.stake,0.35);
+ assert.equal(meta.contractId,"12345");
+ assert.equal(meta.accountType,"demo");
+});
