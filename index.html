@@ -297,6 +297,7 @@ a{font-weight:700}
     <div class="status" id="connection"><span class="dot"></span>Not connected</div>
     <div class="actions">
       <button class="primary" id="connectBtn">CONNECT & SCAN</button>
+      <button type="button" id="oauthConnectBtn">CONNECT DERIV</button>
       <button id="stopBtn" disabled>STOP</button>
     </div>
   </div>
@@ -2130,7 +2131,7 @@ setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
 </script>
 <script src="./signal-intelligence.js"></script>
 <script src="./economic-news.js?v=20261105-signal-panels-news-2"></script>
-<script src="./deriv-trader.js?v=20261106-connection-diagnostics-2"></script>
+<script src="./deriv-trader.js?v=20261106-oauth-connection-1"></script>
 <script>
 (function(){
   const greeting=document.getElementById("traderGreeting");
