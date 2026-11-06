@@ -497,7 +497,7 @@ a{font-weight:700}
   </div><!-- terminal-layout -->
 
   <section class="section card" id="market-ou-ranking">
-    <div class="radar-head"><div><h2 class="section-title">STRONGEST OVER / UNDER — MARKET RANKING</h2><p class="note">Each market gets its own strongest Over and strongest Under candidate, ranked by positive historical deviation from the uniform-digit baseline.</p></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button id="marketAlertToggle" type="button" class="btn">Enable sound alerts</button><span id="marketAlertState" class="pill">SOUND OFF</span></div></div><div id="marketAlertToast" class="note" role="status" aria-live="polite" style="margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:10px">Alerts appear here when a new qualified market setup is detected.</div><div id="marketAlertLog" class="note" style="margin-bottom:10px">No new alerts yet.</div>
+    <div class="radar-head"><div><h2 class="section-title">STRONGEST OVER / UNDER — MARKET RANKING</h2><p class="note">Each market gets its own strongest Over and strongest Under candidate, ranked by positive historical deviation from the uniform-digit baseline.</p></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="marketAlertState" class="pill">SIGNALS SILENT</span></div></div><div id="marketAlertToast" class="note" role="status" aria-live="polite" style="margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:10px">Visual-only market alerts. Purchase and settlement sounds are separate.</div><div id="marketAlertLog" class="note" style="margin-bottom:10px">No new alerts yet.</div>
     <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Market</th><th>Strongest Over</th><th>Observed / Baseline</th><th>Strength</th><th>Strongest Under</th><th>Observed / Baseline</th><th>Strength</th><th>Even strength</th><th>Odd strength</th><th>Sample</th></tr></thead><tbody id="marketOURankingRows"><tr><td colspan="10">Collecting independent market samples…</td></tr></tbody></table></div>
     <div style="margin-top:18px" id="best-contract-markets">
       <h3 class="section-title">BEST MARKET — INDEPENDENT CONTRACT RANKINGS</h3>
@@ -1613,11 +1613,9 @@ function marketAlertBeep(){
  try{const now=marketAlertAudio.currentTime;[0,0.22].forEach((offset,i)=>{const osc=marketAlertAudio.createOscillator(),gain=marketAlertAudio.createGain();osc.type="sine";osc.frequency.value=i?1046:784;gain.gain.setValueAtTime(0.0001,now+offset);gain.gain.exponentialRampToValueAtTime(0.16,now+offset+0.02);gain.gain.exponentialRampToValueAtTime(0.0001,now+offset+0.16);osc.connect(gain);gain.connect(marketAlertAudio.destination);osc.start(now+offset);osc.stop(now+offset+0.17);});}catch(e){}
 }
 function setupMarketAlerts(){
- const btn=$("marketAlertToggle");if(!btn||btn.dataset.ready)return;btn.dataset.ready="1";
- btn.addEventListener("click",async()=>{
-  marketAlertSoundOn=!marketAlertSoundOn;
-  if(marketAlertSoundOn){const AC=window.AudioContext||window.webkitAudioContext;if(AC){marketAlertAudio=marketAlertAudio||new AC();try{await marketAlertAudio.resume();marketAlertPrimed=marketAlertAudio.state==="running";}catch(e){marketAlertPrimed=false;}}if(!marketAlertPrimed){marketAlertSoundOn=false;$("marketAlertToast").textContent="Sound is unavailable or blocked by this browser. Try again after allowing audio.";return;}btn.textContent="Disable sound alerts";$("marketAlertState").textContent="SOUND ON";marketAlertBeep();$("marketAlertToast").textContent="Sound alerts enabled. A short chime plays for new qualified Over/Under deviations.";}else{btn.textContent="Enable sound alerts";$("marketAlertState").textContent="SOUND OFF";$("marketAlertToast").textContent="Sound alerts are off. Visual alert history remains active.";}
- });
+ marketAlertSoundOn=false;
+ const state=$("marketAlertState");if(state)state.textContent="SIGNALS SILENT";
+ const toast=$("marketAlertToast");if(toast)toast.textContent="Market signals are visual only. Purchase confirmation and settlement sounds are reserved for actual trades.";
 }
 function recordMarketAlert(symbol,side,candidate){
  const key=symbol+"|"+side,signature=candidate?candidate.label+"|"+candidate.strength.toFixed(2):"";
@@ -1629,7 +1627,7 @@ function recordMarketAlert(symbol,side,candidate){
  const msg=marketName(item.symbol)+" · "+item.label+" · evidence "+item.strength.toFixed(2)+" · "+item.time;
  const toast=$("marketAlertToast");if(toast)toast.textContent="NEW QUALIFIED SETUP — "+msg;
  const log=$("marketAlertLog");if(log)log.innerHTML="<b>Recent alerts:</b> "+marketAlertLog.map(x=>marketName(x.symbol)+" "+x.label+" ("+x.strength.toFixed(2)+") · "+x.time).join(" &nbsp; | &nbsp; ");
- marketAlertBeep();
+ /* market signals are silent */
 }
 const marketSignalMonitor={};
 function updateMarketSignalMonitor(symbol,side,candidate){
@@ -1638,7 +1636,7 @@ function updateMarketSignalMonitor(symbol,side,candidate){
   if(!item||item.label!==candidate.label){item=marketSignalMonitor[key]={label:candidate.label,history:[],lastSampleAt:0,lastConfirmed:now};}
   if(now-item.lastSampleAt>=15000||!item.history.length){item.history.push(candidate.strength);item.history=item.history.slice(-5);item.lastSampleAt=now;item.lastConfirmed=now;}
   item.strength=candidate.strength;item.active=true;
- }else if(item&&item.active){item.active=false;item.invalidatedAt=now;item.invalidationNotified=true;const toast=$("marketAlertToast");if(toast)toast.textContent="SIGNAL INVALIDATED — "+key.replace("|"," · ")+" "+item.label+" · "+new Date(now).toLocaleTimeString();marketInvalidationBeep();}
+ }else if(item&&item.active){item.active=false;item.invalidatedAt=now;item.invalidationNotified=true;const toast=$("marketAlertToast");if(toast)toast.textContent="SIGNAL INVALIDATED — "+key.replace("|"," · ")+" "+item.label+" · "+new Date(now).toLocaleTimeString();/* market invalidation is silent */}
 }
 const marketFeedWarnings={};
 function renderMarketFeedHealth(){
@@ -1654,7 +1652,7 @@ function renderMarketFeedHealth(){
    marketFeedWarnings[symbol]=true;
    const msg="MARKET DATA STALE — "+marketName(symbol)+" · last live tick "+age+"s ago";
    const toast=$("marketAlertToast");if(toast)toast.textContent=msg;
-   marketInvalidationBeep();
+   /* stale-feed alerts are visual only */
   }else if(status!=="STALE"){marketFeedWarnings[symbol]=false;}
   const cls=status==="LIVE"?"green":status==="STALE"?"bad":status==="SLOW"||status==="HISTORY ONLY"?"gold":"";
   const tickTime=m.lastTickAt?new Date(m.lastTickAt).toLocaleTimeString():"—";
