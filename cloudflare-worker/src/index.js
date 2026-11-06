@@ -98,7 +98,10 @@ export default {
 
     if (url.pathname === "/oauth/callback" && request.method === "GET") {
       const oauthError = url.searchParams.get("error");
-      if (oauthError) return appError("authorization_denied");
+      if (oauthError) {
+        const safeCode = /^[a-z0-9_-]{1,60}$/i.test(oauthError) ? oauthError : "authorization_denied";
+        return appError(safeCode);
+      }
 
       const code = url.searchParams.get("code");
       const state = url.searchParams.get("state");
