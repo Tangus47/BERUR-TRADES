@@ -1,0 +1,21 @@
+name: Adaptive selector tests
+on:
+  pull_request:
+    paths:
+      - "adaptive-market-selection.js"
+      - "index.html"
+      - "tests/**"
+      - "cloudflare-worker/**"
+      - ".github/workflows/adaptive-selector-tests.yml"
+  push:
+    branches:
+      - feature/adaptive-market-selection
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test tests/*.test.js
