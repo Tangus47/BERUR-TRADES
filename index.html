@@ -1336,7 +1336,7 @@ function analyze(m) {
 
  const ouCandidates = [];
  let digitSignal = "WAIT";
- let digitReason = "Strict entry set: Over 3/4/5 and Under 5/6/7; minimum 300 observations and z-score 2.25.";
+ let digitReason = "Strict entry set: Over 3–6, Under 4–7, plus qualified Odd/Even; minimum 300 observations and z-score 2.25.";
  if (n >= 150) {
    for (let barrier = 0; barrier <= 9; barrier++) {
      const validN = n;
@@ -1359,7 +1359,7 @@ function analyze(m) {
      }
    }
    const ranked = ouCandidates
-     .filter(x => !x.impossible && x.validN >= 300 && x.deviation > 0 && x.strength >= 2.25 && ((x.side === "OVER" && x.barrier >= 3 && x.barrier <= 5) || (x.side === "UNDER" && x.barrier >= 5 && x.barrier <= 7)))
+     .filter(x => !x.impossible && x.validN >= 300 && x.deviation > 0 && x.strength >= 2.25 && ((x.side === "OVER" && x.barrier >= 3 && x.barrier <= 6) || (x.side === "UNDER" && x.barrier >= 4 && x.barrier <= 7)))
      .sort((x,y) => y.strength - x.strength);
    const strongest = ranked[0];
    if (strongest && strongest.strength >= 2) {
@@ -1424,7 +1424,7 @@ let autoCandidateCursor=0;
 function qualifiedSetups(a){
  const ranked=[];
  (a.ouCandidates||[]).forEach(x=>{
-  const allowed=(x.side==="UNDER"&&(x.barrier===2||x.barrier===3))||(x.side==="OVER"&&(x.barrier===6||x.barrier===7||x.barrier===8));
+  const allowed=(x.side==="UNDER"&&x.barrier>=4&&x.barrier<=7)||(x.side==="OVER"&&x.barrier>=3&&x.barrier<=6);
   if(!allowed||x.impossible||x.validN<300||x.deviation<=0||x.strength<2.25)return;
   ranked.push({signal:x.label,score:Math.min(95,Math.round(65+(x.strength-2.25)*15)),strength:x.strength,sample:x.validN,reason:x.label+" qualified: observed "+(x.observed*100).toFixed(1)+"% vs baseline "+(x.expected*100).toFixed(1)+"%; positive edge, z="+x.strength.toFixed(2)+", n="+x.validN,contract:x.side==="OVER"?"DIGITOVER":"DIGITUNDER",barrier:x.barrier});
  });
