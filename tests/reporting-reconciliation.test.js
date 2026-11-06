@@ -68,7 +68,7 @@ test("distinct settled contracts each update the risk totals once",()=>{
 
 test("DEMO journal rebuilds today's settled count and preserves known contract IDs",()=>{
  const todayStart=new Date().setHours(0,0,0,0);
- const state={dailyTrades:187,settledContractIds:["older-id"]};
+ const state={dailyTrades:187,dailyPL:4.81,sessionPL:2.04,settledContractIds:["older-id"]};
  const context={
   account:{account_type:"demo",account_id:"demo-1"},
   riskState:state,
@@ -81,6 +81,8 @@ test("DEMO journal rebuilds today's settled count and preserves known contract I
  };
  loadFunction("syncDemoRiskFromJournal",context)();
  assert.equal(state.dailyTrades,2);
+ assert.equal(state.dailyPL,4.81);
+ assert.equal(state.sessionPL,2.04);
  assert.deepEqual(Array.from(state.settledContractIds),["older-id","today-1","today-2","yesterday-1"]);
 });
 
