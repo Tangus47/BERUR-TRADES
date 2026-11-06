@@ -18,7 +18,7 @@ function makeWorker(fetchImpl=async()=>new Response("{}",{status:200})){
   btoa:value=>Buffer.from(value,"binary").toString("base64"),
   fetch:fetchImpl
  };
- vm.runInNewContext(source.replace("export default {","globalThis.__worker = {")+";}",sandbox);
+ vm.runInNewContext(source.replace("export default {","globalThis.__worker = {"),sandbox);
  return sandbox.__worker;
 }
 function makeKv(){
