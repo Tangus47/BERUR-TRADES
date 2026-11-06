@@ -930,7 +930,7 @@ function connect() {
    }
    if(data.msg_type==="candles" && info && String(info.type).startsWith("cfd-tf-")){
      const m=cfdMarkets[info.symbol],granularity=Number(String(info.type).slice(7));
-     if(m){const candles=(data.candles||[]).map(c=>({time:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})).filter(c=>c.time>0&&Number.isFinite(c.close));m.timeframes=m.timeframes||{};m.timeframes[granularity]=candles;renderCfdCentre();renderBoomCrashCentre();}
+     if(m){const candles=(data.candles||[]).map(c=>({time:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})).filter(c=>c.time>0&&Number.isFinite(c.close));m.timeframes=m.timeframes||{};m.timeframesUpdatedAt=m.timeframesUpdatedAt||{};m.timeframes[granularity]=candles;m.timeframesUpdatedAt[granularity]=Date.now();renderCfdCentre();renderBoomCrashCentre();}
      delete requestMap[data.req_id];
    }
    if (data.msg_type === "tick" && data.tick) {
@@ -990,11 +990,19 @@ function classifyCfdInstrument(item){
  return {symbol,name:item.display_name||item.symbol,category};
 }
 function cfdPriority(category){return ({BOOMCRASH:0,METALS:1,FOREX:2,INDICES:3,COMMODITIES:4,CRYPTO:5})[category]??9;}
+let cfdRefreshCursor=0;
 function loadCfdMarket(symbol){
  if(!cfdMarkets[symbol]||!socket||socket.readyState!==WebSocket.OPEN)return;
+ const market=cfdMarkets[symbol];market.timeframesRequestedAt=Date.now();
  request({ticks_history:symbol,count:200,end:"latest",style:"ticks"},"cfd-history",symbol);
  [60,300,900,3600].forEach(granularity=>request({ticks_history:symbol,count:100,end:"latest",style:"candles",granularity},"cfd-tf-"+granularity,symbol));
  request({ticks:symbol,subscribe:1},"cfd-tick",symbol);
+}
+function refreshCfdTimeframes(){
+ if(!running||!socket||socket.readyState!==WebSocket.OPEN)return;
+ const symbols=Object.keys(cfdMarkets);if(!symbols.length)return;
+ const now=Date.now();let checked=0;
+ while(checked<symbols.length){const index=cfdRefreshCursor%symbols.length,symbol=symbols[index],market=cfdMarkets[symbol];cfdRefreshCursor=(index+1)%symbols.length;checked++;if(!market||now-Number(market.timeframesRequestedAt||0)<45000)continue;market.timeframesRequestedAt=now;[60,300,900,3600].forEach(granularity=>request({ticks_history:symbol,count:100,end:"latest",style:"candles",granularity},"cfd-tf-"+granularity,symbol));break;}
 }
 function cfdEscape(value){return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
 function signalStrengthMarkup(score,favourable,reason){
@@ -1031,7 +1039,9 @@ function cfdBaseAnalyze(m){
 }
 function cfdTimeframeTrend(m,granularity){
  const bars=m.timeframes&&m.timeframes[granularity]||[];
- if(bars.length<20)return {direction:"WAIT",count:bars.length};
+ const updated=Number(m.timeframesUpdatedAt&&m.timeframesUpdatedAt[granularity]||0),ageMs=updated?Date.now()-updated:Infinity;
+ if(!updated||ageMs>120000)return {direction:"WAIT",count:bars.length,stale:true,ageMs};
+ if(bars.length<20)return {direction:"WAIT",count:bars.length,stale:false,ageMs};
  const closes=bars.map(x=>x.close),fast=ema(closes.slice(-40),5),slow=ema(closes.slice(-60),13);
  return {direction:fast>slow?"BUY":fast<slow?"SELL":"WAIT",count:bars.length};
 }
@@ -2108,6 +2118,7 @@ window.addEventListener("online",()=>{if(running)startAutomaticSystem();});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden && running && (!socket || socket.readyState===WebSocket.CLOSED))startAutomaticSystem();});
 setTimeout(startAutomaticSystem,350);
 setInterval(()=>{if(running&&socket&&socket.readyState===WebSocket.OPEN){renderCfdCentre();renderBoomCrashCentre();}},3000);
+setInterval(refreshCfdTimeframes,1000);
 setInterval(updateCfdSignalClocks,1000);
 $("botSessionStart").addEventListener("click",startBotSessionTimer);
 $("botSessionReset").addEventListener("click",resetBotSessionTimer);
