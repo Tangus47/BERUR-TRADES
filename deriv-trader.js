@@ -14,7 +14,7 @@ let sessionId=null,accounts=[],account=null,ws=null,proposal=null,proposalContex
 let reconnectTimer=null,reconnectAttempts=0,manualDisconnect=false;
 let latestAnalysisSignal=null,lastAutoSignalKey="",lastAutoTickSequence=0;
 let autoQuoteSignal=null,autoQuotePending=false,autoFirstApprovalPending=false,autoFirstApprovalSignal=null,autoFirstApprovalDeadline=0,proposalTimer=null,buyConfirmTimer=null,submittedTradeSignal=null;
-let riskState={day:"",dailyPL:0,sessionPL:0,dailyTrades:0,lossStreak:0,halted:false,reason:""},riskKey="";
+let riskState={day:"",dailyPL:0,sessionPL:0,dailyTrades:0,lossStreak:0,halted:false,reason:"",settledContractIds:[]},riskKey="";
 const openContracts = new Map();
 const openTradeMeta = new Map();
 function pendingPurchaseKey(){return "berur-pending-buy-v1:"+(account?.account_id||account?.id||"unknown");}
