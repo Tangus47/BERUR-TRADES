@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "adaptive-market-selection.js"
+      - "index.html"
       - "tests/**"
       - ".github/workflows/adaptive-selector-tests.yml"
   push:
