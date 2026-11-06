@@ -240,6 +240,7 @@ a{font-weight:700}
 @media(max-width:800px){#analysis{grid-template-columns:1fr}#analysis>.card{min-height:0;padding:18px}#analysis #contractReason{min-height:0}}
 
 </style>
+<script src="./adaptive-market-selection.js?v=20261106-adaptive-1"></script>
 <script>
 (function(){
   try { if(new URLSearchParams(location.search).get("distribution")==="play") document.documentElement.classList.add("play-store-build"); } catch(e) {}
@@ -1463,18 +1464,19 @@ function refreshAutomaticBestSignal(){
    candidates.push({symbol,market,analysis,setup});
   });
  });
- candidates.sort((a,b)=>b.setup.score-a.setup.score||b.setup.strength-a.setup.strength||b.setup.sample-a.setup.sample||b.market.updated-a.market.updated);
- window.dispatchEvent(new CustomEvent("berur:candidate-queue-update",{detail:{count:candidates.length,candidates:candidates.slice(0,3).map((x,i)=>({rank:i+1,symbol:x.symbol,signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier,score:x.setup.score,sample:x.setup.sample,reason:x.setup.reason}))}}));
+ const ranked=window.BERURAdaptiveMarketSelector?.rank(candidates,now)||[];
+ if(!ranked.length){activeCandidateKey=null;activeSignal=null;window.dispatchEvent(new CustomEvent("berur:candidate-queue-update",{detail:{count:0,candidates:[]}}));window.dispatchEvent(new CustomEvent("berur:signal-update",{detail:{signalId:"",tradeAllowed:false}}));return;}
+ candidates.splice(0,candidates.length,...ranked);
+ window.dispatchEvent(new CustomEvent("berur:candidate-queue-update",{detail:{count:candidates.length,candidates:candidates.slice(0,3).map((x,i)=>({rank:i+1,symbol:x.symbol,signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier,score:x.adaptiveScore,baseScore:x.setup.score,sample:x.setup.sample,reason:x.setup.reason+" Adaptive rank "+x.adaptiveScore+"/100: "+x.adaptiveMeta.reason}))}}));
  if(!candidates.length){
   activeCandidateKey=null;activeSignal=null;
   window.dispatchEvent(new CustomEvent("berur:signal-update",{detail:{signalId:"",tradeAllowed:false}}));
   return;
  }
  const best=candidates[0];
- // The queue is ranked strongest-first. Always select rank #1; never rotate to a
- // lower-ranked near-tie or retain a weaker candidate merely for stability.
+ // Adaptive rank considers feed health, sample adequacy, evidence, stability and volatility. Existing quote and risk gates remain authoritative.
  const chosen=best;
- const selectionReason="Selected rank #1 strongest qualified candidate from the top-three purchase queue.";
+ const selectionReason="Selected adaptive rank #1 ("+chosen.adaptiveScore+"/100). "+chosen.adaptiveMeta.reason+".";
  activeCandidateKey=candidateKey(chosen.symbol,chosen.setup);
  selected=chosen.symbol;
  refreshSignalValidity(chosen.setup.signal,chosen.setup.score,chosen.analysis.n,selectionReason+" "+chosen.setup.reason);
