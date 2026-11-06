@@ -34,15 +34,15 @@ test("returns no candidate with fewer than ten distinct recent quotes",()=>{
 });
 test("retains the previous leader when a challenger is within six points",()=>{
  const rank=selector();
- const first=rank([candidate("A",{strength:4.5}),candidate("B",{strength:4.0})],100000);
+ const first=rank.rank([candidate("A",{strength:4.5}),candidate("B",{strength:4.0})],100000);
  assert.equal(first[0].symbol,"A");
- const second=rank([candidate("B",{strength:4.1}),candidate("A",{strength:4.5})],100001);
+ const second=rank.rank([candidate("B",{strength:4.1}),candidate("A",{strength:4.5})],100001);
  assert.equal(second[0].symbol,"A");
 });
 test("switches when a new candidate clearly outranks the previous leader",()=>{
  const rank=selector();
- rank([candidate("A",{strength:3.5}),candidate("B",{strength:3.0})],100000);
- const next=rank([candidate("A",{strength:3.5}),candidate("B",{strength:6.5})],100001);
+ rank.rank([candidate("A",{strength:3.5}),candidate("B",{strength:3.0})],100000);
+ const next=rank.rank([candidate("A",{strength:3.5}),candidate("B",{strength:6.5})],100001);
  assert.equal(next[0].symbol,"B");
 });
 test("accepts a fresh directional candidate with its lower sample threshold",()=>{
