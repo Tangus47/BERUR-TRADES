@@ -120,3 +120,48 @@ test("persistent uncertain-purchase lock is saved before Deriv buy request",()=>
  const send=trader.indexOf("send({buy:proposal.id,price:ask})");
  assert.ok(lock>=0&&send>lock,"purchase safety lock must be persisted before sending buy");
 });
+
+function extractFunctionForConnectionTest(src,name){
+ const start=src.indexOf("function "+name+"(");
+ assert.ok(start>=0,"missing "+name);
+ const open=src.indexOf("{",start);
+ let depth=0;
+ for(let i=open;i<src.length;i++){
+  if(src[i]==="{")depth++;
+  if(src[i]==="}")depth--;
+  if(depth===0)return src.slice(start,i+1);
+ }
+ throw new Error("unterminated "+name);
+}
+
+test("connection classifier distinguishes authorization, rate limits and gateway outages",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ const context={
+  navigator:{onLine:true},Date,String,Number,RegExp,
+  connectionDiagnostics:[],renderConnectionDiagnostics(){}
+ };
+ vm.runInNewContext(extractFunctionForConnectionTest(trader,"classifyConnectionIssue")+";globalThis.classify=classifyConnectionIssue",context);
+ assert.equal(context.classify("CONNECT_ATTEMPT","Session expired",{status:401}).category,"AUTHORIZATION REQUIRED");
+ assert.equal(context.classify("CONNECT_ATTEMPT","Too many requests",{status:429}).category,"GATEWAY RATE LIMIT");
+ assert.equal(context.classify("CONNECT_ATTEMPT","Failed to fetch",{status:0,online:true}).category,"NETWORK / WORKER UNREACHABLE");
+ assert.equal(context.classify("WORKER_RESPONSE","Invalid JSON",{status:502}).category,"INVALID GATEWAY RESPONSE");
+});
+
+test("account gateway failures preserve HTTP status and Deriv error code for diagnosis",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ assert.match(trader,/e\.connectionKind="CONNECT_ATTEMPT";e\.httpStatus=r\.status;e\.apiCode=j\.errors\?\.\[0\]\?\.code\|\|""/);
+ assert.match(trader,/e\.connectionKind="WORKER_RESPONSE"/);
+});
+
+test("automatic reconnect pauses after authorization rejection instead of retrying a bad session",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ assert.match(trader,/status===401\|\|status===403/);
+ assert.match(trader,/RECONNECT PAUSED · Deriv authorization or session was rejected/);
+ assert.match(trader,/\$\("bt-conn"\)\.textContent="Authorization required"/);
+});
+
+test("gateway rate limits apply a minimum 60-second reconnect delay",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ assert.match(trader,/status===429[\s\S]{0,250}scheduleAccountReconnect\([^;]+,60000\)/);
+ assert.match(trader,/Math\.max\(Number\(minimumDelay\)\|\|0,Math\.min\(30000,2000\*Math\.pow/);
+});
