@@ -1,0 +1,19 @@
+name: Reporting reconciliation tests
+on:
+  pull_request:
+    paths:
+      - "deriv-trader.js"
+      - "tests/reporting-reconciliation.test.js"
+      - ".github/workflows/reporting-reconciliation-tests.yml"
+  push:
+    branches:
+      - fix/settlement-reporting-reconciliation
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test tests/reporting-reconciliation.test.js
