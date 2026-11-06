@@ -12,7 +12,9 @@ function extractFunction(name){
  const marker="function "+name+"(";
  const start=source.indexOf(marker);
  assert.ok(start>=0,"missing "+name+" in deriv-trader.js");
- const open=source.indexOf("{",start);
+ const signatureEnd=source.indexOf("){",start);
+ assert.ok(signatureEnd>=0,"missing function body for "+name);
+ const open=signatureEnd+1;
  let depth=0;
  for(let i=open;i<source.length;i++){
   if(source[i]==="{")depth++;
