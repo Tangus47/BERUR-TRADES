@@ -96,3 +96,23 @@ test("automatic execution remains DEMO-only outside preview as well",()=>{
  const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
  assert.match(trader,/function startAuto\(\)\{if\(!account\|\|account\.account_type!==\"demo\"\)/);
 });
+
+test("execution desk JavaScript parses without syntax errors",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ assert.doesNotThrow(()=>new vm.Script(trader,{filename:"deriv-trader.js"}));
+});
+
+test("purchase requires broker reconciliation, fresh quote context and risk clearance",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ assert.match(trader,/function buy\(\)\{if\(!reconciliationReady\|\|readPendingPurchase\(\)\)/);
+ assert.match(trader,/if\(!quoteContextMatches\(\)\)/);
+ assert.match(trader,/const blocked=riskLimitReason\(\);if\(blocked\)/);
+ assert.match(trader,/if\(openContracts\.size>=maxOpenTrades\(\)\)/);
+});
+
+test("persistent uncertain-purchase lock is saved before Deriv buy request",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ const lock=trader.indexOf("savePendingPurchase({submittedAt:Date.now()");
+ const send=trader.indexOf("send({buy:proposal.id,price:ask})");
+ assert.ok(lock>=0&&send>lock,"purchase safety lock must be persisted before sending buy");
+});
