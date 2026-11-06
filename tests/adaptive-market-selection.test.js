@@ -105,7 +105,7 @@ test("execution desk JavaScript parses without syntax errors",()=>{
 test("purchase requires broker reconciliation, fresh quote context and risk clearance",()=>{
  const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
  const start=trader.indexOf("function buy(){");
- const end=trader.indexOf("\\nfunction ",start+1);
+ const end=trader.indexOf("\nfunction ",start+1);
  assert.ok(start>=0&&end>start,"expected a standalone buy function");
  const buyBody=trader.slice(start,end);
  assert.match(buyBody,/!reconciliationReady\|\|readPendingPurchase\(\)/);
