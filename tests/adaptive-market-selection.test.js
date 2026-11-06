@@ -74,3 +74,25 @@ test("all inline JavaScript blocks in index.html parse without syntax errors",()
   assert.doesNotThrow(()=>new vm.Script(code,{filename:"index-inline-"+index+".js"}));
  }
 });
+
+test("isolated preview defaults to the dedicated preview Worker",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ assert.match(trader,/const ISOLATED_PREVIEW=location\.hostname\.endsWith\("\.pages\.dev"\)/);
+ assert.match(trader,/const WORKER=ISOLATED_PREVIEW\?PREVIEW_WORKER:/);
+});
+
+test("isolated preview exposes DEMO accounts only",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ assert.match(trader,/receivedAccounts\.filter\(a=>a\.account_type===\"demo\"\)/);
+});
+
+test("isolated preview blocks REAL account connection and purchases",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ assert.match(trader,/ISOLATED_PREVIEW&&account\.account_type!==\"demo\"/);
+ assert.match(trader,/Isolated preview is DEMO-only\. REAL-money purchases are blocked\./);
+});
+
+test("automatic execution remains DEMO-only outside preview as well",()=>{
+ const trader=readFileSync(join(here,"..","deriv-trader.js"),"utf8");
+ assert.match(trader,/function startAuto\(\)\{if\(!account\|\|account\.account_type!==\"demo\"\)/);
+});
