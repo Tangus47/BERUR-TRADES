@@ -230,7 +230,7 @@ export default {
       if (request.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: corsHeaders(origin) });
       }
-      if (origin !== ALLOWED_ORIGIN) {
+      if (!isAllowedOrigin(origin)) {
         return json({ error: "Origin not allowed" }, 403);
       }
       const sessionId = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
@@ -270,7 +270,7 @@ export default {
       if (request.method !== "POST") {
         return json({ error: "Method not allowed" }, 405);
       }
-      if (origin !== ALLOWED_ORIGIN) {
+      if (!isAllowedOrigin(origin)) {
         return json({ error: "Origin not allowed" }, 403);
       }
 
