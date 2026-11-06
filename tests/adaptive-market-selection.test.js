@@ -63,3 +63,14 @@ test("adaptive score is not passed into the existing signal validity guard",()=>
  assert.match(page,/refreshSignalValidity\(chosen\.setup\.signal,chosen\.setup\.score,/);
  assert.doesNotMatch(page,/refreshSignalValidity\(chosen\.setup\.signal,chosen\.adaptiveScore,/);
 });
+
+
+test("all inline JavaScript blocks in index.html parse without syntax errors",()=>{
+ const page=readFileSync(join(here,"..","index.html"),"utf8");
+ const blocks=[...page.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
+  .map(match=>match[1]).filter(code=>code.trim());
+ assert.ok(blocks.length>0,"expected inline JavaScript blocks");
+ for(const [index,code] of blocks.entries()){
+  assert.doesNotThrow(()=>new vm.Script(code,{filename:"index-inline-"+index+".js"}));
+ }
+});
