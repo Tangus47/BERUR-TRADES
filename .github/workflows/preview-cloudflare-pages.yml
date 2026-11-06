@@ -59,3 +59,5 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           npx --yes wrangler@4 pages deploy . --project-name=berur-trades-adaptive-preview --branch=adaptive-preview
+
+# Keep this workflow on the adaptive branch until its isolated preview is validated.
