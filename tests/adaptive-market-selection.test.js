@@ -51,3 +51,15 @@ test("accepts a fresh directional candidate with its lower sample threshold",()=
  assert.equal(rank.length,1);
  assert.equal(rank[0].symbol,"CALL");
 });
+
+
+test("production page loads the adaptive selector before the inline app code",()=>{
+ const page=readFileSync(join(here,"..","index.html"),"utf8");
+ assert.match(page,/<script src="\.\.\/adaptive-market-selection\.js\?v=20261106-adaptive-1"><\/script>/);
+ assert.match(page,/BERURAdaptiveMarketSelector\?\.rank\(candidates,now\)/);
+});
+test("adaptive score is not passed into the existing signal validity guard",()=>{
+ const page=readFileSync(join(here,"..","index.html"),"utf8");
+ assert.match(page,/refreshSignalValidity\(chosen\.setup\.signal,chosen\.setup\.score,/);
+ assert.doesNotMatch(page,/refreshSignalValidity\(chosen\.setup\.signal,chosen\.adaptiveScore,/);
+});
