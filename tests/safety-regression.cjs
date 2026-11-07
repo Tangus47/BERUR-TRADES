@@ -23,7 +23,7 @@ has(trader, /function persistOpenTradeState\(\)/, "Open contracts must be persis
 has(trader, /function restoreOpenTradeState\(\)/, "Open contracts must be restored before broker reconciliation.");
 has(trader, /restoreOpenTradeState\(\);loadRiskState\(\);await connectAccount\(\)/, "Saved open contracts must be restored before the authenticated connection is reconciled.");
 has(trader, /persistOpenTradeState\(\);updateRow\(settledId/, "Settlement must remove the saved open-contract record.");
-has(trader, /openTradeMeta\.set\(String\(id\),meta\);openContracts\.set\(String\(id\),true\);persistOpenTradeState\(\)/, "Newly purchased contracts must be inserted before their recovery snapshot is saved.");
+has(trader, /openTradeMeta\.set\(String\(id\),meta\);if\(!openContracts\.has\(String\(id\)\)\)openContracts\.set\(String\(id\),brokerContract&&typeof brokerContract==="object"\?brokerContract:\{contract_id:String\(id\)\}\);persistOpenTradeState\(\)/, "New contracts must be persisted before the snapshot, while retaining the broker contract details already received.");
 has(trader, /if\(settlementAlreadyRecorded\(settledId\)\)\{openContracts\.delete\(settledId\);openTradeMeta\.delete\(settledId\);persistOpenTradeState\(\)/, "Duplicate settlement notifications must not record the same contract result twice.");
 has(html, /DERIV MARKET INTELLIGENCE/, "Main app shell should contain the market-intelligence interface.");
 console.log("BERUR TRADES safety regression checks passed.");
