@@ -1,0 +1,31 @@
+name: BERUR TRADES Safety Regression Checks
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deriv-trader.js'
+      - 'index.html'
+      - 'tests/**'
+      - '.github/workflows/safety-regression.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'deriv-trader.js'
+      - 'index.html'
+      - 'tests/**'
+      - '.github/workflows/safety-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  safety-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: node --check deriv-trader.js
+      - name: Run safety regression assertions
+        run: node tests/safety-regression.cjs
