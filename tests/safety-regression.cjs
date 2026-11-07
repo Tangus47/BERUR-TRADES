@@ -33,6 +33,7 @@ has(trader, /if\(openContracts\.size>0\|\|readPendingPurchase\(\)\)/, "Account s
 has(trader, /DEMO validation only: REAL purchases are disabled/, "Purchase function must independently reject REAL execution.");
 has(trader, /baseStake:0\.35,maxTradePct:2,maxExposurePct:2,sessionLossPct:5,sessionProfitPct:3,dailyLossPct:5,dailyProfitPct:3,rapidLossPct:2/, "Approved capital-risk limits must remain unchanged.");
 has(trader, /rapidLossWindowMs:60000/, "Rapid-loss window must remain 60 seconds.");
+assert.ok(trader.includes('if(rapidLimit>0&&rapidLoss>=rapidLimit){const rapidReason=') && trader.includes('setAIGuard("RED",rapidReason);stopAuto(rapidReason);'), "Rapid-loss protection must stop AUTO independently of the advisory AI guard.");
 assert.ok(trader.includes("if(Date.now()<nextAutoEntryAt)return;"), "AUTO DEMO must not enter another trade during the post-settlement cooldown.");
 assert.ok(trader.includes('if(readPendingPurchase())throw Error("Auto trading is blocked by an unresolved purchase safety lock.'), "AUTO DEMO may be armed while reconciliation is pending, but an uncertain purchase lock must still block startup.");
 assert.ok(trader.includes('AUTO DEMO ARMED — waiting for authenticated broker portfolio reconciliation.'), "The UI must clearly show that AUTO is armed but waiting for broker reconciliation.");
