@@ -63,4 +63,4 @@ jobs:
           headers="$(curl --silent --show-error --max-time 20 --dump-header - --output /dev/null "$base/oauth/start")"
           printf '%s\n' "$headers"
           printf '%s\n' "$headers" | grep -Eiq '^HTTP/[^ ]+ 302'
-          printf '%s\n' "$headers" | grep -Eiq '^location: https://auth\\.deriv\\.com/oauth2/auth'
+          printf '%s\n' "$headers" | grep -Eiq '^location: https://auth\.deriv\.com/oauth2/auth'
