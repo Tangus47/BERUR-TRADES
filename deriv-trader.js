@@ -314,7 +314,7 @@ function resetDemoRecords(){
  say("Old local DEMO records cleared for this account. New performance tracking starts clean; broker history and open contracts remain untouched.");
 }
 
-function send(o){if(!ws||ws.readyState!==WebSocket.OPEN){say("Deriv account socket is disconnected.");return false;}ws.send(JSON.stringify(o));return true;}
+function send(o){if(!ws||ws.readyState!==WebSocket.OPEN){say("Deriv account socket is disconnected.");return false;}try{ws.send(JSON.stringify(o));return true;}catch(e){say("Deriv request was not transmitted: "+(e?.message||"socket send failed")+". Reconnect and reconcile before retrying.");return false;}}
 const SESSION_STORAGE_KEY="berur-deriv-session:"+WORKER;
 function saveSession(id,expiresIn){const ttl=Math.max(60,Math.min(86400,Number(expiresIn)||3600));try{localStorage.setItem(SESSION_STORAGE_KEY,JSON.stringify({id,expiresAt:Date.now()+ttl*1000}));}catch{}}
 function restoreSession(){try{const saved=JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY)||"null");if(saved&&typeof saved.id==="string"&&/^[a-f0-9]{64}$/.test(saved.id)&&Number(saved.expiresAt)>Date.now())return saved.id;localStorage.removeItem(SESSION_STORAGE_KEY);}catch{try{localStorage.removeItem(SESSION_STORAGE_KEY);}catch{}}return null;}
