@@ -67,6 +67,10 @@ assert.ok(html.includes("const qualification=validatePurchaseSignal(a,signal)"),
 assert.ok(html.includes("candidate.validN<600 || candidate.strength<2.25"), "Bot session recommendations must use the same 600-sample and 2.25 thresholds.");
 assert.ok(html.includes("tradeAllowed:!!validatePurchaseSignal(current,signal).ok"), "Signal readiness must be based on the exact contract-family qualification, not broad tradeAllowed.");
 
+assert.ok(trader.includes("function requestBrokerProfitPage(offset=0)"), "Broker P/L reconciliation must also query Deriv's dedicated profit table.");
+assert.ok(trader.includes("profit_table:1,description:1,limit:500,offset,sort:\"DESC\""), "Profit-table requests must use the documented 500-row page limit.");
+assert.ok(trader.includes("sell-buy"), "Closed-contract P/L must be calculated from broker sell price less broker buy price when no profit field is supplied.");
+assert.ok(trader.includes("if(page.length===500&&offset+500<2000)"), "Profit-table pagination must be bounded and report when further records may exist.");
 assert.ok(trader.includes("function requestBrokerStatement()"), "Broker-history comparison must be available as a read-only statement request.");
 assert.ok(trader.includes('if(!account||account.account_type!=="demo")throw Error("Broker-history comparison is currently enabled for DEMO accounts only.")'), "Broker-history reconciliation must remain DEMO-only.");
 assert.ok(trader.includes("statement:1,description:1,limit:999,date_from:from,date_to:now,req_id:BROKER_STATEMENT_REQ_ID"), "Broker-history reconciliation must use Deriv's authenticated statement endpoint with a bounded 30-day request.");
