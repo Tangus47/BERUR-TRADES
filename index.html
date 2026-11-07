@@ -276,6 +276,76 @@ button.primary{box-shadow:0 0 0 1px rgba(53,224,162,.18),0 8px 24px rgba(53,224,
 @media(max-width:600px){header{min-height:70px;padding:13px 12px}.brand{font-size:22px}.brand:before{width:32px;height:32px;margin-right:8px}.sub{margin-left:40px;font-size:9px;letter-spacing:1px}.wrap{padding:10px 9px 22px}#overview{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#overview>.card{min-height:105px;padding:12px}.topline{padding:11px}.topline .actions button{min-width:0;padding:10px 9px;font-size:11px}.app-tabs{padding:8px}.app-tabs .app-tab{min-height:38px;padding:8px 11px}.card{border-radius:14px}}
 @media(prefers-reduced-motion:reduce){.watch-item:hover{transform:none}}
 
+
+/* Focused readability pass: Execution, Smart Radar, Digit Radar and Over/Under */
+#execution,#radar,#market-ou-ranking,#market-ou-board{scroll-margin-top:84px}
+#execution{border-color:rgba(53,224,162,.34);background:linear-gradient(145deg,rgba(13,34,49,.99),rgba(7,19,34,.99))}
+#execution .section-title,#radar .section-title,#market-ou-ranking .section-title,#market-ou-board .section-title{font-size:clamp(15px,1.4vw,19px);letter-spacing:.035em;line-height:1.35}
+#execution .note,#radar .note,#market-ou-ranking .note,#market-ou-board .note{font-size:12px;line-height:1.65}
+#execution .actions{gap:10px;margin:14px 0}
+#execution .actions button{flex:1 1 190px;min-height:48px;font-size:12px;white-space:normal}
+#executionHandoffStatus,#copyStatus{padding:11px 13px;border:1px solid rgba(118,183,255,.18);border-radius:10px;background:rgba(5,14,26,.55);min-height:38px}
+#radar{border-width:1px;box-shadow:0 12px 30px rgba(9,105,75,.12)}
+#radar>.grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+#radar>.grid>div{padding:14px;border:1px solid rgba(53,224,162,.18);border-radius:12px;background:rgba(4,17,27,.42);min-width:0}
+#radar .metric{font-size:clamp(19px,2vw,27px);overflow-wrap:anywhere}
+#radarReason,#learningNote{line-height:1.6}
+#radar .radar-controls{padding:12px;border:1px solid rgba(118,183,255,.17);border-radius:12px;background:rgba(5,14,26,.4)}
+#radar .radar-controls label{display:flex;align-items:center;gap:8px;min-height:40px;font-size:12px}
+#radar .radar-controls input[type=number]{width:88px;min-height:40px}
+#digitGrid{gap:8px}
+#digitGrid .digit{min-height:74px;display:flex;flex-direction:column;justify-content:center;gap:5px}
+#digitGrid .digit b{font-size:clamp(17px,2vw,23px)}
+#digitGrid .digit small{font-size:11px;line-height:1.3}
+#matchDigit,#overUnder,#overUnderDetail{line-height:1.65}
+#market-ou-ranking .tablewrap,#market-ou-board .tablewrap{border:1px solid rgba(118,183,255,.15);border-radius:12px}
+#market-ou-ranking table,#market-ou-board table{font-size:12px}
+#market-ou-ranking th,#market-ou-board th{position:sticky;top:0;z-index:1;background:#142a42}
+#market-ou-ranking td,#market-ou-board td{padding:12px 10px;vertical-align:middle}
+#marketOUCards{grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr))!important}
+#marketOUCards>.card,#marketOUCards>.box{min-width:0}
+#marketOUCards .metric{font-size:clamp(20px,2vw,27px)}
+#marketOUCards .small,#marketOUCards .note{font-size:11px;line-height:1.55}
+#marketAlertToast{font-size:12px!important;line-height:1.55}
+@media(max-width:800px){
+ #radar>.grid{grid-template-columns:1fr}
+ #radar>.grid>div{padding:12px}
+ #execution .actions button{flex-basis:100%}
+ #market-ou-ranking .radar-head,#market-ou-board .radar-head{align-items:flex-start}
+}
+@media(max-width:520px){
+ #execution,#radar,#market-ou-ranking,#market-ou-board{padding:13px}
+ #radar .radar-controls{align-items:stretch;flex-direction:column}
+ #radar .radar-controls label{justify-content:space-between;flex-wrap:wrap}
+ #digitGrid{grid-template-columns:repeat(5,minmax(0,1fr))}
+ #digitGrid .digit{min-height:64px}
+ #marketOUCards{grid-template-columns:minmax(0,1fr)!important}
+ #market-ou-ranking table,#market-ou-board table{font-size:11px}
+}
+
+
+/* Panel navigation correction: wrap on wide screens, swipe on phones */
+.app-tabs{display:flex;flex-wrap:wrap;overflow-x:visible;overflow-y:visible;align-items:center;gap:8px;scroll-snap-type:none;padding:10px max(12px,calc((100% - 1280px)/2))}
+.app-tabs .app-tab{flex:0 0 auto;white-space:nowrap;scroll-margin-inline:12px}
+.app-tabs .app-tab[aria-selected="true"]{position:relative;z-index:1}
+.terminal-content{min-width:0;width:100%;scroll-margin-top:92px}
+.terminal-content>.section.card,.terminal-content>.two>.card{min-width:0;max-width:100%}
+.terminal-layout{min-width:0}
+.market-sidebar{min-width:0}
+@media(max-width:900px){
+ .app-tabs{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;padding:9px 12px}
+ .app-tabs .app-tab{scroll-snap-align:center}
+ .app-tabs::-webkit-scrollbar{height:4px}
+ .app-tabs .app-tab{min-height:44px}
+}
+@media(max-width:520px){
+ .app-tabs{position:sticky;top:0;z-index:40;margin:0 -8px;gap:7px;padding:8px 10px;background:rgba(5,13,25,.98);box-shadow:0 5px 18px rgba(0,0,0,.28)}
+ .app-tabs .app-tab{padding:10px 13px;font-size:12px;min-height:44px}
+ .terminal-content{gap:10px}
+ .terminal-content>.section.card{padding:13px;margin-bottom:10px}
+ .terminal-content .grid{min-width:0}
+}
+
 </style>
 <script>
 (function(){
@@ -2227,7 +2297,7 @@ function setupAppTabs(){
  nav.addEventListener("click",e=>{
   const btn=e.target.closest("button[data-tab]");
   if(!btn||!nav.contains(btn))return;
-  e.preventDefault();e.stopPropagation();activate(btn.dataset.tab);
+  e.preventDefault();e.stopPropagation();activate(btn.dataset.tab);btn.focus({preventScroll:true});const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;const top=content.getBoundingClientRect().top+window.scrollY-88;window.scrollTo({top:Math.max(0,top),behavior:reduce?"auto":"smooth"});
  },true);
  nav.addEventListener("keydown",e=>{
   const buttons=Array.from(nav.querySelectorAll("button[data-tab]"));

@@ -32,4 +32,9 @@ has(html, /nav\.addEventListener\("keydown"/, "Dashboard tabs must support keybo
 has(html, /scroll-padding-top:76px/, "Panel navigation must account for sticky navigation when scrolling.");
 has(html, /@media\(max-width:720px\)[\s\S]*?\.topline \.actions\{display:grid/, "Dashboard action controls must use a compact mobile layout.");
 has(html, /#overview\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/, "Overview metrics must remain readable in a two-column mobile grid.");
+has(html, /#execution \.actions button\{flex:1 1 190px/, "Execution handoff actions must have clear, touch-friendly sizing.");
+has(html, /#radar>\.grid\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/, "Smart Radar must separate its primary decision metrics.");
+has(html, /#digitGrid \.digit\{min-height:74px/, "Digit Radar values must remain legible and easy to scan.");
+has(html, /#marketOUCards\{grid-template-columns:repeat\(auto-fit/, "Over/Under market cards must use a responsive readable grid.");
+has(html, /@media\(max-width:520px\)[\s\S]*?#digitGrid\{grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/, "Digit Radar must reflow into five columns on narrow screens.");
 console.log("BERUR TRADES safety regression checks passed.");
