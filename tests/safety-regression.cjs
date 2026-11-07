@@ -38,13 +38,13 @@ has(html, /#digitGrid \.digit\{min-height:74px/, "Digit Radar values must remain
 has(html, /#marketOUCards\{grid-template-columns:repeat\(auto-fit/, "Over/Under market cards must use a responsive readable grid.");
 has(html, /@media\(max-width:520px\)[\s\S]*?#digitGrid\{grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/, "Digit Radar must reflow into five columns on narrow screens.");
 
-has(html, /function validatePurchaseSignal\\(a,signal\\)/, "Purchase handoff must revalidate the exact live signal.");
-has(html, /candidate\\.validN<600/, "Over/Under purchase qualification must require at least 600 observations.");
-has(html, /candidate\\.strength>=2\\.25/, "Digit purchase qualification must enforce z-score 2.25.");
-has(html, /candidate\\.deviation>0/, "Digit purchase qualification must require a positive historical edge.");
-has(html, /candidate\\.splitConsistent!==true/, "Digit purchase qualification must require split-half consistency.");
-has(html, /activeSignal\\.signature!==selected\\+"\\|"+signal/, "Purchase handoff must reject a signal from a different market.");
-has(html, /const qualification=validatePurchaseSignal\\(a,signal\\)/, "Purchase handoff must use the strict qualification helper.");
-has(html, /candidate\\.validN<600 \\|\\| candidate\\.strength<2\\.25/, "Bot session recommendations must use the same 600-sample and 2.25 thresholds.");
-has(html, /tradeAllowed:!!validatePurchaseSignal\\(current,signal\\)\\.ok/, "Signal readiness must be based on the exact contract-family qualification, not broad tradeAllowed.");
+assert.ok(html.includes("function validatePurchaseSignal(a,signal)"), "Purchase handoff must revalidate the exact live signal.");
+assert.ok(html.includes("candidate.validN<600"), "Over/Under purchase qualification must require at least 600 observations.");
+assert.ok(html.includes("candidate.strength>=2.25"), "Digit purchase qualification must enforce z-score 2.25.");
+assert.ok(html.includes("candidate.deviation>0"), "Digit purchase qualification must require a positive historical edge.");
+assert.ok(html.includes("candidate.splitConsistent!==true"), "Digit purchase qualification must require split-half consistency.");
+assert.ok(html.includes('activeSignal.signature!==selected+"|"+signal'), "Purchase handoff must reject a signal from a different market.");
+assert.ok(html.includes("const qualification=validatePurchaseSignal(a,signal)"), "Purchase handoff must use the strict qualification helper.");
+assert.ok(html.includes("candidate.validN<600 || candidate.strength<2.25"), "Bot session recommendations must use the same 600-sample and 2.25 thresholds.");
+assert.ok(html.includes("tradeAllowed:!!validatePurchaseSignal(current,signal).ok"), "Signal readiness must be based on the exact contract-family qualification, not broad tradeAllowed.");
 console.log("BERUR TRADES safety regression checks passed.");
