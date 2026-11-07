@@ -99,6 +99,7 @@ assert.ok(html.includes('berur:terminal-scan-update'), "The market scanner must 
 assert.ok(html.includes("function analyzeRiseFallMtf(m)"), "Rise/Fall must calculate broker-candle multi-timeframe confirmation.");
 assert.ok(html.includes('[{g:60,n:"1M"},{g:300,n:"5M"},{g:900,n:"15M"},{g:3600,n:"1H"}]'), "Rise/Fall must evaluate 1M, 5M, 15M and 1H candles.");
 assert.ok(html.includes("EMA 10/25") && html.includes("riseFallRsi(values,period=14)"), "Rise/Fall must calculate EMA 10/25 and RSI 14 from candle closes.");
+assert.ok(html.includes("support,resistance"), "Rise/Fall must calculate recent support and resistance from completed OHLC candles.");
 assert.ok(html.includes('!mtf?.qualified||mtf.direction!==value'), "Rise/Fall purchase validation must reject unconfirmed or conflicting timeframes.");
 assert.ok(html.includes("requestRiseFallTimeframes(symbol,true)"), "Every connected volatility market must request independent OHLC history for all Rise/Fall timeframes.");
 assert.ok(html.includes('berur:rise-fall-candles'), "Broker OHLC candle updates must be published to the terminal.");
