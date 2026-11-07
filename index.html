@@ -813,7 +813,7 @@ function refreshSignalValidity(signal, score, sample, setupReason) {
   const current=currentMarket?analyze(currentMarket):null;
   const ou=String(signal).match(/^(OVER|UNDER) ([0-9])$/);
   const contract=ou?(ou[1]==="OVER"?"DIGITOVER":"DIGITUNDER"):signal==="EVEN"?"DIGITEVEN":signal==="ODD"?"DIGITODD":signal==="RISE"?"CALL":signal==="FALL"?"PUT":"";
-  const detail={symbol:selected,signal,contract,barrier:ou?Number(ou[2]):undefined,duration:signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,evidenceScore:score,sample,tradeAllowed:!!current?.tradeAllowed&&sample>=requiredEvidenceTicks(contract,signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,score),requiredTicks:requiredEvidenceTicks(contract,signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,score),reason:setupReason|| (ou?((current?.ouCandidates||[]).find(x=>x.label===signal)?.label+" passed positive historical evidence"||current?.digitReason||""):signal==="EVEN"||signal==="ODD"?(current?.parityReason||"Parity evidence qualified"):current?.directionReason||"BERUR technical analysis signal"),generatedAt:activeSignal.generatedAt,expiresAt:activeSignal.expiresAt,tickSequence:activeSignal.tickSequence,signalId:signature+"|"+activeSignal.generatedAt};
+  const detail={symbol:selected,signal,contract,barrier:ou?Number(ou[2]):undefined,duration:signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,evidenceScore:score,sample,liveObservations:Number(currentMarket?.liveTickCount||0),marketUpdatedAt:Number(currentMarket?.updated||0),tradeAllowed:!!current?.tradeAllowed&&sample>=requiredEvidenceTicks(contract,signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,score),requiredTicks:requiredEvidenceTicks(contract,signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,score),reason:setupReason|| (ou?((current?.ouCandidates||[]).find(x=>x.label===signal)?.label+" passed positive historical evidence"||current?.digitReason||""):signal==="EVEN"||signal==="ODD"?(current?.parityReason||"Parity evidence qualified"):current?.directionReason||"BERUR technical analysis signal"),generatedAt:activeSignal.generatedAt,expiresAt:activeSignal.expiresAt,tickSequence:activeSignal.tickSequence,signalId:signature+"|"+activeSignal.generatedAt};
   window.dispatchEvent(new CustomEvent("berur:signal-update",{detail}));
 }
 
@@ -950,10 +950,10 @@ function connect() {
      m.updated = Date.now();
      m.lastTickAt = Date.now();
      m.lastTickEpoch = Number(data.tick.epoch)>0?Number(data.tick.epoch):null;
-     m.liveTickCount = (m.liveTickCount||0)+1;
      const precision=Number.isInteger(m.decimals)?m.decimals:undefined;
      const digitQuote=precision===undefined?String(data.tick.quote):q.toFixed(precision);
-     m.ticks.push(digitQuote);
+     const previousLiveQuote=m.ticks.length?String(m.ticks[m.ticks.length-1]):null;
+     if(previousLiveQuote!==digitQuote){m.liveTickCount=(m.liveTickCount||0)+1;m.ticks.push(digitQuote);}
      m.tickPoints.push({price:q,time:Number(data.tick.epoch)>0?Number(data.tick.epoch)*1000:Date.now()});
      if (m.ticks.length > 1000) m.ticks.shift();
      if (m.tickPoints.length > 1000) m.tickPoints.shift();
@@ -1455,7 +1455,7 @@ function refreshAutomaticBestSignal(){
  const now=Date.now(),candidates=[];
  SYMBOLS.forEach(symbol=>{
   const market=markets[symbol];
-  if(!market||!market.available||!market.ticks?.length||!market.updated||now-market.updated>20000)return;
+  if(!market||!market.available||!market.ticks?.length||!market.updated||now-market.updated>20000||Number(market.liveTickCount||0)<20)return;
   const analysis=analyze(market);
   qualifiedSetups(analysis).forEach(setup=>{
    const family=signalFamily(setup.signal),cooldownUntil=candidateCooldowns.get(symbol+"|"+family);
@@ -1489,7 +1489,7 @@ window.addEventListener("berur:candidate-queue-update",event=>{
  if(!panel){panel=document.createElement("section");panel.id="berur-candidate-queue";panel.className="card section";panel.style.borderTop="2px solid var(--teal)";panel.innerHTML="<h3>LIVE PURCHASE CANDIDATE QUEUE</h3><div id='berur-candidate-count' class='small'>Waiting for qualified candidates…</div><div id='berur-candidate-rows' class='tablewrap'></div>";radar.insertAdjacentElement("afterend",panel);}
  const list=Array.isArray(event.detail?.candidates)?event.detail.candidates:[];
  const count=document.getElementById("berur-candidate-count"),body=document.getElementById("berur-candidate-rows");
- if(count)count.textContent=Number(event.detail?.count||0)+" qualified candidates found • top 3 purchase-eligible; rank #1 first, ranks #2–#3 standby";
+ if(count)count.textContent=Number(event.detail?.count||0)+" qualified candidates found • candidates have 20+ fresh live quote changes; top 3 ranked";
  if(!body)return;
  body.replaceChildren();
  if(!list.length){const p=document.createElement("p");p.className="note";p.textContent="NO QUALIFIED SETUP — waiting for fresh evidence. No forced purchases.";body.appendChild(p);return;}
