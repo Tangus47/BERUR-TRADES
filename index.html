@@ -1265,7 +1265,7 @@ function stop() {
  setStatus("Stopped","gold");
 }
 function requiredEvidenceTicks(contract,duration=1,score=70){
-  if(["DIGITOVER","DIGITUNDER","DIGITEVEN","DIGITODD"].includes(contract))return 300;
+  if(["DIGITOVER","DIGITUNDER","DIGITEVEN","DIGITODD"].includes(contract))return 600;
   if(["DIGITMATCH","DIGITDIFF"].includes(contract))return 250;
   return ({CALL:120,PUT:120}[contract]||100);
 }
