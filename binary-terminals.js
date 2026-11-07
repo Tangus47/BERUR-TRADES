@@ -30,7 +30,7 @@ function render(data){
  const body=$("bt-rf-market-rows");
  if(body){
   if(!watch.length)body.innerHTML='<tr><td colspan="7">WAIT — collecting broker OHLC candle history for all connected markets.</td></tr>';
-  else body.innerHTML=watch.map((x,i)=>{const m=x.mtf||{},v=m.values||{},ok=!!m.qualified;return '<tr><td>'+(i+1)+'</td><td>'+String(x.marketName||x.symbol)+'</td><td><b>'+(ok?String(x.signal):"WAIT") +'</b></td><td>'+(ok?pctScore(x.score):"—") +'</td><td>'+String(m.pattern||"—")+' · RSI '+(m.entryRsi===null||m.entryRsi===undefined?"—":Number(m.entryRsi).toFixed(1))+'</td><td>'+["1M","5M","15M","1H"].map(k=>String(v[k]?.count||0)).join("/")+'</td><td>'+(ok?String(x.duration||"—")+" ticks":"—") +'</td></tr>';}).join("");
+  else body.innerHTML=watch.map((x,i)=>{const m=x.mtf||{},v=m.values||{},ok=!!m.qualified;return '<tr><td>'+(i+1)+'</td><td>'+String(x.marketName||x.symbol)+'</td><td><b>'+(ok?String(x.signal):"WAIT") +'</b></td><td>'+(ok?pctScore(x.score):"—") +'</td><td>'+String(m.pattern||"—")+' · RSI '+(m.entryRsi===null||m.entryRsi===undefined?"—":Number(m.entryRsi).toFixed(1))+'</td><td>'+["1M","5M","15M","1H"].map(k=>String(v[k]?.count||0)).join("/")+'</td><td>'+(ok?String(x.duration||"—")+" "+String(x.duration_unit||"ticks"):"—") +'</td></tr>';}).join("");
  }
  const modules=[["CALL","RISE / FALL"],["PUT","RISE / FALL"],["DIGITOVER","OVER / UNDER"],["DIGITUNDER","OVER / UNDER"],["DIGITEVEN","EVEN / ODD"],["DIGITODD","EVEN / ODD"]];
  const registry=$("bt-module-registry");
