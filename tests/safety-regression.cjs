@@ -26,4 +26,10 @@ has(trader, /persistOpenTradeState\(\);updateRow\(settledId/, "Settlement must r
 has(trader, /openTradeMeta\.set\(String\(id\),meta\);if\(!openContracts\.has\(String\(id\)\)\)openContracts\.set\(String\(id\),brokerContract&&typeof brokerContract==="object"\?brokerContract:\{contract_id:String\(id\)\}\);persistOpenTradeState\(\)/, "New contracts must be persisted before the snapshot, while retaining the broker contract details already received.");
 has(trader, /if\(settlementAlreadyRecorded\(settledId\)\)\{openContracts\.delete\(settledId\);openTradeMeta\.delete\(settledId\);persistOpenTradeState\(\)/, "Duplicate settlement notifications must not record the same contract result twice.");
 has(html, /DERIV MARKET INTELLIGENCE/, "Main app shell should contain the market-intelligence interface.");
+has(html, /tabsWithoutSyntheticWatchlist=new Set\(\["execution","forex","xauusd","derivcfd","boomcrash","news"\]\)/, "Synthetic market watchlist must be hidden on unrelated execution, CFD and news panels.");
+has(html, /marketSidebar\.hidden=tabsWithoutSyntheticWatchlist\.has\(name\)/, "Changing tabs must update watchlist visibility.");
+has(html, /nav\.addEventListener\("keydown"/, "Dashboard tabs must support keyboard navigation.");
+has(html, /scroll-padding-top:76px/, "Panel navigation must account for sticky navigation when scrolling.");
+has(html, /@media\(max-width:720px\)[\s\S]*?\.topline \.actions\{display:grid/, "Dashboard action controls must use a compact mobile layout.");
+has(html, /#overview\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/, "Overview metrics must remain readable in a two-column mobile grid.");
 console.log("BERUR TRADES safety regression checks passed.");
