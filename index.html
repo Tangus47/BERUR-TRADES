@@ -352,6 +352,22 @@ button.primary{box-shadow:0 0 0 1px rgba(53,224,162,.18),0 8px 24px rgba(53,224,
 .terminal-content [id="trade-quality-filter"],.terminal-content [id="all-market-command-centre"],
 .terminal-content [id="forex-cfd-centre"],.terminal-content [id="boom-crash-centre"],
 .terminal-content [id="economic-news-centre"]{scroll-margin-top:104px}
+
+/* BERUR Digit Radar visual target: circular focus + ranked live digit frequencies */
+.digit-radar-card{overflow:hidden;background:radial-gradient(ellipse at 48% 48%,rgba(0,115,255,.12),transparent 58%),linear-gradient(145deg,#071326,#030914);border:1px solid rgba(0,166,255,.55);box-shadow:0 0 22px rgba(0,126,255,.13)}
+.digit-radar-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.digit-radar-layout{display:grid;grid-template-columns:minmax(300px,1.15fr) minmax(250px,.85fr);gap:22px;align-items:center;margin-top:12px}
+.digit-wheel{position:relative;width:min(100%,520px);aspect-ratio:1;margin:auto;border-radius:50%;background:radial-gradient(circle,rgba(0,255,125,.07) 0 25%,transparent 26%),repeating-radial-gradient(circle,transparent 0 23%,rgba(0,155,255,.13) 23.3% 23.7%,transparent 24% 31%);border:2px solid #08aaff;box-shadow:0 0 18px rgba(0,153,255,.35),inset 0 0 28px rgba(0,153,255,.15)}
+.digit-wheel:before,.digit-wheel:after{content:"";position:absolute;inset:8%;border:1px solid rgba(0,174,255,.35);border-radius:50%;pointer-events:none}.digit-wheel:after{inset:28%;border-color:rgba(0,255,132,.38)}
+.digit-wheel-ring{position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(from -18deg,rgba(0,171,255,.8) 0deg 0.55deg,transparent .7deg 36deg);mask:radial-gradient(circle,transparent 0 27%,#000 27.5% 100%);opacity:.8}
+.digit-wheel-item{position:absolute;left:50%;top:50%;width:76px;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transform:translate(-50%,-50%) rotate(var(--a)) translateY(calc(var(--r)*-1)) rotate(calc(var(--a)*-1));border-radius:14px;color:#f5faff;text-shadow:0 0 8px rgba(0,145,255,.55);background:rgba(5,22,43,.75);border:1px solid rgba(0,155,255,.35);z-index:2}
+.digit-wheel-item b{font-size:clamp(20px,3vw,29px);line-height:1}.digit-wheel-item small{font-size:12px;font-weight:800}.digit-wheel-item.focus{border:2px solid #28ff79;background:rgba(0,80,34,.86);box-shadow:0 0 18px #00ff70;color:#a5ffbd}
+.digit-wheel-center{position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);width:36%;aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle,#082516,#020b0b 72%);border:3px solid #00ed70;box-shadow:0 0 22px rgba(0,255,105,.65);padding:8px}
+.digit-wheel-center small{font-size:clamp(8px,1.3vw,11px);font-weight:800;color:#b9fbd0}.digit-wheel-center b{font-size:clamp(30px,5vw,52px);line-height:1;color:#fff}.digit-wheel-center strong{font-size:clamp(18px,3vw,28px);color:#35ff78}.digit-wheel-center span{font-size:clamp(8px,1.2vw,11px);color:#d7e9df}
+.digit-probability-panel{border:1px solid rgba(0,143,255,.65);border-radius:16px;padding:14px;background:rgba(2,12,28,.82);box-shadow:0 0 16px rgba(0,110,255,.12)}.digit-probability-panel h4{margin:0 0 10px;padding-bottom:10px;border-bottom:1px solid rgba(0,153,255,.45);font-size:16px;letter-spacing:.04em}
+.digit-probability-list{display:grid;gap:7px}.digit-probability-row{display:grid;grid-template-columns:24px minmax(40px,1fr) 58px;gap:9px;align-items:center;padding:5px 7px;border-radius:9px}.digit-probability-row.focus{outline:2px solid #32f879;background:rgba(0,180,70,.14);box-shadow:0 0 12px rgba(0,255,100,.22)}.digit-probability-row b{font-size:16px}.digit-probability-row strong{text-align:right;font-size:14px;font-variant-numeric:tabular-nums}.digit-bar{height:13px;border-radius:20px;background:#102c4c;overflow:hidden}.digit-bar i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,#ffc400,#ffeb48)}.digit-probability-row.focus .digit-bar i{background:linear-gradient(90deg,#00d85d,#a4ff36)}.digit-baseline{font-size:11px;color:var(--muted);padding-top:12px;margin-top:10px;border-top:1px solid rgba(0,153,255,.3)}
+@media(max-width:760px){.digit-radar-layout{grid-template-columns:1fr;gap:16px}.digit-wheel{width:min(100%,430px)}.digit-wheel-item{width:62px;min-height:54px}.digit-probability-panel{max-width:none}}
+
 </style>
 <script>
 (function(){
@@ -617,11 +633,17 @@ body{overflow-x:hidden}
     <p class="small" id="halfOddsSummary">Waiting for enough observations to compare the four contracts.</p>
   </section>
 
-  <section class="section card">
-    <h3 class="section-title">LAST-DIGIT DISTRIBUTION</h3>
-    <div class="small" style="margin-bottom:10px">Frequency of the final displayed decimal digit in recent quotes.</div>
-    <div class="digits" id="digitGrid"></div>
-    <div class="small" id="digitSample" style="margin-top:10px">0 observations</div>
+  <section class="section card digit-radar-card">
+    <div class="digit-radar-heading"><div><h3 class="section-title">DIGIT RADAR • LIVE DISTRIBUTION</h3><p class="note">All digits 0–9 ranked from recent live ticks. Percentages show historical observed frequency, not guaranteed next-tick win probability.</p></div><div class="pill">10 DIGITS</div></div>
+    <div class="digit-radar-layout">
+      <div class="digit-wheel" id="digitWheel" aria-label="Circular digit distribution radar">
+        <div class="digit-wheel-ring"></div>
+        <div id="digitWheelItems"></div>
+        <div class="digit-wheel-center"><small>TOP OBSERVED</small><b id="digitFocusValue">—</b><strong id="digitFocusRate">—</strong><span>Historical frequency</span></div>
+      </div>
+      <div class="digit-probability-panel"><h4>DIGIT PROBABILITIES</h4><div id="digitGrid" class="digit-probability-list"></div><div class="digit-baseline">Uniform-model baseline for each exact digit: <b>10%</b></div></div>
+    </div>
+    <div class="small" id="digitSample" style="margin-top:12px">0 observations</div>
   </section>
 
   <div class="grid section">
@@ -2208,8 +2230,13 @@ function render() {
  $("matchReason").textContent=a.n>=150?`Hot digit observed ${a.counts[a.hot]} times; cold digit ${a.counts[a.cold]} times. Descriptive only.`:"Waiting for at least 100 observations.";
  $("tradeStatus").textContent=a.tradeAllowed?"REVIEW SETUP — MANUAL ONLY":"NO TRADE — INSUFFICIENT EVIDENCE";
  $("tradeStatus").className="pill "+(a.tradeAllowed?"good":"warn");
- $("digitGrid").innerHTML=a.counts.map((c,d)=>`<div class="digit"><b>${d}</b><small>${a.n?pct(c/a.n*100):"0%"}</small></div>`).join("");
- $("digitSample").textContent=`${a.n} recent observations • threshold scanner evaluates digits 0–9 separately`;
+ const digitRates=a.counts.map((count,d)=>({digit:d,count,rate:a.n?count/a.n*100:0})).sort((x,y)=>y.rate-x.rate||x.digit-y.digit);
+ const focusDigit=a.n?digitRates[0].digit:null,focusRate=a.n?digitRates[0].rate:0;
+ $("digitFocusValue").textContent=focusDigit===null?"—":String(focusDigit);
+ $("digitFocusRate").textContent=focusDigit===null?"—":pct(focusRate);
+ $("digitWheelItems").innerHTML=digitRates.map((x,i)=>{const angle=i*36-90;return `<div class="digit-wheel-item ${x.digit===focusDigit?"focus":""}" style="--a:${angle}deg;--r:36%"><b>${x.digit}</b><small>${pct(x.rate)}</small></div>`;}).join("");
+ $("digitGrid").innerHTML=Array.from({length:10},(_,d)=>{const x=digitRates.find(v=>v.digit===d);return `<div class="digit-probability-row ${d===focusDigit?"focus":""}"><b>${d}</b><div class="digit-bar"><i style="width:${Math.max(0,Math.min(100,x.rate))}%"></i></div><strong>${pct(x.rate)}</strong></div>`;}).join("");
+ $("digitSample").textContent=`${a.n} recent observations • percentages are historical frequencies; exact-digit uniform baseline is 10%`;
  const totalOU=a.over+a.under;
  const overRate=totalOU?a.over/totalOU*100:0;
  $("overUnder").textContent=a.digitSignal;
