@@ -70,6 +70,10 @@ assert.ok(html.includes("tradeAllowed:!!validatePurchaseSignal(current,signal).o
 assert.ok(trader.includes("function requestBrokerProfitPage(offset=0)"), "Broker P/L reconciliation must also query Deriv's dedicated profit table.");
 assert.ok(trader.includes("profit_table:1,description:1,limit:500,offset,sort:\"DESC\""), "Profit-table requests must use the documented 500-row page limit.");
 assert.ok(trader.includes("sell-buy"), "Closed-contract P/L must be calculated from broker sell price less broker buy price when no profit field is supplied.");
+assert.ok(trader.includes('value!==null&&value!==undefined&&value!==""'), "Missing broker prices and profit values must not be coerced to zero.");
+assert.ok(trader.includes('try{requestBrokerProfitPage(0)}catch(e){brokerProfitSnapshot.loading=false;brokerProfitSnapshot.error=e.message'), "A profit-table request failure must be recorded without preventing the independent statement request.");
+assert.ok(trader.includes('brokerProfitSnapshot?.error?"Unavailable"'), "Profit-table failures must be visibly distinguished from a valid zero P/L.");
+assert.ok(trader.includes('brokerProfitSnapshot?.loading||brokerProfitSnapshot?.error?"—":money(profitPL)'), "Incomplete or failed broker profit data must never be displayed as a final zero total.");
 assert.ok(trader.includes("if(page.length===500&&offset+500<2000)"), "Profit-table pagination must be bounded and report when further records may exist.");
 assert.ok(trader.includes("function requestBrokerStatement()"), "Broker-history comparison must be available as a read-only statement request.");
 assert.ok(trader.includes('if(!account||account.account_type!=="demo")throw Error("Broker-history comparison is currently enabled for DEMO accounts only.")'), "Broker-history reconciliation must remain DEMO-only.");
