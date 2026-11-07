@@ -1835,7 +1835,7 @@ function refreshAutomaticBestSignal(){
   });
  });
  candidates.sort((a,b)=>b.setup.score-a.setup.score||b.setup.strength-a.setup.strength||b.setup.sample-a.setup.sample||b.market.updated-a.market.updated);
- const terminalSnapshot=x=>x?({symbol:x.symbol,marketName:marketName(x.symbol),signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier??null,score:x.setup.score,strength:x.setup.strength??null,sample:x.setup.sample,duration:x.setup.duration??null,reason:x.setup.reason,updatedAt:x.market.updated,mtf:x.setup.mtf||x.analysis.riseFallMtf||null}):null;
+ const terminalSnapshot=x=>x?({symbol:x.symbol,marketName:marketName(x.symbol),signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier??null,score:x.setup.score,strength:x.setup.strength??null,sample:x.setup.sample,duration:x.setup.duration??null,duration_unit:x.setup.duration_unit??null,reason:x.setup.reason,updatedAt:x.market.updated,mtf:x.setup.mtf||x.analysis.riseFallMtf||null}):null;
  const familyLeaders={};candidates.forEach(x=>{if(!familyLeaders[x.setup.contract])familyLeaders[x.setup.contract]=terminalSnapshot(x);});
  const riseFallCandidates=candidates.filter(x=>x.setup.contract==="CALL"||x.setup.contract==="PUT").slice(0,5).map(terminalSnapshot);
  const riseFallWatchList=riseFallWatch.sort((a,b)=>Number(b.setup.mtf.qualified)-Number(a.setup.mtf.qualified)||Number(b.setup.mtf.aligned)-Number(a.setup.mtf.aligned)||b.setup.sample-a.setup.sample).slice(0,5).map(terminalSnapshot);
