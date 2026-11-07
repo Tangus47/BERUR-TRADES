@@ -323,6 +323,29 @@ button.primary{box-shadow:0 0 0 1px rgba(53,224,162,.18),0 8px 24px rgba(53,224,
  #market-ou-ranking table,#market-ou-board table{font-size:11px}
 }
 
+
+/* Panel navigation correction: wrap on wide screens, swipe on phones */
+.app-tabs{display:flex;flex-wrap:wrap;overflow-x:visible;overflow-y:visible;align-items:center;gap:8px;scroll-snap-type:none;padding:10px max(12px,calc((100% - 1280px)/2))}
+.app-tabs .app-tab{flex:0 0 auto;white-space:nowrap;scroll-margin-inline:12px}
+.app-tabs .app-tab[aria-selected="true"]{position:relative;z-index:1}
+.terminal-content{min-width:0;width:100%;scroll-margin-top:92px}
+.terminal-content>.section.card,.terminal-content>.two>.card{min-width:0;max-width:100%}
+.terminal-layout{min-width:0}
+.market-sidebar{min-width:0}
+@media(max-width:900px){
+ .app-tabs{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;padding:9px 12px}
+ .app-tabs .app-tab{scroll-snap-align:center}
+ .app-tabs::-webkit-scrollbar{height:4px}
+ .app-tabs .app-tab{min-height:44px}
+}
+@media(max-width:520px){
+ .app-tabs{position:sticky;top:0;z-index:40;margin:0 -8px;gap:7px;padding:8px 10px;background:rgba(5,13,25,.98);box-shadow:0 5px 18px rgba(0,0,0,.28)}
+ .app-tabs .app-tab{padding:10px 13px;font-size:12px;min-height:44px}
+ .terminal-content{gap:10px}
+ .terminal-content>.section.card{padding:13px;margin-bottom:10px}
+ .terminal-content .grid{min-width:0}
+}
+
 </style>
 <script>
 (function(){
@@ -2274,7 +2297,7 @@ function setupAppTabs(){
  nav.addEventListener("click",e=>{
   const btn=e.target.closest("button[data-tab]");
   if(!btn||!nav.contains(btn))return;
-  e.preventDefault();e.stopPropagation();activate(btn.dataset.tab);
+  e.preventDefault();e.stopPropagation();activate(btn.dataset.tab);btn.focus({preventScroll:true});const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;const top=content.getBoundingClientRect().top+window.scrollY-88;window.scrollTo({top:Math.max(0,top),behavior:reduce?"auto":"smooth"});
  },true);
  nav.addEventListener("keydown",e=>{
   const buttons=Array.from(nav.querySelectorAll("button[data-tab]"));
