@@ -44,6 +44,9 @@ has(html, /#marketOUCards\{grid-template-columns:repeat\(auto-fit/, "Over/Under 
 has(html, /@media\(max-width:520px\)[\s\S]*?#digitGrid\{grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/, "Digit Radar must reflow into five columns on narrow screens.");
 
 assert.ok(html.includes("function validatePurchaseSignal(a,signal)"), "Purchase handoff must revalidate the exact live signal.");
+assert.ok(html.includes("FOCUS & REVALIDATE"), "Ranked candidates must offer a direct focus action for execution review.");
+assert.ok(html.includes("const fresh=analyze(market);const check=validatePurchaseSignal(fresh,x.signal);if(!check.ok)"), "Candidate focus must revalidate current market observations before handoff.");
+assert.ok(html.includes("Now use SEND ANALYSIS TO EXECUTION and review the fresh DEMO quote; no purchase has been made."), "Candidate focus must require a separate execution handoff and must not purchase automatically.");
 assert.ok(html.includes("candidate.validN<600"), "Over/Under purchase qualification must require at least 600 observations.");
 assert.ok(html.includes("candidate.strength>=2.25"), "Digit purchase qualification must enforce z-score 2.25.");
 assert.ok(html.includes("candidate.deviation>0"), "Digit purchase qualification must require a positive historical edge.");
