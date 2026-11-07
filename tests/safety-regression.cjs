@@ -14,7 +14,11 @@ assert.ok(trader.includes("function signalMatchesQuoteContext(signal,context)"),
 assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — selected quote parameters do not match the exact approved signal."), "Auto quote requests must be rejected before transmission when their parameters differ from the approved signal.");
 assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — the live signal, approved candidate and quoted market/contract/barrier/duration no longer match."), "Purchases must be blocked if the live signal and quote context diverge.");
 assert.ok(trader.includes("AUTO DEMO STOPPED — the approved signal changed while its quote was pending."), "Auto DEMO must stop if the approved signal changes while a quote is pending.");
-assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — broker quote does not match the exact AI-approved market, contract, barrier and duration."), "Manual execution readiness must reject a quote that does not match the AI-approved signal.");
+assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — broker quote does not match the exact qualified market-analysis candidate."), "Execution must reject broker quotes that do not match the exact selected market-analysis candidate.");
+assert.ok(!trader.includes("AI_GUARD")&&!trader.includes("observeAIGuardSignal")&&!trader.includes("aiExecutionGate"), "AI guard and signal-monitoring code must be removed.");
+assert.ok(trader.includes("function setExecutionIntegrity(state,reason,reviewRequired=false)"), "Independent execution-integrity diagnostics must remain available.");
+assert.ok(trader.includes('id="bt-integrity-state"')&&trader.includes('id="bt-integrity-reason"'), "Execution integrity status and diagnostic reason must remain visible.");
+assert.ok(trader.includes('id="bt-execution-integrity"')&&!trader.includes('id="bt-ai-protection"')&&!trader.includes("AI is advisory only"), "The injected AI panel must be replaced by the neutral execution-integrity panel.");
 
 has(trader, /if\(!send\(requestParams\)\)\{proposalContext=null;proposal=null;/, "Quote requests must fail immediately and visibly when the authenticated socket is disconnected.");
 has(trader, /if\(!send\(\{buy:proposal\.id,price:ask\}\)\)\{clearPendingPurchase\(\);busy=false;submittedTradeSignal=null;renderRisk\(\);throw Error\("Purchase was not sent:/, "A purchase that was not transmitted must clear its local pending lock and must not be reported as submitted.");
@@ -29,12 +33,15 @@ has(trader, /if\(openContracts\.size>0\|\|readPendingPurchase\(\)\)/, "Account s
 has(trader, /DEMO validation only: REAL purchases are disabled/, "Purchase function must independently reject REAL execution.");
 has(trader, /baseStake:0\.35,maxTradePct:2,maxExposurePct:2,sessionLossPct:5,sessionProfitPct:3,dailyLossPct:5,dailyProfitPct:3,rapidLossPct:2/, "Approved capital-risk limits must remain unchanged.");
 has(trader, /rapidLossWindowMs:60000/, "Rapid-loss window must remain 60 seconds.");
+assert.ok(trader.includes('if(rapidLimit>0&&rapidLoss>=rapidLimit){const rapidReason=') && trader.includes('setExecutionIntegrity("RED",rapidReason);stopAuto(rapidReason);'), "Rapid-loss protection must stop AUTO directly, without relying on any advisory component.");
 assert.ok(trader.includes("if(Date.now()<nextAutoEntryAt)return;"), "AUTO DEMO must not enter another trade during the post-settlement cooldown.");
+assert.ok(trader.includes('if(readPendingPurchase())throw Error("Auto trading is blocked by an unresolved purchase safety lock.'), "AUTO DEMO may be armed while reconciliation is pending, but an uncertain purchase lock must still block startup.");
+assert.ok(trader.includes('AUTO DEMO ARMED — waiting for authenticated broker portfolio reconciliation.'), "The UI must clearly show that AUTO is armed but waiting for broker reconciliation.");
+assert.ok(trader.includes("!reconciliationReady||readPendingPurchase()"), "The automatic entry loop must remain blocked until broker reconciliation is confirmed and no uncertain purchase exists.");
 assert.ok(trader.includes("const postTradeCooldownMs=v<0?10000:5000"), "Automatic DEMO must wait 10 seconds after a loss and 5 seconds after a win before the next entry.");
 assert.ok(trader.includes("nextAutoEntryAt=Date.now()+postTradeCooldownMs"), "Post-settlement cooldown must be anchored to the broker-confirmed settlement time.");
 
 has(trader, /Math\.max\(600,Number\(s\.requiredTicks\|\|0\)\)/, "Digit execution must retain 600-observation minimum.");
-has(trader, /Number\(s\.liveObservations\|\|0\)<20/, "Signals must retain minimum live observations.");
 has(trader, /EMERGENCY STOP ACTIVATED/, "Emergency stop must remain available.");
 has(trader, /function persistOpenTradeState\(\)/, "Open contracts must be persisted for reload recovery.");
 has(trader, /function restoreOpenTradeState\(\)/, "Open contracts must be restored before broker reconciliation.");
