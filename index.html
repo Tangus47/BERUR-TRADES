@@ -1777,7 +1777,7 @@ function renderBestContractMarkets(){
   let firstRate=0,secondRate=0,firstExpected=expected,secondExpected=expected;
   if(isDigit){
    const values=digitsFor(ticks),mid=Math.floor(values.length/2),first=values.slice(0,mid),second=values.slice(mid);
-   const barrier=Number((String(label).match(/(\\d)$/)||[])[1]);
+   const barrier=Number((String(label).match(/(\d)$/)||[])[1]);
    const wins=d=>type==="OVER"?d>barrier:type==="UNDER"?d<barrier:type==="EVEN"?d%2===0:type==="ODD"?d%2===1:type==="MATCH"?d===barrier:d!==barrier;
    firstRate=first.length?first.filter(wins).length/first.length:0;
    secondRate=second.length?second.filter(wins).length/second.length:0;
@@ -1792,7 +1792,7 @@ function renderBestContractMarkets(){
  };
  SYMBOLS.forEach(symbol=>{
   const m=markets[symbol],a=analyze(m),ds=digitsFor(m.ticks||[]),n=ds.length;
-  if(n>=150){
+  if(n>=600){
    const over=(a.ouCandidates||[]).filter(x=>x.side==="OVER"&&!x.impossible&&x.barrier>=3&&x.barrier<=6&&x.validN>=600&&x.deviation>0&&x.strength>=3.4&&x.splitConsistent).sort((x,y)=>y.strength-x.strength)[0];
    const under=(a.ouCandidates||[]).filter(x=>x.side==="UNDER"&&!x.impossible&&x.barrier>=4&&x.barrier<=7&&x.validN>=600&&x.deviation>0&&x.strength>=3.4&&x.splitConsistent).sort((x,y)=>y.strength-x.strength)[0];
    if(over)add("OVER",symbol,over.label,over.count,over.observed,over.expected,over.validN);
