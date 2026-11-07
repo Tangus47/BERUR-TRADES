@@ -15,10 +15,10 @@ assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — selected quote paramet
 assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — the live signal, approved candidate and quoted market/contract/barrier/duration no longer match."), "Purchases must be blocked if the live signal and quote context diverge.");
 assert.ok(trader.includes("AUTO DEMO STOPPED — the approved signal changed while its quote was pending."), "Auto DEMO must stop if the approved signal changes while a quote is pending.");
 assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — broker quote does not match the exact qualified market-analysis candidate."), "Execution must reject broker quotes that do not match the exact selected market-analysis candidate.");
-assert.ok(trader.includes("function aiExecutionGate(){return \"\";}"), "AI must remain advisory and must not independently block execution.");
-assert.ok(!trader.includes('if(AI_GUARD.locked)throw Error("AI protection is LOCKED'), "AI advisory lock must not prevent AUTO from starting.");
-assert.ok(!trader.includes('AI_GUARD.state!=="GREEN"'), "AI advisory state must not be a purchase or AUTO execution gate.");
-assert.ok(trader.includes('el.textContent="ADVISORY · "+state'), "AI status must be visibly labelled advisory.");
+assert.ok(!trader.includes("AI_GUARD")&&!trader.includes("observeAIGuardSignal")&&!trader.includes("aiExecutionGate"), "AI guard and signal-monitoring code must be removed.");
+assert.ok(trader.includes("function setExecutionIntegrity(state,reason,reviewRequired=false)"), "Independent execution-integrity diagnostics must remain available.");
+assert.ok(trader.includes('id="bt-integrity-state"')&&trader.includes('id="bt-integrity-reason"'), "Execution integrity status and diagnostic reason must remain visible.");
+assert.ok(html.includes('id="bt-execution-integrity"')&&!html.includes('id="bt-ai-protection"')&&!html.includes("AI is advisory only"), "The AI panel must be replaced by the neutral execution-integrity panel.");
 
 has(trader, /if\(!send\(requestParams\)\)\{proposalContext=null;proposal=null;/, "Quote requests must fail immediately and visibly when the authenticated socket is disconnected.");
 has(trader, /if\(!send\(\{buy:proposal\.id,price:ask\}\)\)\{clearPendingPurchase\(\);busy=false;submittedTradeSignal=null;renderRisk\(\);throw Error\("Purchase was not sent:/, "A purchase that was not transmitted must clear its local pending lock and must not be reported as submitted.");
@@ -33,7 +33,7 @@ has(trader, /if\(openContracts\.size>0\|\|readPendingPurchase\(\)\)/, "Account s
 has(trader, /DEMO validation only: REAL purchases are disabled/, "Purchase function must independently reject REAL execution.");
 has(trader, /baseStake:0\.35,maxTradePct:2,maxExposurePct:2,sessionLossPct:5,sessionProfitPct:3,dailyLossPct:5,dailyProfitPct:3,rapidLossPct:2/, "Approved capital-risk limits must remain unchanged.");
 has(trader, /rapidLossWindowMs:60000/, "Rapid-loss window must remain 60 seconds.");
-assert.ok(trader.includes('if(rapidLimit>0&&rapidLoss>=rapidLimit){const rapidReason=') && trader.includes('setAIGuard("RED",rapidReason);stopAuto(rapidReason);'), "Rapid-loss protection must stop AUTO independently of the advisory AI guard.");
+assert.ok(trader.includes('if(rapidLimit>0&&rapidLoss>=rapidLimit){const rapidReason=') && trader.includes('setExecutionIntegrity("RED",rapidReason);stopAuto(rapidReason);'), "Rapid-loss protection must stop AUTO independently of the advisory AI guard.");
 assert.ok(trader.includes("if(Date.now()<nextAutoEntryAt)return;"), "AUTO DEMO must not enter another trade during the post-settlement cooldown.");
 assert.ok(trader.includes('if(readPendingPurchase())throw Error("Auto trading is blocked by an unresolved purchase safety lock.'), "AUTO DEMO may be armed while reconciliation is pending, but an uncertain purchase lock must still block startup.");
 assert.ok(trader.includes('AUTO DEMO ARMED — waiting for authenticated broker portfolio reconciliation.'), "The UI must clearly show that AUTO is armed but waiting for broker reconciliation.");
