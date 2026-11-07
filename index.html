@@ -1447,11 +1447,11 @@ function qualifiedSetups(a){
  (a.ouCandidates||[]).forEach(x=>{
   const allowed=(x.side==="UNDER"&&x.barrier>=4&&x.barrier<=7)||(x.side==="OVER"&&x.barrier>=3&&x.barrier<=6);
   if(!allowed||x.impossible||x.validN<600||x.deviation<=0||x.strength<3.4||!x.splitConsistent)return;
-  ranked.push({signal:x.label,score:Math.min(95,Math.round(70+(x.strength-3.4)*12)),strength:x.strength,sample:x.validN,reason:x.label+" qualified: observed "+(x.observed*100).toFixed(1)+"% vs baseline "+(x.expected*100).toFixed(1)+"%; positive edge, z="+x.strength.toFixed(2)+", n="+x.validN,contract:x.side==="OVER"?"DIGITOVER":"DIGITUNDER",barrier:x.barrier});
+  ranked.push({signal:x.label,score:Math.min(95,Math.round(70+(x.strength-3.4)*12)),strength:x.strength,sample:x.validN,firstRate:x.firstRate,secondRate:x.secondRate,reason:x.label+" qualified: observed "+(x.observed*100).toFixed(1)+"% vs baseline "+(x.expected*100).toFixed(1)+"%; positive edge, z="+x.strength.toFixed(2)+", n="+x.validN,contract:x.side==="OVER"?"DIGITOVER":"DIGITUNDER",barrier:x.barrier});
  });
  (a.parityCandidates||[]).forEach(x=>{
   if(a.n<600||x.strength<3.4||!x.splitConsistent)return;
-  ranked.push({signal:x.signal,score:Math.min(95,Math.round(70+(x.strength-3.4)*12)),strength:x.strength,sample:a.n,reason:x.signal+" qualified: observed "+(x.observed*100).toFixed(1)+"% vs 50.0% baseline; z="+x.strength.toFixed(2)+", n="+a.n,contract:x.signal==="EVEN"?"DIGITEVEN":"DIGITODD"});
+  ranked.push({signal:x.signal,score:Math.min(95,Math.round(70+(x.strength-3.4)*12)),strength:x.strength,sample:a.n,firstRate:x.firstRate,secondRate:x.secondRate,reason:x.signal+" qualified: observed "+(x.observed*100).toFixed(1)+"% vs 50.0% baseline; z="+x.strength.toFixed(2)+", n="+a.n,contract:x.signal==="EVEN"?"DIGITEVEN":"DIGITODD"});
  });
  if((a.directionSignal==="RISE"||a.directionSignal==="FALL")&&a.directionScore>=70&&a.n>=120){
   const duration=a.directionScore>=80?3:5;
@@ -1475,7 +1475,7 @@ function refreshAutomaticBestSignal(){
   });
  });
  candidates.sort((a,b)=>b.setup.score-a.setup.score||b.setup.strength-a.setup.strength||b.setup.sample-a.setup.sample||b.market.updated-a.market.updated);
- window.dispatchEvent(new CustomEvent("berur:candidate-queue-update",{detail:{count:candidates.length,candidates:candidates.slice(0,3).map((x,i)=>({rank:i+1,symbol:x.symbol,signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier,score:x.setup.score,sample:x.setup.sample,reason:x.setup.reason}))}}));
+ window.dispatchEvent(new CustomEvent("berur:candidate-queue-update",{detail:{count:candidates.length,candidates:candidates.slice(0,3).map((x,i)=>({rank:i+1,symbol:x.symbol,signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier,score:x.setup.score,strength:x.setup.strength,sample:x.setup.sample,firstRate:x.setup.firstRate??null,secondRate:x.setup.secondRate??null,reason:x.setup.reason}))}}));
  if(!candidates.length){
   activeCandidateKey=null;activeSignal=null;
   window.dispatchEvent(new CustomEvent("berur:signal-update",{detail:{signalId:"",tradeAllowed:false}}));
@@ -1499,15 +1499,15 @@ window.addEventListener("berur:candidate-queue-update",event=>{
  if(!panel){panel=document.createElement("section");panel.id="berur-candidate-queue";panel.className="card section";panel.style.borderTop="2px solid var(--teal)";panel.innerHTML="<h3>LIVE CANDIDATE RANKING — NOT PURCHASE AUTHORIZATION</h3><div id='berur-candidate-count' class='small'>Waiting for qualified candidates…</div><div id='berur-candidate-rows' class='tablewrap'></div>";radar.insertAdjacentElement("afterend",panel);}
  const list=Array.isArray(event.detail?.candidates)?event.detail.candidates:[];
  const count=document.getElementById("berur-candidate-count"),body=document.getElementById("berur-candidate-rows");
- if(count)count.textContent=Number(event.detail?.count||0)+" statistically qualified candidates found • each has 20+ fresh live quote changes; ranking is historical evidence only. AI GREEN, live payout, fresh quote and DEMO connection are still required.";
+ if(count)count.textContent=Number(event.detail?.count||0)+" statistically qualified candidates found • each has 20+ fresh live quote changes; digit candidates additionally require 600+ samples, z-score ≥3.4 and positive split-half evidence. Ranking is historical evidence only. AI GREEN, live payout, fresh quote and DEMO connection are still required.";
  if(!body)return;
  body.replaceChildren();
  if(!list.length){const p=document.createElement("p");p.className="note";p.textContent="NO QUALIFIED SETUP — waiting for fresh evidence. No forced purchases.";body.appendChild(p);return;}
  const table=document.createElement("table");table.style.minWidth="560px";
  const head=document.createElement("thead"),hr=document.createElement("tr");
- ["Rank","Market","Contract","Evidence","Samples","Selection"].forEach(v=>{const th=document.createElement("th");th.textContent=v;hr.appendChild(th);});head.appendChild(hr);table.appendChild(head);
+ ["Rank","Market","Contract","Evidence","Stat / trend","Samples","Split check","Selection"].forEach(v=>{const th=document.createElement("th");th.textContent=v;hr.appendChild(th);});head.appendChild(hr);table.appendChild(head);
  const tbody=document.createElement("tbody");
- list.slice(0,3).forEach((x,i)=>{const tr=document.createElement("tr");[String(i+1),marketName(x.symbol),x.signal,String(x.score)+"/100",String(x.sample),i===0?"TOP RANKED — QUOTE REVIEW":("STANDBY #"+(i+1))].forEach(v=>{const td=document.createElement("td");td.textContent=v;if(i===0)td.className="green";tr.appendChild(td);});tbody.appendChild(tr);});
+ list.slice(0,3).forEach((x,i)=>{const tr=document.createElement("tr");const digit=String(x.contract||"").startsWith("DIGIT");const stat=digit?"z "+Number(x.strength||0).toFixed(2):"trend "+Number(x.strength||0)+"/100";const split=x.firstRate!==null&&x.secondRate!==null&&x.firstRate!==undefined&&x.secondRate!==undefined?(Number(x.firstRate)*100).toFixed(1)+"% / "+(Number(x.secondRate)*100).toFixed(1)+"%":"N/A — trend setup";[String(i+1),marketName(x.symbol),x.signal,String(x.score)+"/100",stat,String(x.sample),split,i===0?"TOP RANKED — QUOTE REVIEW":("STANDBY #"+(i+1))].forEach(v=>{const td=document.createElement("td");td.textContent=v;if(i===0)td.className="green";tr.appendChild(td);});tbody.appendChild(tr);});
  table.appendChild(tbody);body.appendChild(table);
  let reasonPanel=document.getElementById("berur-purchase-reason-panel");
  if(!reasonPanel){reasonPanel=document.createElement("section");reasonPanel.id="berur-purchase-reason-panel";reasonPanel.className="card section";reasonPanel.style.borderTop="2px solid var(--amber)";reasonPanel.innerHTML="<h3>PURCHASE REASON & DECISION PANEL</h3><div id='berur-purchase-reason-main' class='note'></div><div id='berur-purchase-reason-next' class='note' style='margin-top:8px'></div><div class='note' style='margin-top:8px'>ENTRY GATES: Over/Under/Even/Odd require 600 observations, z-score ≥ 3.4 and positive edge in both halves of the sample. Rise/Fall require 120 observations, trend confirmation, direction score ≥ 70 and 3–5 tick duration. All require fresh feed, no cooldown and exact quote match. One open contract at a time.</div>";panel.insertAdjacentElement("afterend",reasonPanel);}
