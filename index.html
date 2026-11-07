@@ -1516,10 +1516,13 @@ function updateCfdLotLabels(){
 function requestMarketCandles(symbol,granularity=candleTimeframe,force=false){
  const m=markets[symbol];
  if(!m||!running||!socket||socket.readyState!==WebSocket.OPEN)return;
- m.timeframes=m.timeframes||{};m.timeframesUpdatedAt=m.timeframesUpdatedAt||{};
- if(!force&&m.timeframes[granularity]?.length&&Date.now()-Number(m.timeframesUpdatedAt[granularity]||0)<60000)return;
+ m.timeframes=m.timeframes||{};m.timeframesUpdatedAt=m.timeframesUpdatedAt||{};m.timeframesRequestedAt=m.timeframesRequestedAt||{};
+ const now=Date.now(),requested=Number(m.timeframesRequestedAt[granularity]||0);
+ if(now-requested<15000)return;
+ if(!force&&m.timeframes[granularity]?.length&&now-Number(m.timeframesUpdatedAt[granularity]||0)<60000)return;
+ m.timeframesRequestedAt[granularity]=now;
  const sent=request({ticks_history:symbol,count:120,end:"latest",style:"candles",granularity},"market-candles",symbol);
- if(!sent&&granularity===candleTimeframe)m.requestedCandleTf=null;
+ if(!sent){m.timeframesRequestedAt[granularity]=0;if(granularity===candleTimeframe)m.requestedCandleTf=null;}
 }
 function requestRiseFallTimeframes(symbol,force=false){
  const m=markets[symbol];if(!m||!running||!socket||socket.readyState!==WebSocket.OPEN)return;
@@ -1530,7 +1533,6 @@ function loadMarket(symbol) {
    ticks_history:symbol,count:1000,end:"latest",style:"ticks"
  },"history",symbol);
  requestRiseFallTimeframes(symbol,true);
- if(symbol===selected)requestMarketCandles(symbol,candleTimeframe,true);
  request({ticks:symbol,subscribe:1},"tick",symbol);
 }
 function stop() {
@@ -1589,12 +1591,14 @@ function analyzeRiseFallMtf(m){
   const strongBull=bull&&body/range>=.55&&last.close>=last.low+range*.75;
   const strongBear=bear&&body/range>=.55&&last.close<=last.low+range*.25;
   const breakoutBull=last.close>prev.high,breakoutBear=last.close<prev.low;
-  const confirmation=!!(pattern&&(pattern.direction==="BULLISH"||pattern.direction==="BEARISH"))||strongBull||strongBear||breakoutBull||breakoutBear;
-  values[tf.n]={ready:true,count:bars.length,age,trend,rsi,ema10:fast,ema25:slow,pattern:pattern?pattern.name:"—",patternDirection:pattern?.direction||"—",patternQuality:pattern?.quality||0,confirmation,close:last.close,candleTime:last.time};
+  const confirmRise=!!(pattern&&pattern.direction==="BULLISH")||strongBull||breakoutBull;
+  const confirmFall=!!(pattern&&pattern.direction==="BEARISH")||strongBear||breakoutBear;
+  const confirmation=confirmRise||confirmFall;
+  values[tf.n]={ready:true,count:bars.length,age,trend,rsi,ema10:fast,ema25:slow,pattern:pattern?pattern.name:"—",patternDirection:pattern?.direction||"—",patternQuality:pattern?.quality||0,confirmation,confirmRise,confirmFall,close:last.close,candleTime:last.time};
  });
  const ordered=frames.map(x=>values[x.n]),ready=ordered.every(x=>x.ready),directions=ordered.map(x=>x.trend),aligned=ready&&directions.every(x=>x===directions[0])&&(directions[0]==="RISE"||directions[0]==="FALL");
  const direction=aligned?directions[0]:"WAIT",one=values["1M"],five=values["5M"],entryRsi=one?.rsi;
- const momentumOk=direction==="RISE"?entryRsi!==null&&entryRsi>=50&&entryRsi<=75&&one.confirmation:direction==="FALL"?entryRsi!==null&&entryRsi>=25&&entryRsi<=50&&one.confirmation:false;
+ const momentumOk=direction==="RISE"?entryRsi!==null&&entryRsi>=50&&entryRsi<=75&&one.confirmRise:direction==="FALL"?entryRsi!==null&&entryRsi>=25&&entryRsi<=50&&one.confirmFall:false;
  const pattern=one?.pattern!=="—"?one.pattern:(five?.pattern!=="—"?five.pattern:"Strong candle / breakout");
  const qualified=ready&&aligned&&momentumOk;
  const count=ordered.reduce((sum,x)=>sum+(x.count||0),0),score=qualified?Math.min(95,78+(one.patternQuality||0)*.12+(five.patternQuality||0)*.05):0;
