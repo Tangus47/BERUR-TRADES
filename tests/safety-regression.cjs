@@ -18,7 +18,7 @@ assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — broker quote does not 
 assert.ok(!trader.includes("AI_GUARD")&&!trader.includes("observeAIGuardSignal")&&!trader.includes("aiExecutionGate"), "AI guard and signal-monitoring code must be removed.");
 assert.ok(trader.includes("function setExecutionIntegrity(state,reason,reviewRequired=false)"), "Independent execution-integrity diagnostics must remain available.");
 assert.ok(trader.includes('id="bt-integrity-state"')&&trader.includes('id="bt-integrity-reason"'), "Execution integrity status and diagnostic reason must remain visible.");
-assert.ok(html.includes('id="bt-execution-integrity"')&&!html.includes('id="bt-ai-protection"')&&!html.includes("AI is advisory only"), "The AI panel must be replaced by the neutral execution-integrity panel.");
+assert.ok(trader.includes('id="bt-execution-integrity"')&&!trader.includes('id="bt-ai-protection"')&&!trader.includes("AI is advisory only"), "The injected AI panel must be replaced by the neutral execution-integrity panel.");
 
 has(trader, /if\(!send\(requestParams\)\)\{proposalContext=null;proposal=null;/, "Quote requests must fail immediately and visibly when the authenticated socket is disconnected.");
 has(trader, /if\(!send\(\{buy:proposal\.id,price:ask\}\)\)\{clearPendingPurchase\(\);busy=false;submittedTradeSignal=null;renderRisk\(\);throw Error\("Purchase was not sent:/, "A purchase that was not transmitted must clear its local pending lock and must not be reported as submitted.");
