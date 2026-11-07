@@ -397,6 +397,7 @@ button.primary{box-shadow:0 0 0 1px rgba(53,224,162,.18),0 8px 24px rgba(53,224,
 .app-tabs .app-tab[data-tab="derivcfd"]{--tab-accent:#9d9cff}
 .app-tabs .app-tab[data-tab="boomcrash"]{--tab-accent:#ff806e}
 .app-tabs .app-tab[data-tab="news"]{--tab-accent:#71c6ef}
+.app-tabs .app-tab[data-tab="terminals"]{--tab-accent:#55e0c4}
 .app-tabs .app-tab{border-color:color-mix(in srgb,var(--tab-accent) 45%,transparent);background:color-mix(in srgb,var(--tab-accent) 10%,#0b1728);color:var(--tab-accent)}
 .app-tabs .app-tab.active{background:var(--tab-accent);border-color:var(--tab-accent);color:#071321;box-shadow:0 0 0 2px color-mix(in srgb,var(--tab-accent) 22%,transparent),0 5px 18px color-mix(in srgb,var(--tab-accent) 20%,transparent)}
 /* Matching accent stripe keeps the active panel visually distinct */
@@ -411,6 +412,7 @@ button.primary{box-shadow:0 0 0 1px rgba(53,224,162,.18),0 8px 24px rgba(53,224,
 #forex-cfd-centre{border-top:3px solid #43d7c4}
 #boom-crash-centre{border-top:3px solid #ff806e}
 #economic-news-centre{border-top:3px solid #71c6ef}
+#binary-terminals{border-top:3px solid #55e0c4}
 
 
 
@@ -481,13 +483,30 @@ body{overflow-x:hidden}
 }
 
 </style>
+<style>
+.bt-terminal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:12px;margin:14px 0}
+.bt-terminal-card{min-width:0;padding:15px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(18,42,65,.8),rgba(8,20,35,.95))}
+.bt-coordinator{border-top:3px solid #ffc66e}.bt-rise-fall{border-top:3px solid #55e0c4}
+.bt-terminal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}.bt-terminal-head h3{margin:4px 0;font-size:16px}
+.bt-terminal-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}
+.bt-terminal-metrics>div{min-width:0;padding:10px;border-radius:10px;background:rgba(4,13,25,.55);border:1px solid rgba(135,165,200,.15)}
+.bt-terminal-metrics small{display:block;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.06em;margin-bottom:5px}
+.bt-terminal-metrics b{display:block;overflow-wrap:anywhere;font-size:16px}
+.bt-terminal-subhead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:18px 0 8px}.bt-terminal-subhead h3{margin:0;font-size:13px;letter-spacing:.05em}
+.bt-module-registry{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.bt-module-item{padding:11px;border:1px solid var(--line);border-radius:10px;background:rgba(5,15,28,.55);display:grid;gap:5px}
+.bt-module-item b{font-size:12px}.bt-module-item span{font-size:10px;color:var(--muted);font-weight:800}
+.bt-module-item.active{border-color:rgba(85,224,196,.5)}.bt-module-item.active span{color:#6fe2c6}
+.bt-terminal-actions{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0 8px}.bt-terminal-actions button{min-height:44px}
+@media(max-width:520px){.bt-terminal-card{padding:12px}.bt-terminal-metrics b{font-size:14px}.bt-terminal-actions button{flex:1 1 100%}}
+</style>
 </head>
 <body>
 <header>
   <div class="brand">BERUR <span>TRADES</span></div>
   <div class="sub">DERIV MARKET INTELLIGENCE • LIVE ANALYSIS • MANUAL EXECUTION</div>
 </header>
-<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="digits">Digit Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="ou">OVER / UNDER</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="quality">Quality</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="forex">Forex Signals</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="xauusd">XAUUSD Gold</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="derivcfd">Deriv CFD Signals</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="boomcrash">Boom &amp; Crash</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="news">Economic News</button></nav>
+<nav class="terminal-nav app-tabs" aria-label="Dashboard sections" role="tablist"><button type="button" class="app-tab active" role="tab" aria-selected="true" data-tab="home">Home</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="markets">Markets</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="terminals">Binary Terminals</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="analysis">Analysis</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="digits">Digit Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="ou">OVER / UNDER</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="radar">Smart Radar</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="quality">Quality</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="execution">Execution</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="forex">Forex Signals</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="xauusd">XAUUSD Gold</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="derivcfd">Deriv CFD Signals</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="boomcrash">Boom &amp; Crash</button><button type="button" class="app-tab" role="tab" aria-selected="false" data-tab="news">Economic News</button></nav>
 
 <main class="wrap">
   <div class="topline">
@@ -507,6 +526,52 @@ body{overflow-x:hidden}
     <div class="sidebar-foot"><span class="pulse-dot"></span> Deriv public feed</div>
   </aside>
   <div class="terminal-content">
+<section class="section card" id="binary-terminals" aria-labelledby="binary-terminals-title">
+  <div class="radar-head">
+    <div><span class="eyebrow">MODULAR BINARY OPTIONS</span><h2 class="section-title" id="binary-terminals-title">BERUR BINARY OPTIONS TERMINALS</h2><p class="note">Separate analysis modules with one shared Smart Coordinator. Market selection is automatic; the coordinator ranks qualified candidates and routes only one candidate at a time through the existing protected execution desk.</p></div>
+    <span class="pill" id="bt-module-mode">SMART MODE · AUTO MARKET</span>
+  </div>
+  <div class="bt-terminal-grid">
+    <article class="bt-terminal-card bt-coordinator">
+      <div class="bt-terminal-head"><div><span class="eyebrow">CENTRAL ARBITRATION</span><h3>SMART COORDINATOR</h3></div><span class="pill" id="bt-smart-state">WAITING FOR SCAN</span></div>
+      <div class="bt-terminal-metrics">
+        <div><small>BEST CONTRACT</small><b id="bt-smart-contract">WAIT</b></div>
+        <div><small>SELECTED MARKET</small><b id="bt-smart-market">WAIT</b></div>
+        <div><small>EVIDENCE SCORE</small><b id="bt-smart-score">—</b></div>
+        <div><small>QUALIFIED CANDIDATES</small><b id="bt-smart-count">0</b></div>
+      </div>
+      <p class="note" id="bt-smart-reason">Scanning all active contract modules. No candidate is a purchase instruction.</p>
+    </article>
+    <article class="bt-terminal-card bt-rise-fall">
+      <div class="bt-terminal-head"><div><span class="eyebrow">MODULE 01 · ACTIVE</span><h3>RISE / FALL TERMINAL</h3></div><span class="pill" id="bt-rf-state">COLLECTING DATA</span></div>
+      <div class="bt-terminal-metrics">
+        <div><small>BEST MARKET</small><b id="bt-rf-market">WAIT</b></div>
+        <div><small>DIRECTION</small><b id="bt-rf-signal">WAIT</b></div>
+        <div><small>EVIDENCE SCORE</small><b id="bt-rf-score">—</b></div>
+        <div><small>OBSERVATIONS</small><b id="bt-rf-sample">—</b></div>
+      </div>
+      <p class="note" id="bt-rf-reason">Rise/Fall scans all connected volatility markets for aligned trend and momentum confirmation. No eligible signal yet.</p>
+    </article>
+  </div>
+  <div class="bt-terminal-subhead"><h3>RISE / FALL MARKET LEADERS</h3><span class="note">Automatically ranked · analysis evidence, not win probability</span></div>
+  <div class="tablewrap"><table style="min-width:620px"><thead><tr><th>RANK</th><th>MARKET</th><th>DIRECTION</th><th>EVIDENCE</th><th>SAMPLE</th><th>DURATION</th></tr></thead><tbody id="bt-rf-market-rows"><tr><td colspan="6">Waiting for live market evidence…</td></tr></tbody></table></div>
+  <div class="bt-terminal-subhead"><h3>MODULAR TERMINAL REGISTRY</h3><span class="note">One shared account and safety controller</span></div>
+  <div class="bt-module-registry" id="bt-module-registry">
+    <div class="bt-module-item active"><b>RISE / FALL</b><span>ACTIVE · SMART QUEUE</span></div>
+    <div class="bt-module-item active"><b>OVER / UNDER</b><span>EXISTING · SMART QUEUE</span></div>
+    <div class="bt-module-item active"><b>EVEN / ODD</b><span>EXISTING · SMART QUEUE</span></div>
+    <div class="bt-module-item"><b>MATCHES / DIFFERS</b><span>SEPARATE MODULE · NEXT STAGE</span></div>
+    <div class="bt-module-item"><b>TOUCH / NO TOUCH</b><span>SEPARATE MODULE · NEXT STAGE</span></div>
+    <div class="bt-module-item"><b>ENDS IN / OUT</b><span>SEPARATE MODULE · NEXT STAGE</span></div>
+  </div>
+  <div class="bt-terminal-actions">
+    <button type="button" class="primary" id="bt-start-smart">START SMART BOT · DEMO ONLY</button>
+    <button type="button" id="bt-open-execution">OPEN EXECUTION DESK</button>
+    <button type="button" id="bt-open-radar">OPEN SMART RADAR</button>
+  </div>
+  <p class="note">Execution remains controlled by the existing Deriv desk: DEMO-only, one open contract, fixed $0.35 base stake, no Martingale, shared exposure and loss limits, broker reconciliation, quote/signal consistency checks, and post-trade cooldowns. This terminal does not submit purchases directly. REAL execution remains disabled.</p>
+</section>
+
 
 
   <div class="grid" id="overview">
@@ -1717,8 +1782,13 @@ function refreshAutomaticBestSignal(){
   });
  });
  candidates.sort((a,b)=>b.setup.score-a.setup.score||b.setup.strength-a.setup.strength||b.setup.sample-a.setup.sample||b.market.updated-a.market.updated);
+ const terminalSnapshot=x=>x?({symbol:x.symbol,marketName:marketName(x.symbol),signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier??null,score:x.setup.score,strength:x.setup.strength??null,sample:x.setup.sample,duration:x.setup.duration??null,reason:x.setup.reason,updatedAt:x.market.updated}):null;
+ const familyLeaders={};candidates.forEach(x=>{if(!familyLeaders[x.setup.contract])familyLeaders[x.setup.contract]=terminalSnapshot(x);});
+ const riseFallCandidates=candidates.filter(x=>x.setup.contract==="CALL"||x.setup.contract==="PUT").slice(0,5).map(terminalSnapshot);
+ window.dispatchEvent(new CustomEvent("berur:terminal-scan-update",{detail:{mode:"SMART",marketSelection:"AUTOMATIC",total:candidates.length,globalBest:terminalSnapshot(candidates[0]),familyLeaders,riseFallCandidates}}));
  window.dispatchEvent(new CustomEvent("berur:candidate-queue-update",{detail:{count:candidates.length,candidates:candidates.slice(0,3).map((x,i)=>({rank:i+1,symbol:x.symbol,signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier,score:x.setup.score,strength:x.setup.strength,sample:x.setup.sample,firstRate:x.setup.firstRate??null,secondRate:x.setup.secondRate??null,reason:x.setup.reason}))}}));
  if(!candidates.length){
+  window.dispatchEvent(new CustomEvent("berur:terminal-scan-update",{detail:{mode:"SMART",marketSelection:"AUTOMATIC",total:0,globalBest:null,familyLeaders:{},riseFallCandidates:[]}}));
   activeCandidateKey=null;activeSignal=null;
   window.dispatchEvent(new CustomEvent("berur:signal-update",{detail:{signalId:"",tradeAllowed:false}}));
   return;
@@ -2370,7 +2440,8 @@ function setupAppTabs(){
   derivcfd:["forex-cfd-centre"],
   xauusd:["forex-cfd-centre"],
   boomcrash:["boom-crash-centre"],
-  news:["economic-news-centre"]
+  news:["economic-news-centre"],
+    terminals:["binary-terminals"]
  };
  const panelNodes=Array.from(new Set(Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean)));
  const marketSidebar=document.querySelector(".market-sidebar");
@@ -2495,6 +2566,7 @@ setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
 <script src="./signal-intelligence.js"></script>
 <script src="./economic-news.js?v=20261105-signal-panels-news-2"></script>
 <script src="./deriv-trader.js?v=20261107-oauth-connection-1"></script>
+<script src="./binary-terminals.js?v=20261107-modular-rise-fall-1"></script>
 <script>
 (function(){
   const greeting=document.getElementById("traderGreeting");
