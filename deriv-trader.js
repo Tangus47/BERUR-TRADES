@@ -10,7 +10,8 @@ if(backendChoice==="preview")localStorage.setItem("berur-worker-mode","preview")
 if(backendChoice==="production")localStorage.setItem("berur-worker-mode","production");
 const WORKER=localStorage.getItem("berur-worker-mode")==="preview"?PREVIEW_WORKER:PRODUCTION_WORKER;
 const API="https://api.derivws.com";
-let sessionId=null,accounts=[],account=null,ws=null,proposal=null,proposalContext=null,proposalReceivedAt=0,auto=false,timer=null,busy=false,pl=0,trades=0,qualityQuoteOnly=false,qualityQuoteContext=null,reconciliationReady=false;\nlet lastTradeReadyAlertKey="";
+let sessionId=null,accounts=[],account=null,ws=null,proposal=null,proposalContext=null,proposalReceivedAt=0,auto=false,timer=null,busy=false,pl=0,trades=0,qualityQuoteOnly=false,qualityQuoteContext=null,reconciliationReady=false;
+let lastTradeReadyAlertKey="";
 let reconnectTimer=null,reconnectAttempts=0,manualDisconnect=false;
 let latestAnalysisSignal=null,lastAutoSignalKey="",lastAutoTickSequence=0;
 let autoQuoteSignal=null,autoQuotePending=false,autoFirstApprovalPending=false,autoFirstApprovalSignal=null,autoFirstApprovalDeadline=0,proposalTimer=null,buyConfirmTimer=null,submittedTradeSignal=null;
