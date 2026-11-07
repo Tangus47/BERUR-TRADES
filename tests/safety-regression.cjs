@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const assert = require("node:assert/strict");
 const trader = fs.readFileSync("deriv-trader.js", "utf8");
 const html = fs.readFileSync("index.html", "utf8");
+const terminals = fs.readFileSync("binary-terminals.js", "utf8");
 function has(source, pattern, message) { assert.match(source, pattern, message); }
 
 has(trader, /account\.account_type!=="demo"/, "Execution must remain DEMO-only.");
@@ -92,4 +93,11 @@ assert.ok(trader.includes("contractData.exit_tick_display_value??contractData.ex
 assert.ok(trader.includes("recordDemoResult(meta,Number(c?.profit)||0,c?.status||\"closed\",c||{})"), "Settlement must pass the broker-confirmed contract payload into the DEMO journal.");
 assert.ok(trader.includes("function renderDigitEntryExitMonitor(sourceRows=readJournal())"), "The dashboard must render the broker-observed entry and exit digit monitor.");
 assert.ok(trader.includes("No settled digit contracts with recorded entry/exit data yet."), "Missing broker tick data must be shown as unavailable rather than fabricated.");
+assert.ok(html.includes('data-tab="terminals"'), "A dedicated Binary Terminals navigation tab must be present.");
+assert.ok(html.includes('id="binary-terminals"'), "The modular Binary Terminals panel must be present.");
+assert.ok(html.includes('berur:terminal-scan-update'), "The market scanner must publish independent terminal candidate snapshots.");
+assert.ok(terminals.includes('const MODE="SMART",MARKET_SELECTION="AUTOMATIC"'), "Binary terminals must use the approved Smart mode and automatic market selection.");
+assert.ok(terminals.includes('document.getElementById("bt-auto")'), "The Smart terminal must hand off to the existing protected DEMO execution control.");
+assert.ok(terminals.includes('berur:terminal-scan-update'), "The Rise/Fall terminal must consume live candidate updates.");
+assert.doesNotMatch(terminals, /ws\\.send|buy\\s*:\\s*proposal|api\\.buy/i, "The terminal display module must not submit purchases or bypass the shared execution controller.");
 console.log("BERUR TRADES safety regression checks passed.");
