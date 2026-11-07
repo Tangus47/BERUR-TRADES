@@ -9,7 +9,7 @@ on:
       - 'tests/**'
       - '.github/workflows/safety-regression.yml'
   pull_request:
-    branches: [main, feat/independent-over-market-rankings]
+    branches: [main, feat/independent-over-market-rankings, feat/modular-binary-terminals-rise-fall]
     paths:
       - 'deriv-trader.js'
       - 'binary-terminals.js'
@@ -31,5 +31,15 @@ jobs:
         run: |
           node --check deriv-trader.js
           node --check binary-terminals.js
+          node <<'NODE'
+          const fs = require('node:fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const pattern = '<script\\b(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)<\\/script>';
+          const scripts = [...html.matchAll(new RegExp(pattern, 'gi'))];
+          scripts.forEach((match, index) => fs.writeFileSync('/tmp/berur-inline-' + index + '.js', match[1]));
+          if (!scripts.length) throw new Error('No inline application scripts were found.');
+          console.log('Extracted ' + scripts.length + ' inline application scripts.');
+          NODE
+          for file in /tmp/berur-inline-*.js; do node --check "$file"; done
       - name: Run safety regression assertions
         run: node tests/safety-regression.cjs

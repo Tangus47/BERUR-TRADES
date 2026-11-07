@@ -96,6 +96,22 @@ assert.ok(trader.includes("No settled digit contracts with recorded entry/exit d
 assert.ok(html.includes('data-tab="terminals"'), "A dedicated Binary Terminals navigation tab must be present.");
 assert.ok(html.includes('id="binary-terminals"'), "The modular Binary Terminals panel must be present.");
 assert.ok(html.includes('berur:terminal-scan-update'), "The market scanner must publish independent terminal candidate snapshots.");
+assert.ok(html.includes("function analyzeRiseFallMtf(m)"), "Rise/Fall must calculate broker-candle multi-timeframe confirmation.");
+assert.ok(html.includes('[{g:60,n:"1M"},{g:300,n:"5M"},{g:900,n:"15M"},{g:3600,n:"1H"}]'), "Rise/Fall must evaluate 1M, 5M, 15M and 1H candles.");
+assert.ok(html.includes("EMA 10/25") && html.includes("riseFallRsi(values,period=14)"), "Rise/Fall must calculate EMA 10/25 and RSI 14 from candle closes.");
+assert.ok(html.includes("support,resistance"), "Rise/Fall must calculate recent support and resistance from completed OHLC candles.");
+assert.ok(html.includes('duration=60,duration_unit="s"'), "Qualified Rise/Fall candidates must use a 60-second duration.");
+assert.ok(html.includes('duration:signal==="RISE"||signal==="FALL"?60:1') && html.includes('duration_unit:signal==="RISE"||signal==="FALL"?"s":"t"'), "Manual Rise/Fall handoff must specify 60 seconds.");
+assert.ok(html.includes('duration:contract==="CALL"||contract==="PUT"?60:1') && html.includes('duration_unit:contract==="CALL"||contract==="PUT"?"s":"t"'), "Analysis handoff must specify seconds for Rise/Fall.");
+assert.ok(trader.includes('const isRiseFall=type==="CALL"||type==="PUT"') && trader.includes('duration:isRiseFall?60') && trader.includes('duration_unit:isRiseFall?"s":"t"'), "Execution quote parameters must enforce 60 seconds for CALL/PUT contracts.");
+assert.ok(trader.includes('Number(s.duration)===60&&String(s.duration_unit)==="s"'), "The execution signal validator must reject Rise/Fall durations other than 60 seconds.");
+assert.ok(trader.includes('durationUnit:String(p.duration_unit||"t")'), "Quote context must bind the duration unit as well as the numeric duration.");
+
+assert.ok(html.includes('!mtf?.qualified||mtf.direction!==value'), "Rise/Fall purchase validation must reject unconfirmed or conflicting timeframes.");
+assert.ok(html.includes("requestRiseFallTimeframes(symbol,true)"), "Every connected volatility market must request independent OHLC history for all Rise/Fall timeframes.");
+assert.ok(html.includes('berur:rise-fall-candles'), "Broker OHLC candle updates must be published to the terminal.");
+assert.ok(terminals.includes("bt-rf-timeframes") && terminals.includes("EMA10") && terminals.includes("RSI14"), "Rise/Fall terminal must visibly show timeframe EMA and RSI evidence.");
+
 assert.ok(terminals.includes('const MODE="SMART",MARKET_SELECTION="AUTOMATIC"'), "Binary terminals must use the approved Smart mode and automatic market selection.");
 assert.ok(terminals.includes('const button=$("bt-auto")'), "The Smart terminal must hand off to the existing protected DEMO execution control.");
 assert.ok(terminals.includes('berur:terminal-scan-update'), "The Rise/Fall terminal must consume live candidate updates.");

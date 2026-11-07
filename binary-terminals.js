@@ -1,9 +1,9 @@
 (()=>{"use strict";
 const MODE="SMART",MARKET_SELECTION="AUTOMATIC";
 const $=id=>document.getElementById(id);
-let latest={mode:MODE,marketSelection:MARKET_SELECTION,total:0,globalBest:null,familyLeaders:{},riseFallCandidates:[]};
+let latest={mode:MODE,marketSelection:MARKET_SELECTION,total:0,globalBest:null,familyLeaders:{},riseFallCandidates:[],riseFallWatch:[]};
 const text=(id,value)=>{const el=$(id);if(el)el.textContent=value;};
-const pctScore=x=>Number.isFinite(Number(x))?String(Math.round(Number(x)))+"/100":"—";
+const pctScore=x=>x===null||x===undefined||x===""?"—":Number.isFinite(Number(x))?String(Math.round(Number(x)))+"/100":"—";
 function render(data){
  latest={...latest,...(data||{})};
  text("bt-smart-state",latest.globalBest?"RANKED CANDIDATE FOUND":"WAITING FOR QUALIFIED SIGNAL");
@@ -13,17 +13,24 @@ function render(data){
  text("bt-smart-count",String(Number(latest.total)||0));
  text("bt-smart-reason",latest.globalBest?latest.globalBest.reason:"No contract currently passes the entry evidence checks. The coordinator will continue scanning; no forced selection.");
  const rise=Array.isArray(latest.riseFallCandidates)?latest.riseFallCandidates:[];
- const best=rise[0]||null;
- text("bt-rf-state",best?"QUALIFIED CANDIDATE":"WAITING FOR CONFIRMATION");
+ const watch=Array.isArray(latest.riseFallWatch)?latest.riseFallWatch:rise;
+ const best=rise[0]||watch[0]||null,qualified=!!rise[0],mtf=best&&best.mtf?best.mtf:null;
+ text("bt-rf-state",qualified?"QUALIFIED · 4 TIMEFRAMES":mtf&&mtf.ready?"ANALYSIS READY · WAIT":"WAITING FOR CANDLE HISTORY");
  text("bt-rf-market",best?best.marketName:"WAIT");
- text("bt-rf-signal",best?best.signal:"WAIT");
- text("bt-rf-score",best?pctScore(best.score):"—");
- text("bt-rf-sample",best?String(best.sample):"—");
- text("bt-rf-reason",best?best.reason:"Rise/Fall is scanning connected markets. EMA trend, recent direction, directional balance and minimum-sample checks must agree before a candidate is shown.");
+ text("bt-rf-signal",qualified?best.signal:"WAIT");
+ text("bt-rf-score",qualified?pctScore(best.score):"—");
+ text("bt-rf-sample",mtf?String(mtf.count)+" candles":"—");
+ text("bt-rf-reason",best?mtf.reason:"Rise/Fall waits for fresh 1M, 5M, 15M and 1H broker candles, EMA 10/25 alignment, RSI 14 and a completed-candle confirmation.");
+ const tfRoot=$("bt-rf-timeframes"),confirm=$("bt-rf-confirmation");
+ if(tfRoot){
+  const frames=[["1M","1M"],["5M","5M"],["15M","15M"],["1H","1H"]];
+  tfRoot.innerHTML=frames.map(([label,key])=>{const v=mtf&&mtf.values?mtf.values[key]:null,trend=v&&v.ready?v.trend:"WAIT",cls=trend==="RISE"?"trend-rise":trend==="FALL"?"trend-fall":"";return '<div class="bt-mtf-cell"><b>'+label+' · <span class="'+cls+'">'+trend+'</span></b><small>EMA10 '+(v&&v.ema10!==null?Number(v.ema10).toPrecision(7):"—")+' / EMA25 '+(v&&v.ema25!==null?Number(v.ema25).toPrecision(7):"—")+'</small><small>RSI14 '+(v&&v.rsi!==null?Number(v.rsi).toFixed(1):"—")+' · '+(v?v.count:0)+' closed candles</small><small>'+((v&&v.pattern)||"No pattern")+'</small><small>S '+(v&&v.support!==null&&v.support!==undefined?Number(v.support).toPrecision(7):"—")+' · R '+(v&&v.resistance!==null&&v.resistance!==undefined?Number(v.resistance).toPrecision(7):"—")+'</small></div>';}).join("");
+ }
+ if(confirm)confirm.textContent=mtf&&qualified?("CONFIRMED "+best.signal+" · "+(mtf.pattern||"Candle confirmation")+" · 1M RSI "+(mtf.entryRsi===null?"—":Number(mtf.entryRsi).toFixed(1))+" · all four timeframe trends aligned. "+mtf.reason):"EMA 10/25 · RSI 14 · engulfing/pin-bar/hammer/doji/star patterns · strong candle body/wick validation · multi-timeframe alignment. WAIT when data is missing or conflicting.";
  const body=$("bt-rf-market-rows");
  if(body){
-  if(!rise.length)body.innerHTML='<tr><td colspan="6">WAIT — no Rise/Fall market currently passes the entry checks.</td></tr>';
-  else body.innerHTML=rise.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+String(x.marketName||x.symbol)+'</td><td><b>'+String(x.signal)+'</b></td><td>'+pctScore(x.score)+'</td><td>'+String(x.sample||0)+'</td><td>'+String(x.duration||"—")+' ticks</td></tr>').join("");
+  if(!watch.length)body.innerHTML='<tr><td colspan="7">WAIT — collecting broker OHLC candle history for all connected markets.</td></tr>';
+  else body.innerHTML=watch.map((x,i)=>{const m=x.mtf||{},v=m.values||{},ok=!!m.qualified;return '<tr><td>'+(i+1)+'</td><td>'+String(x.marketName||x.symbol)+'</td><td><b>'+(ok?String(x.signal):"WAIT") +'</b></td><td>'+(ok?pctScore(x.score):"—") +'</td><td>'+String(m.pattern||"—")+' · RSI '+(m.entryRsi===null||m.entryRsi===undefined?"—":Number(m.entryRsi).toFixed(1))+'</td><td>'+["1M","5M","15M","1H"].map(k=>String(v[k]?.count||0)).join("/")+'</td><td>'+(ok?String(x.duration||"—")+" "+String(x.duration_unit||"ticks"):"—") +'</td></tr>';}).join("");
  }
  const modules=[["CALL","RISE / FALL"],["PUT","RISE / FALL"],["DIGITOVER","OVER / UNDER"],["DIGITUNDER","OVER / UNDER"],["DIGITEVEN","EVEN / ODD"],["DIGITODD","EVEN / ODD"]];
  const registry=$("bt-module-registry");
