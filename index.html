@@ -1584,7 +1584,7 @@ function analyzeRiseFallMtf(m){
   const raw=m?.timeframes?.[tf.g]||[],bars=raw.filter(c=>Number(c.time)>0&&Number(c.time)+tf.g<=now+2&&[c.open,c.high,c.low,c.close].every(Number.isFinite));
   const received=Number(m?.timeframesUpdatedAt?.[tf.g]||0),age=received?Date.now()-received:Infinity,closes=bars.map(c=>c.close);
   if(bars.length<30||age>180000){values[tf.n]={ready:false,count:bars.length,age,trend:"WAIT",rsi:null,ema10:null,ema25:null,pattern:"—",confirmation:false};return;}
-  const fast=ema(closes.slice(-80),10),slow=ema(closes.slice(-100),25),last=bars[bars.length-1],prev=bars[bars.length-2],rsi=riseFallRsi(closes.slice(-80),14);
+  const fast=ema(closes.slice(-80),10),slow=ema(closes.slice(-100),25),last=bars[bars.length-1],prev=bars[bars.length-2],rsi=riseFallRsi(closes.slice(-80),14),srBars=bars.slice(-21,-1),support=srBars.length?Math.min(...srBars.map(c=>c.low)):null,resistance=srBars.length?Math.max(...srBars.map(c=>c.high)):null;
   const trend=last.close>fast&&fast>slow?"RISE":last.close<fast&&fast<slow?"FALL":"MIXED";
   const patterns=typeof detectJapanesePatterns==="function"?detectJapanesePatterns(bars):[],pattern=patterns.find(p=>p.direction==="BULLISH"||p.direction==="BEARISH")||null;
   const range=Math.max(last.high-last.low,1e-12),body=Math.abs(last.close-last.open),bull=last.close>last.open,bear=last.close<last.open;
@@ -1594,7 +1594,7 @@ function analyzeRiseFallMtf(m){
   const confirmRise=!!(pattern&&pattern.direction==="BULLISH")||strongBull||breakoutBull;
   const confirmFall=!!(pattern&&pattern.direction==="BEARISH")||strongBear||breakoutBear;
   const confirmation=confirmRise||confirmFall;
-  values[tf.n]={ready:true,count:bars.length,age,trend,rsi,ema10:fast,ema25:slow,pattern:pattern?pattern.name:"—",patternDirection:pattern?.direction||"—",patternQuality:pattern?.quality||0,confirmation,confirmRise,confirmFall,close:last.close,candleTime:last.time};
+  values[tf.n]={ready:true,count:bars.length,age,trend,rsi,ema10:fast,ema25:slow,pattern:pattern?pattern.name:"—",patternDirection:pattern?.direction||"—",patternQuality:pattern?.quality||0,confirmation,confirmRise,confirmFall,support,resistance,close:last.close,candleTime:last.time};
  });
  const ordered=frames.map(x=>values[x.n]),ready=ordered.every(x=>x.ready),directions=ordered.map(x=>x.trend),aligned=ready&&directions.every(x=>x===directions[0])&&(directions[0]==="RISE"||directions[0]==="FALL");
  const direction=aligned?directions[0]:"WAIT",one=values["1M"],five=values["5M"],entryRsi=one?.rsi;
