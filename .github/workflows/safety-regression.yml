@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'deriv-trader.js'
+      - 'deriv-trader.js'\n      - 'binary-terminals.js'
       - 'index.html'
       - 'tests/**'
       - '.github/workflows/safety-regression.yml'
@@ -26,6 +26,6 @@ jobs:
         with:
           node-version: '22'
       - name: Check JavaScript syntax
-        run: node --check deriv-trader.js
+        run: |\n          node --check deriv-trader.js\n          node --check binary-terminals.js
       - name: Run safety regression assertions
         run: node tests/safety-regression.cjs
