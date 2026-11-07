@@ -239,6 +239,43 @@ a{font-weight:700}
 #analysis .metric{font-size:clamp(24px,2.7vw,34px)}
 @media(max-width:800px){#analysis{grid-template-columns:1fr}#analysis>.card{min-height:0;padding:18px}#analysis #contractReason{min-height:0}}
 
+
+/* BERUR TRADES AI command dashboard refresh — presentation only; live data and trade gates remain in existing modules */
+:root{--bt-glow:rgba(53,224,162,.22);--bt-panel:rgba(10,24,42,.96)}
+body{background:radial-gradient(ellipse at 50% -18%,rgba(40,118,190,.22),transparent 48%),radial-gradient(ellipse at 100% 20%,rgba(35,210,158,.10),transparent 34%),#050c17}
+header{display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:82px;background:rgba(5,13,25,.94);border-bottom:1px solid rgba(99,200,255,.24)}
+.brand{font-size:clamp(23px,3vw,31px);letter-spacing:2.4px}
+.brand:before{content:"◢";display:inline-grid;place-items:center;margin-right:12px;width:38px;height:38px;border:1px solid rgba(53,224,162,.45);border-radius:12px;color:var(--green);font-size:23px;text-shadow:0 0 16px var(--bt-glow)}
+.sub{margin-left:50px}
+.app-tabs{top:0;justify-content:flex-start;padding:10px max(12px,calc((100% - 1280px)/2));box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.app-tabs .app-tab{border-radius:10px;text-transform:uppercase;letter-spacing:.045em;font-size:10px}
+.app-tabs .app-tab.active{box-shadow:0 0 18px rgba(57,214,195,.2)}
+.wrap{max-width:1500px;padding-top:17px}
+.topline{border-color:rgba(53,224,162,.28);background:linear-gradient(105deg,rgba(13,34,48,.98),rgba(10,22,39,.95));box-shadow:0 12px 30px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.035)}
+#connection{padding:8px 11px;border-radius:10px;background:rgba(5,14,25,.55);border:1px solid rgba(118,183,255,.16)}
+#overview{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+#overview>.card{min-height:124px;display:flex;flex-direction:column;justify-content:center}
+#overview>.card h3{font-size:10px;letter-spacing:.13em}
+#overview .metric{font-size:clamp(22px,2.6vw,32px)}
+.terminal-layout{grid-template-columns:205px minmax(0,1fr);gap:14px}
+.market-sidebar{background:linear-gradient(180deg,rgba(12,29,48,.98),rgba(7,18,32,.98));border-color:rgba(99,200,255,.2)}
+.watch-item{min-height:54px}
+.terminal-content>.section.card,.terminal-content>.two>.card{box-shadow:0 12px 30px rgba(0,0,0,.18)}
+.price-trace-card,.candle-chart{border-color:rgba(53,224,162,.26)}
+.trace-chart,.candle-chart{box-shadow:inset 0 0 24px rgba(0,0,0,.2)}
+.section-title{font-size:14px;letter-spacing:.07em}
+.card h3{font-size:11px;letter-spacing:.12em}
+button,select{min-height:44px}
+button.primary{box-shadow:0 0 0 1px rgba(53,224,162,.18),0 8px 24px rgba(53,224,162,.15)}
+/* Dynamically-created execution desk and AI/risk panels inherit the same visual language */
+[id^="bt-"],[id^="mb-"]{scroll-margin-top:70px}
+#execution .actions button{min-width:155px}
+.welcome-panel{border:1px solid rgba(53,224,162,.25);border-radius:16px;background:linear-gradient(130deg,rgba(13,38,45,.9),rgba(11,24,42,.96));padding:18px;margin-top:18px}
+@media(min-width:1200px){.terminal-layout{grid-template-columns:215px minmax(0,1fr)}}
+@media(max-width:900px){header{align-items:flex-start;flex-direction:column;gap:4px}.sub{margin-left:50px}.terminal-layout{grid-template-columns:minmax(0,1fr)}.market-sidebar{position:relative;top:auto;max-height:none}}
+@media(max-width:600px){header{min-height:70px;padding:13px 12px}.brand{font-size:22px}.brand:before{width:32px;height:32px;margin-right:8px}.sub{margin-left:40px;font-size:9px;letter-spacing:1px}.wrap{padding:10px 9px 22px}#overview{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#overview>.card{min-height:105px;padding:12px}.topline{padding:11px}.topline .actions button{min-width:0;padding:10px 9px;font-size:11px}.app-tabs{padding:8px}.app-tabs .app-tab{min-height:38px;padding:8px 11px}.card{border-radius:14px}}
+@media(prefers-reduced-motion:reduce){.watch-item:hover{transform:none}}
+
 </style>
 <script>
 (function(){
