@@ -1110,7 +1110,7 @@ function send(obj) {
 function request(obj, type, symbol) {
  const id = ++requestId;
  obj.req_id = id;
- requestMap[id] = {type,symbol};
+ requestMap[id] = {type,symbol,granularity:Number(obj.granularity)||null};
  return send(obj);
 }
 function connect() {
@@ -1203,8 +1203,8 @@ function connect() {
      delete requestMap[data.req_id];
    }
    if(data.msg_type==="candles" && info && info.type==="market-candles"){
-     const m=markets[info.symbol],granularity=Number(info.granularity||candleTimeframe);
-     if(m){m.timeframes=m.timeframes||{};m.timeframes[granularity]=(data.candles||[]).map(c=>({time:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})).filter(c=>c.time>0&&[c.open,c.high,c.low,c.close].every(Number.isFinite));m.requestedCandleTf=granularity;render();}
+     const m=markets[info.symbol],granularity=Number(info.granularity||data.echo_req?.granularity||candleTimeframe);
+     if(m){m.timeframes=m.timeframes||{};m.timeframesUpdatedAt=m.timeframesUpdatedAt||{};m.timeframes[granularity]=(data.candles||[]).map(c=>({time:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})).filter(c=>c.time>0&&[c.open,c.high,c.low,c.close].every(Number.isFinite));m.timeframesUpdatedAt[granularity]=Date.now();m.requestedCandleTf=granularity;window.dispatchEvent(new CustomEvent("berur:rise-fall-candles",{detail:{symbol:info.symbol,granularity,candles:m.timeframes[granularity],receivedAt:m.timeframesUpdatedAt[granularity]}}));scheduleAutomaticBestSignal();render();}
      delete requestMap[data.req_id];
    }
    if(data.msg_type==="candles" && info && String(info.type).startsWith("cfd-tf-")){
@@ -1509,22 +1509,24 @@ function updateCfdLotLabels(){
    node.textContent=lot!==null&&Number.isFinite(lot)?(lot<0.01?"Below 0.01 lot — do not round up":lot.toFixed(2)+" lots"):"—";
  });
 }
-function requestMarketCandles(symbol,granularity=candleTimeframe){
+function requestMarketCandles(symbol,granularity=candleTimeframe,force=false){
  const m=markets[symbol];
  if(!m||!running||!socket||socket.readyState!==WebSocket.OPEN)return;
- m.timeframes=m.timeframes||{};
- if(m.timeframes[granularity]?.length||m.requestedCandleTf===granularity)return;
- m.requestedCandleTf=granularity;
- const id=requestId+1;
+ m.timeframes=m.timeframes||{};m.timeframesUpdatedAt=m.timeframesUpdatedAt||{};
+ if(!force&&m.timeframes[granularity]?.length&&Date.now()-Number(m.timeframesUpdatedAt[granularity]||0)<60000)return;
  const sent=request({ticks_history:symbol,count:120,end:"latest",style:"candles",granularity},"market-candles",symbol);
- if(requestMap[id])requestMap[id].granularity=granularity;
- if(!sent)m.requestedCandleTf=null;
+ if(!sent&&granularity===candleTimeframe)m.requestedCandleTf=null;
+}
+function requestRiseFallTimeframes(symbol,force=false){
+ const m=markets[symbol];if(!m||!running||!socket||socket.readyState!==WebSocket.OPEN)return;
+ [60,300,900,3600].forEach(granularity=>requestMarketCandles(symbol,granularity,force));
 }
 function loadMarket(symbol) {
  request({
    ticks_history:symbol,count:1000,end:"latest",style:"ticks"
  },"history",symbol);
- if(symbol===selected)requestMarketCandles(symbol,candleTimeframe);
+ requestRiseFallTimeframes(symbol,true);
+ if(symbol===selected)requestMarketCandles(symbol,candleTimeframe,true);
  request({ticks:symbol,subscribe:1},"tick",symbol);
 }
 function stop() {
@@ -1560,6 +1562,44 @@ function ema(values, period) {
  let result = values[0];
  for(let i=1;i<values.length;i++) result = values[i]*k + result*(1-k);
  return result;
+}
+function riseFallRsi(values,period=14){
+ if(!Array.isArray(values)||values.length<=period)return null;
+ let gains=0,losses=0;
+ for(let i=1;i<=period;i++){const d=values[i]-values[i-1];if(d>0)gains+=d;else losses-=d;}
+ let avgGain=gains/period,avgLoss=losses/period;
+ for(let i=period+1;i<values.length;i++){const d=values[i]-values[i-1];avgGain=(avgGain*(period-1)+Math.max(0,d))/period;avgLoss=(avgLoss*(period-1)+Math.max(0,-d))/period;}
+ if(avgLoss===0)return 100;
+ return 100-(100/(1+avgGain/avgLoss));
+}
+function analyzeRiseFallMtf(m){
+ const frames=[{g:60,n:"1M"},{g:300,n:"5M"},{g:900,n:"15M"},{g:3600,n:"1H"}],now=Math.floor(Date.now()/1000),values={};
+ frames.forEach(tf=>{
+  const raw=m?.timeframes?.[tf.g]||[],bars=raw.filter(c=>Number(c.time)>0&&Number(c.time)+tf.g<=now+2&&[c.open,c.high,c.low,c.close].every(Number.isFinite));
+  const received=Number(m?.timeframesUpdatedAt?.[tf.g]||0),age=received?Date.now()-received:Infinity,closes=bars.map(c=>c.close);
+  if(bars.length<30||age>180000){values[tf.n]={ready:false,count:bars.length,age,trend:"WAIT",rsi:null,ema10:null,ema25:null,pattern:"—",confirmation:false};return;}
+  const fast=ema(closes.slice(-80),10),slow=ema(closes.slice(-100),25),last=bars[bars.length-1],prev=bars[bars.length-2],rsi=riseFallRsi(closes.slice(-80),14);
+  const trend=last.close>fast&&fast>slow?"RISE":last.close<fast&&fast<slow?"FALL":"MIXED";
+  const patterns=typeof detectJapanesePatterns==="function"?detectJapanesePatterns(bars):[],pattern=patterns.find(p=>p.direction==="BULLISH"||p.direction==="BEARISH")||null;
+  const range=Math.max(last.high-last.low,1e-12),body=Math.abs(last.close-last.open),bull=last.close>last.open,bear=last.close<last.open;
+  const strongBull=bull&&body/range>=.55&&last.close>=last.low+range*.75;
+  const strongBear=bear&&body/range>=.55&&last.close<=last.low+range*.25;
+  const breakoutBull=last.close>prev.high,breakoutBear=last.close<prev.low;
+  const confirmation=!!(pattern&&(pattern.direction==="BULLISH"||pattern.direction==="BEARISH"))||strongBull||strongBear||breakoutBull||breakoutBear;
+  values[tf.n]={ready:true,count:bars.length,age,trend,rsi,ema10:fast,ema25:slow,pattern:pattern?pattern.name:"—",patternDirection:pattern?.direction||"—",patternQuality:pattern?.quality||0,confirmation,close:last.close,candleTime:last.time};
+ });
+ const ordered=frames.map(x=>values[x.n]),ready=ordered.every(x=>x.ready),directions=ordered.map(x=>x.trend),aligned=ready&&directions.every(x=>x===directions[0])&&(directions[0]==="RISE"||directions[0]==="FALL");
+ const direction=aligned?directions[0]:"WAIT",one=values["1M"],five=values["5M"],entryRsi=one?.rsi;
+ const momentumOk=direction==="RISE"?entryRsi!==null&&entryRsi>=50&&entryRsi<=75&&one.confirmation:direction==="FALL"?entryRsi!==null&&entryRsi>=25&&entryRsi<=50&&one.confirmation:false;
+ const pattern=one?.pattern!=="—"?one.pattern:(five?.pattern!=="—"?five.pattern:"Strong candle / breakout");
+ const qualified=ready&&aligned&&momentumOk;
+ const count=ordered.reduce((sum,x)=>sum+(x.count||0),0),score=qualified?Math.min(95,78+(one.patternQuality||0)*.12+(five.patternQuality||0)*.05):0;
+ const reasons=[];
+ if(!ready)reasons.push("Waiting for 30 completed candles and fresh broker OHLC data on all four timeframes");
+ else if(!aligned)reasons.push("1M, 5M, 15M and 1H trends are mixed");
+ if(ready&&aligned&&!momentumOk)reasons.push("1M RSI or completed-candle confirmation is not aligned");
+ if(qualified)reasons.push("EMA 10/25 aligned on 1M, 5M, 15M and 1H; RSI "+entryRsi.toFixed(1)+"; "+pattern+" confirmation");
+ return {ready,aligned,direction:qualified?direction:"WAIT",trendDirection:direction,qualified,score,count,values,pattern,entryRsi,reason:reasons.join(". ")||"WAIT"};
 }
 function analyze(m) {
  const p = (m.ticks || []).slice(-1000);
@@ -1696,6 +1736,7 @@ function analyze(m) {
    directionScore, directionSignal,
    digitSignal, digitReason, ouCandidates,
    paritySignal, parityReason, parityCandidates,
+   riseFallMtf:analyzeRiseFallMtf(m),
    tradeAllowed, quality, digitEdge
  };
 }
@@ -1723,8 +1764,9 @@ function validatePurchaseSignal(a,signal){
   return {ok:true,candidate,reason:"Exact parity candidate passed 600-sample, z≥2.25 and split-half checks."};
  }
  if(value==="RISE"||value==="FALL"){
-  if(!a||a.n<120||a.directionSignal!==value||a.directionScore<70)return {ok:false,reason:"Current directional trend confirmation is not qualified."};
-  return {ok:true,candidate:null,reason:"Current directional trend and momentum checks passed."};
+  const mtf=a?.riseFallMtf;
+  if(!a||a.n<120||!mtf?.qualified||mtf.direction!==value)return {ok:false,reason:mtf?.reason||"Multi-timeframe candlestick confirmation is not qualified."};
+  return {ok:true,candidate:null,reason:"1M/5M/15M/1H EMA 10/25 alignment, 1M RSI and completed-candle confirmation passed."};
  }
  return {ok:false,reason:"Unsupported or missing signal."};
 }
@@ -1760,9 +1802,10 @@ function qualifiedSetups(a){
   if(a.n<600||x.strength<2.25||!x.splitConsistent)return;
   ranked.push({signal:x.signal,score:Math.min(95,Math.round(70+(x.strength-2.25)*12)),strength:x.strength,sample:a.n,firstRate:x.firstRate,secondRate:x.secondRate,reason:x.signal+" qualified: observed "+(x.observed*100).toFixed(1)+"% vs 50.0% baseline; z="+x.strength.toFixed(2)+", n="+a.n,contract:x.signal==="EVEN"?"DIGITEVEN":"DIGITODD"});
  });
- if((a.directionSignal==="RISE"||a.directionSignal==="FALL")&&a.directionScore>=70&&a.n>=120){
-  const duration=a.directionScore>=80?3:5;
-  ranked.push({signal:a.directionSignal,score:a.directionScore,strength:a.directionScore,sample:a.n,reason:(a.directionReason||"Directional trend and momentum filters passed")+". "+duration+"-tick entry; trend="+a.trend+", score="+a.directionScore+"/100, n="+a.n,contract:a.directionSignal==="RISE"?"CALL":"PUT",duration});
+ const mtf=a.riseFallMtf;
+ if(mtf?.qualified&&mtf.direction&&a.n>=120){
+  const duration=3;
+  ranked.push({signal:mtf.direction,score:mtf.score,strength:mtf.score,sample:mtf.count,reason:mtf.reason+". Broker OHLC multi-timeframe confirmation; 3-tick contract; evidence score "+mtf.score+"/100.",contract:mtf.direction==="RISE"?"CALL":"PUT",duration,mtf});
  }
  return ranked.sort((x,y)=>y.score-x.score||y.strength-x.strength||x.signal.localeCompare(y.signal));
 }
@@ -1771,6 +1814,7 @@ function scheduleAutomaticBestSignal(){if(automaticCandidateRefreshTimer)return;
 function refreshAutomaticBestSignal(){
  const now=Date.now(),candidates=[];
  SYMBOLS.forEach(symbol=>{
+  requestRiseFallTimeframes(symbol);
   const market=markets[symbol];
   if(!market||!market.available||!market.ticks?.length||!market.updated||now-market.updated>20000||Number(market.liveTickCount||0)<20)return;
   const analysis=analyze(market);
@@ -1782,7 +1826,7 @@ function refreshAutomaticBestSignal(){
   });
  });
  candidates.sort((a,b)=>b.setup.score-a.setup.score||b.setup.strength-a.setup.strength||b.setup.sample-a.setup.sample||b.market.updated-a.market.updated);
- const terminalSnapshot=x=>x?({symbol:x.symbol,marketName:marketName(x.symbol),signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier??null,score:x.setup.score,strength:x.setup.strength??null,sample:x.setup.sample,duration:x.setup.duration??null,reason:x.setup.reason,updatedAt:x.market.updated}):null;
+ const terminalSnapshot=x=>x?({symbol:x.symbol,marketName:marketName(x.symbol),signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier??null,score:x.setup.score,strength:x.setup.strength??null,sample:x.setup.sample,duration:x.setup.duration??null,reason:x.setup.reason,updatedAt:x.market.updated,mtf:x.setup.mtf||x.analysis.riseFallMtf||null}):null;
  const familyLeaders={};candidates.forEach(x=>{if(!familyLeaders[x.setup.contract])familyLeaders[x.setup.contract]=terminalSnapshot(x);});
  const riseFallCandidates=candidates.filter(x=>x.setup.contract==="CALL"||x.setup.contract==="PUT").slice(0,5).map(terminalSnapshot);
  window.dispatchEvent(new CustomEvent("berur:terminal-scan-update",{detail:{mode:"SMART",marketSelection:"AUTOMATIC",total:candidates.length,globalBest:terminalSnapshot(candidates[0]),familyLeaders,riseFallCandidates}}));
