@@ -13,17 +13,23 @@ function render(data){
  text("bt-smart-count",String(Number(latest.total)||0));
  text("bt-smart-reason",latest.globalBest?latest.globalBest.reason:"No contract currently passes the entry evidence checks. The coordinator will continue scanning; no forced selection.");
  const rise=Array.isArray(latest.riseFallCandidates)?latest.riseFallCandidates:[];
- const best=rise[0]||null;
- text("bt-rf-state",best?"QUALIFIED CANDIDATE":"WAITING FOR CONFIRMATION");
+ const best=rise[0]||null,mtf=best&&best.mtf?best.mtf:null;
+ text("bt-rf-state",best?"QUALIFIED · 4 TIMEFRAMES":"WAITING FOR CONFIRMATION");
  text("bt-rf-market",best?best.marketName:"WAIT");
  text("bt-rf-signal",best?best.signal:"WAIT");
  text("bt-rf-score",best?pctScore(best.score):"—");
- text("bt-rf-sample",best?String(best.sample):"—");
- text("bt-rf-reason",best?best.reason:"Rise/Fall is scanning connected markets. EMA trend, recent direction, directional balance and minimum-sample checks must agree before a candidate is shown.");
+ text("bt-rf-sample",best?String(best.sample)+" candles":"—");
+ text("bt-rf-reason",best?best.reason:"Rise/Fall waits for fresh 1M, 5M, 15M and 1H broker candles, EMA 10/25 alignment, RSI 14 and a completed-candle confirmation.");
+ const tfRoot=$("bt-rf-timeframes"),confirm=$("bt-rf-confirmation");
+ if(tfRoot){
+  const frames=[["1M","1M"],["5M","5M"],["15M","15M"],["1H","1H"]];
+  tfRoot.innerHTML=frames.map(([label,key])=>{const v=mtf&&mtf.values?mtf.values[key]:null,trend=v&&v.ready?v.trend:"WAIT",cls=trend==="RISE"?"trend-rise":trend==="FALL"?"trend-fall":"";return '<div class="bt-mtf-cell"><b>'+label+' · <span class="'+cls+'">'+trend+'</span></b><small>EMA10 '+(v&&v.ema10!==null?Number(v.ema10).toPrecision(7):"—")+' / EMA25 '+(v&&v.ema25!==null?Number(v.ema25).toPrecision(7):"—")+'</small><small>RSI14 '+(v&&v.rsi!==null?Number(v.rsi).toFixed(1):"—")+' · '+(v?v.count:0)+' closed candles</small><small>'+((v&&v.pattern)||"No pattern")+'</small></div>';}).join("");
+ }
+ if(confirm)confirm.textContent=mtf&&best?("CONFIRMED "+best.signal+" · "+(mtf.pattern||"Candle confirmation")+" · 1M RSI "+(mtf.entryRsi===null?"—":Number(mtf.entryRsi).toFixed(1))+" · all four timeframe trends aligned. "+mtf.reason):"EMA 10/25 · RSI 14 · engulfing/pin-bar/hammer/doji/star patterns · strong candle body/wick validation · multi-timeframe alignment. WAIT when data is missing or conflicting.";
  const body=$("bt-rf-market-rows");
  if(body){
-  if(!rise.length)body.innerHTML='<tr><td colspan="6">WAIT — no Rise/Fall market currently passes the entry checks.</td></tr>';
-  else body.innerHTML=rise.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+String(x.marketName||x.symbol)+'</td><td><b>'+String(x.signal)+'</b></td><td>'+pctScore(x.score)+'</td><td>'+String(x.sample||0)+'</td><td>'+String(x.duration||"—")+' ticks</td></tr>').join("");
+  if(!rise.length)body.innerHTML='<tr><td colspan="7">WAIT — no Rise/Fall market currently passes the multi-timeframe candle entry checks.</td></tr>';
+  else body.innerHTML=rise.map((x,i)=>{const m=x.mtf||{},v=m.values||{};return '<tr><td>'+(i+1)+'</td><td>'+String(x.marketName||x.symbol)+'</td><td><b>'+String(x.signal)+'</b></td><td>'+pctScore(x.score)+'</td><td>'+String(m.pattern||"—")+' · RSI '+(m.entryRsi===null||m.entryRsi===undefined?"—":Number(m.entryRsi).toFixed(1))+'</td><td>'+["1M","5M","15M","1H"].map(k=>String(v[k]?.count||0)).join("/")+'</td><td>'+String(x.duration||"—")+' ticks</td></tr>';}).join("");
  }
  const modules=[["CALL","RISE / FALL"],["PUT","RISE / FALL"],["DIGITOVER","OVER / UNDER"],["DIGITUNDER","OVER / UNDER"],["DIGITEVEN","EVEN / ODD"],["DIGITODD","EVEN / ODD"]];
  const registry=$("bt-module-registry");
