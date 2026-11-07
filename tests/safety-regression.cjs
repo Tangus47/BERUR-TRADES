@@ -55,4 +55,11 @@ assert.ok(html.includes('activeSignal.signature!==selected+"|"+signal'), "Purcha
 assert.ok(html.includes("const qualification=validatePurchaseSignal(a,signal)"), "Purchase handoff must use the strict qualification helper.");
 assert.ok(html.includes("candidate.validN<600 || candidate.strength<2.25"), "Bot session recommendations must use the same 600-sample and 2.25 thresholds.");
 assert.ok(html.includes("tradeAllowed:!!validatePurchaseSignal(current,signal).ok"), "Signal readiness must be based on the exact contract-family qualification, not broad tradeAllowed.");
+
+assert.ok(trader.includes("function lastDigitFromQuote(value)"), "Entry and exit digits must be derived from the actual broker quote values.");
+assert.ok(trader.includes("contractData.entry_tick_display_value??contractData.entry_tick??null"), "Entry digit must use the broker display quote when available, with raw entry tick only as fallback.");
+assert.ok(trader.includes("contractData.exit_tick_display_value??contractData.exit_tick??null"), "Exit digit must use the broker display quote when available, with raw exit tick only as fallback.");
+assert.ok(trader.includes("recordDemoResult(meta,Number(c?.profit)||0,c?.status||\"closed\",c||{})"), "Settlement must pass the broker-confirmed contract payload into the DEMO journal.");
+assert.ok(trader.includes("function renderDigitEntryExitMonitor(sourceRows=readJournal())"), "The dashboard must render the broker-observed entry and exit digit monitor.");
+assert.ok(trader.includes("No settled digit contracts with recorded entry/exit data yet."), "Missing broker tick data must be shown as unavailable rather than fabricated.");
 console.log("BERUR TRADES safety regression checks passed.");
