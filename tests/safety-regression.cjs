@@ -7,7 +7,7 @@ function has(source, pattern, message) { assert.match(source, pattern, message);
 has(trader, /account\.account_type!=="demo"/, "Execution must remain DEMO-only.");
 has(trader, /REAL execution remains disabled/, "Trade readiness must explicitly block REAL execution.");
 has(trader, /ws\.readyState!==WebSocket\.OPEN/, "Purchases must require an open authenticated socket.");
-has(trader, /function send\(o\)\{if\(!ws\|\|ws\.readyState!==WebSocket\.OPEN\)\{say\("Deriv account socket is disconnected\."\);return false;\}ws\.send\(JSON\.stringify\(o\)\);return true;\}/, "WebSocket send must return true only after successful transmission.");
+has(trader, /function send\\(o\\)\\{if\\(!ws\\|\\|ws\\.readyState!==WebSocket\\.OPEN\\)\\{say\\("Deriv account socket is disconnected\\."\\);return false;\\}try\\{ws\\.send\\(JSON\\.stringify\\(o\\)\\);return true;\\}catch\\(e\\)\\{say\\("Deriv request was not transmitted:/, "WebSocket send must return true only after successful transmission and catch close races.");
 has(trader, /if\(!send\(requestParams\)\)\{proposalContext=null;proposal=null;/, "Quote requests must fail immediately and visibly when the authenticated socket is disconnected.");
 has(trader, /if\(!send\(\{buy:proposal\.id,price:ask\}\)\)\{clearPendingPurchase\(\);busy=false;submittedTradeSignal=null;renderRisk\(\);throw Error\("Purchase was not sent:/, "A purchase that was not transmitted must clear its local pending lock and must not be reported as submitted.");
 has(trader, /if\(!reconciliationReady\)return "EXECUTION PAUSED — broker reconciliation is not currently confirmed/, "Execution readiness must explain pending broker reconciliation.");
