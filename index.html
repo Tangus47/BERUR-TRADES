@@ -558,7 +558,7 @@ body{overflow-x:hidden}
     </article>
   </div>
   <div class="bt-terminal-subhead"><h3>RISE / FALL MARKET LEADERS</h3><span class="note">Automatically ranked · analysis evidence, not win probability</span></div>
-  <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>RANK</th><th>MARKET</th><th>DIRECTION</th><th>EVIDENCE</th><th>CANDLE CONFIRMATION</th><th>OHLC SAMPLE</th><th>DURATION</th></tr></thead><tbody id="bt-rf-market-rows"><tr><td colspan="6">Waiting for live market evidence…</td></tr></tbody></table></div>
+  <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>RANK</th><th>MARKET</th><th>DIRECTION</th><th>EVIDENCE</th><th>CANDLE CONFIRMATION</th><th>OHLC SAMPLE</th><th>DURATION</th></tr></thead><tbody id="bt-rf-market-rows"><tr><td colspan="7">Waiting for live market evidence…</td></tr></tbody></table></div>
   <div class="bt-terminal-subhead"><h3>MODULAR TERMINAL REGISTRY</h3><span class="note">One shared account and safety controller</span></div>
   <div class="bt-module-registry" id="bt-module-registry">
     <div class="bt-module-item active"><b>RISE / FALL</b><span>ACTIVE · SMART QUEUE</span></div>
@@ -1520,7 +1520,7 @@ function requestMarketCandles(symbol,granularity=candleTimeframe,force=false){
  const now=Date.now(),requested=Number(m.timeframesRequestedAt[granularity]||0);
  if(now-requested<15000)return;
  if(!force&&m.timeframes[granularity]?.length&&now-Number(m.timeframesUpdatedAt[granularity]||0)<60000)return;
- m.timeframesRequestedAt[granularity]=now;
+ m.timeframesRequestedAt[granularity]=now;m.requestedCandleTf=granularity;
  const sent=request({ticks_history:symbol,count:120,end:"latest",style:"candles",granularity},"market-candles",symbol);
  if(!sent){m.timeframesRequestedAt[granularity]=0;if(granularity===candleTimeframe)m.requestedCandleTf=null;}
 }
