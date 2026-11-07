@@ -9,7 +9,7 @@ on:
       - 'tests/**'
       - '.github/workflows/safety-regression.yml'
   pull_request:
-    branches: [main, feat/independent-over-market-rankings]
+    branches: [main, feat/independent-over-market-rankings, feat/modular-binary-terminals-rise-fall]
     paths:
       - 'deriv-trader.js'
       - 'binary-terminals.js'
