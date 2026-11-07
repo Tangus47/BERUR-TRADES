@@ -913,11 +913,13 @@ let botSessionRunning = false;
 let botSessionFinished = false;
 let botSessionAlerted = false;
 function deriveBotSessionMinutes(a, signal) {
-  if(!a || !signal || signal==="WAIT" || !a.tradeAllowed) return 0;
+  if(!a || !signal || signal==="WAIT") return 0;
+  const qualification=validatePurchaseSignal(a,signal);
+  if(!qualification.ok) return 0;
   if(/^(OVER|UNDER) \\d+$/.test(signal)) {
     const match=signal.match(/^(OVER|UNDER) (\\d+)$/);
     const candidate=match&&a.ouCandidates.find(x=>x.side===match[1]&&x.barrier===Number(match[2]));
-    if(!candidate || candidate.validN<500 || candidate.strength<2 || candidate.deviation<=0) return 0;
+    if(!candidate || candidate.validN<600 || candidate.strength<2.25 || candidate.deviation<=0 || candidate.splitConsistent!==true || candidate.impossible || !((candidate.side==="OVER"&&candidate.barrier>=3&&candidate.barrier<=6)||(candidate.side==="UNDER"&&candidate.barrier>=4&&candidate.barrier<=7))) return 0;
     if(candidate.validN>=1500 && candidate.strength>=3) return 3;
     if(candidate.validN>=750 && candidate.strength>=2.5) return 2;
     return 1;
@@ -1016,7 +1018,7 @@ function refreshSignalValidity(signal, score, sample, setupReason) {
   const current=currentMarket?analyze(currentMarket):null;
   const ou=String(signal).match(/^(OVER|UNDER) ([0-9])$/);
   const contract=ou?(ou[1]==="OVER"?"DIGITOVER":"DIGITUNDER"):signal==="EVEN"?"DIGITEVEN":signal==="ODD"?"DIGITODD":signal==="RISE"?"CALL":signal==="FALL"?"PUT":"";
-  const detail={symbol:selected,signal,contract,barrier:ou?Number(ou[2]):undefined,duration:signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,evidenceScore:score,sample,liveObservations:Number(currentMarket?.liveTickCount||0),marketUpdatedAt:Number(currentMarket?.updated||0),tradeAllowed:!!current?.tradeAllowed&&sample>=requiredEvidenceTicks(contract,signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,score),requiredTicks:requiredEvidenceTicks(contract,signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,score),reason:setupReason|| (ou?((current?.ouCandidates||[]).find(x=>x.label===signal)?.label+" passed positive historical evidence"||current?.digitReason||""):signal==="EVEN"||signal==="ODD"?(current?.parityReason||"Parity evidence qualified"):current?.directionReason||"BERUR technical analysis signal"),generatedAt:activeSignal.generatedAt,expiresAt:activeSignal.expiresAt,tickSequence:activeSignal.tickSequence,signalId:signature+"|"+activeSignal.generatedAt};
+  const detail={symbol:selected,signal,contract,barrier:ou?Number(ou[2]):undefined,duration:signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,evidenceScore:score,sample,liveObservations:Number(currentMarket?.liveTickCount||0),marketUpdatedAt:Number(currentMarket?.updated||0),tradeAllowed:!!validatePurchaseSignal(current,signal).ok,qualificationReason:validatePurchaseSignal(current,signal).reason,requiredTicks:requiredEvidenceTicks(contract,signal==="RISE"||signal==="FALL"?(score>=80?3:score>=70?5:10):1,score),reason:setupReason|| (ou?((current?.ouCandidates||[]).find(x=>x.label===signal)?.label+" passed positive historical evidence"||current?.digitReason||""):signal==="EVEN"||signal==="ODD"?(current?.parityReason||"Parity evidence qualified"):current?.directionReason||"BERUR technical analysis signal"),generatedAt:activeSignal.generatedAt,expiresAt:activeSignal.expiresAt,tickSequence:activeSignal.tickSequence,signalId:signature+"|"+activeSignal.generatedAt};
   window.dispatchEvent(new CustomEvent("berur:signal-update",{detail}));
 }
 
@@ -1623,6 +1625,35 @@ function analyze(m) {
    paritySignal, parityReason, parityCandidates,
    tradeAllowed, quality, digitEdge
  };
+}
+
+function validatePurchaseSignal(a,signal){
+ const value=String(signal||"");
+ const ou=value.match(/^(OVER|UNDER) ([0-9])$/);
+ if(ou){
+  const side=ou[1],barrier=Number(ou[2]);
+  const allowed=(side==="OVER"&&barrier>=3&&barrier<=6)||(side==="UNDER"&&barrier>=4&&barrier<=7);
+  const candidate=(a?.ouCandidates||[]).find(x=>x.side===side&&x.barrier===barrier);
+  if(!allowed)return {ok:false,reason:"Barrier outside approved Over 3–6 / Under 4–7 range."};
+  if(!candidate||candidate.impossible)return {ok:false,reason:"Exact Over/Under candidate is unavailable."};
+  if(candidate.validN<600)return {ok:false,reason:"Requires at least 600 current observations."};
+  if(!(candidate.deviation>0))return {ok:false,reason:"Historical edge is not positive."};
+  if(!(candidate.strength>=2.25))return {ok:false,reason:"Z-score is below 2.25."};
+  if(candidate.splitConsistent!==true||candidate.firstRate<=candidate.expected||candidate.secondRate<=candidate.expected)return {ok:false,reason:"Both sample halves must independently exceed baseline."};
+  return {ok:true,candidate,reason:"Exact Over/Under candidate passed 600-sample, z≥2.25, positive-edge and split-half checks."};
+ }
+ if(value==="EVEN"||value==="ODD"){
+  const candidate=(a?.parityCandidates||[]).find(x=>x.signal===value);
+  if(!candidate||a.n<600)return {ok:false,reason:"Parity requires at least 600 current observations and an exact qualified candidate."};
+  if(!(candidate.strength>=2.25))return {ok:false,reason:"Parity z-score is below 2.25."};
+  if(candidate.splitConsistent!==true||candidate.firstRate<=0.5||candidate.secondRate<=0.5)return {ok:false,reason:"Both parity sample halves must exceed the 50% baseline."};
+  return {ok:true,candidate,reason:"Exact parity candidate passed 600-sample, z≥2.25 and split-half checks."};
+ }
+ if(value==="RISE"||value==="FALL"){
+  if(!a||a.n<120||a.directionSignal!==value||a.directionScore<70)return {ok:false,reason:"Current directional trend confirmation is not qualified."};
+  return {ok:true,candidate:null,reason:"Current directional trend and momentum checks passed."};
+ }
+ return {ok:false,reason:"Unsupported or missing signal."};
 }
 
 let recentLossAvoidance=null;
@@ -2263,7 +2294,7 @@ $("learningTarget").addEventListener("change",event => {
 });
 $("connectBtn").addEventListener("click",connect);
 $("stopBtn").addEventListener("click",stop);
-$("sendAnalysisBtn").addEventListener("click",()=>{const m=markets[selected],a=analyze(m);if(!activeSignal||activeSignal.expired||Date.now()>=activeSignal.expiresAt){$("executionHandoffStatus").textContent="NO TRADE: signal is missing or expired. Wait for a fresh Radar signal.";return;}const signal=activeSignal.signal;const ouMatch=String(signal).match(/^(OVER|UNDER) ([0-9])$/);const contract=ouMatch?(ouMatch[1]==="OVER"?"DIGITOVER":"DIGITUNDER"):signal==="EVEN"?"DIGITEVEN":signal==="ODD"?"DIGITODD":signal==="RISE"?"CALL":signal==="FALL"?"PUT":"";if(!a.tradeAllowed||!contract){$("executionHandoffStatus").textContent="NO TRADE: the active selected signal is not supported by current analysis.";return;}const detail={symbol:selected,contract,barrier:ouMatch?Number(ouMatch[2]):undefined,duration:contract==="CALL"||contract==="PUT"?(activeSignal.score>=80?3:activeSignal.score>=70?5:10):1,evidenceScore:activeSignal.score,sample:a.n,reason:activeSignal.reason||"Selected qualified setup",signal};window.dispatchEvent(new CustomEvent("berur:analysis-ready",{detail}));$("executionHandoffStatus").textContent="Sent "+detail.signal+" on "+selected+" to execution desk. Review the quote and approve manually.";});
+$("sendAnalysisBtn").addEventListener("click",()=>{const m=markets[selected],a=m?analyze(m):null;if(!activeSignal||activeSignal.expired||Date.now()>=activeSignal.expiresAt){$("executionHandoffStatus").textContent="NO TRADE: signal is missing or expired. Wait for a fresh Radar signal.";return;}const signal=activeSignal.signal;if(activeSignal.signature!==selected+"|"+signal){$("executionHandoffStatus").textContent="NO TRADE: active signal belongs to a different market or has changed. Wait for a fresh signal.";return;}const ouMatch=String(signal).match(/^(OVER|UNDER) ([0-9])$/);const contract=ouMatch?(ouMatch[1]==="OVER"?"DIGITOVER":"DIGITUNDER"):signal==="EVEN"?"DIGITEVEN":signal==="ODD"?"DIGITODD":signal==="RISE"?"CALL":signal==="FALL"?"PUT":"";const qualification=validatePurchaseSignal(a,signal);if(!contract||!qualification.ok){$("executionHandoffStatus").textContent="NO TRADE: "+(qualification.reason||"unsupported signal");return;}const detail={symbol:selected,contract,barrier:ouMatch?Number(ouMatch[2]):undefined,duration:contract==="CALL"||contract==="PUT"?(activeSignal.score>=80?3:activeSignal.score>=70?5:10):1,evidenceScore:activeSignal.score,sample:qualification.candidate?.validN||a.n,zScore:qualification.candidate?.strength,firstRate:qualification.candidate?.firstRate,secondRate:qualification.candidate?.secondRate,reason:qualification.reason+" "+(activeSignal.reason||"Selected qualified setup"),signal,signalSignature:activeSignal.signature,signalExpiresAt:activeSignal.expiresAt};window.dispatchEvent(new CustomEvent("berur:analysis-ready",{detail}));$("executionHandoffStatus").textContent="Sent "+detail.signal+" on "+selected+" to execution desk. Review the live quote and approve manually.";});
 $("botBtn").addEventListener("click",()=>window.open("https://bot.deriv.com/","_blank","noopener"));
 $("copyBtn").addEventListener("click",()=>{
  const m=markets[selected],a=analyze(m);
