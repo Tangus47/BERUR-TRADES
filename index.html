@@ -346,6 +346,12 @@ button.primary{box-shadow:0 0 0 1px rgba(53,224,162,.18),0 8px 24px rgba(53,224,
  .terminal-content .grid{min-width:0}
 }
 
+/* Each tab lands on its own visible panel, below sticky navigation. */
+.terminal-content>*{scroll-margin-top:104px}
+.terminal-content [id="probability"],.terminal-content [id="market-ou-board"],
+.terminal-content [id="trade-quality-filter"],.terminal-content [id="all-market-command-centre"],
+.terminal-content [id="forex-cfd-centre"],.terminal-content [id="boom-crash-centre"],
+.terminal-content [id="economic-news-centre"]{scroll-margin-top:104px}
 </style>
 <script>
 (function(){
@@ -2294,10 +2300,22 @@ function setupAppTabs(){
   }
   if(name==="boomcrash")renderBoomCrashCentre();
  }
+ function tabTarget(name){
+  if(ranges[name])return children[ranges[name][0]]||content;
+  const id=(extra[name]||[]).find(panelId=>document.getElementById(panelId));
+  const panel=id&&document.getElementById(id);
+  return panel?(direct(panel)||panel):content;
+ }
  nav.addEventListener("click",e=>{
   const btn=e.target.closest("button[data-tab]");
   if(!btn||!nav.contains(btn))return;
-  e.preventDefault();e.stopPropagation();activate(btn.dataset.tab);btn.focus({preventScroll:true});const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;const top=content.getBoundingClientRect().top+window.scrollY-88;window.scrollTo({top:Math.max(0,top),behavior:reduce?"auto":"smooth"});
+  e.preventDefault();e.stopPropagation();
+  const name=btn.dataset.tab;
+  activate(name);
+  btn.focus({preventScroll:true});
+  const target=tabTarget(name);
+  const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  requestAnimationFrame(()=>target.scrollIntoView({block:"start",behavior:reduce?"auto":"smooth"}));
  },true);
  nav.addEventListener("keydown",e=>{
   const buttons=Array.from(nav.querySelectorAll("button[data-tab]"));
