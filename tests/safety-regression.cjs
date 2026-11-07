@@ -28,6 +28,10 @@ has(trader, /if\(openContracts\.size>0\|\|readPendingPurchase\(\)\)/, "Account s
 has(trader, /DEMO validation only: REAL purchases are disabled/, "Purchase function must independently reject REAL execution.");
 has(trader, /baseStake:0\.35,maxTradePct:2,maxExposurePct:2,sessionLossPct:5,sessionProfitPct:3,dailyLossPct:5,dailyProfitPct:3,rapidLossPct:2/, "Approved capital-risk limits must remain unchanged.");
 has(trader, /rapidLossWindowMs:60000/, "Rapid-loss window must remain 60 seconds.");
+assert.ok(trader.includes("if(Date.now()<nextAutoEntryAt)return;"), "AUTO DEMO must not enter another trade during the post-settlement cooldown.");
+assert.ok(trader.includes("const postTradeCooldownMs=v<0?10000:5000"), "Automatic DEMO must wait 10 seconds after a loss and 5 seconds after a win before the next entry.");
+assert.ok(trader.includes("nextAutoEntryAt=Date.now()+postTradeCooldownMs"), "Post-settlement cooldown must be anchored to the broker-confirmed settlement time.");
+
 has(trader, /Math\.max\(600,Number\(s\.requiredTicks\|\|0\)\)/, "Digit execution must retain 600-observation minimum.");
 has(trader, /Number\(s\.liveObservations\|\|0\)<20/, "Signals must retain minimum live observations.");
 has(trader, /EMERGENCY STOP ACTIVATED/, "Emergency stop must remain available.");
