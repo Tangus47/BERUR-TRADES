@@ -53,3 +53,14 @@ jobs:
           command: deploy --config wrangler.jsonc
           workingDirectory: cloudflare-worker
           wranglerVersion: "4"
+
+      - name: Verify deployed Worker health and OAuth entry
+        run: |
+          base="https://berur-trades-backend.tangusvincent47.workers.dev"
+          health="$(curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors "$base/health")"
+          printf 'Worker health response: %s\n' "$health"
+          node -e 'const d=JSON.parse(process.argv[1]); if(d.status!=="ok" || d.service!=="BERUR TRADES OAuth backend") process.exit(1);' "$health"
+          headers="$(curl --silent --show-error --max-time 20 --dump-header - --output /dev/null "$base/oauth/start")"
+          printf '%s\n' "$headers"
+          printf '%s\n' "$headers" | grep -Eiq '^HTTP/[^ ]+ 302'
+          printf '%s\n' "$headers" | grep -Eiq '^location: https://auth\\.deriv\\.com/oauth2/auth'
