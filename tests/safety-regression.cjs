@@ -67,6 +67,12 @@ assert.ok(html.includes("const qualification=validatePurchaseSignal(a,signal)"),
 assert.ok(html.includes("candidate.validN<600 || candidate.strength<2.25"), "Bot session recommendations must use the same 600-sample and 2.25 thresholds.");
 assert.ok(html.includes("tradeAllowed:!!validatePurchaseSignal(current,signal).ok"), "Signal readiness must be based on the exact contract-family qualification, not broad tradeAllowed.");
 
+assert.ok(trader.includes("function requestBrokerStatement()"), "Broker-history comparison must be available as a read-only statement request.");
+assert.ok(trader.includes('if(!account||account.account_type!=="demo")throw Error("Broker-history comparison is currently enabled for DEMO accounts only.")'), "Broker-history reconciliation must remain DEMO-only.");
+assert.ok(trader.includes("statement:1,description:1,limit:999,date_from:from,date_to:now,req_id:BROKER_STATEMENT_REQ_ID"), "Broker-history reconciliation must use Deriv's authenticated statement endpoint with a bounded 30-day request.");
+assert.ok(trader.includes('["buy","sell"].includes(action)'), "Broker P/L must be derived only from buy/sell transactions, excluding deposits and withdrawals.");
+assert.ok(trader.includes("filter(x=>x.buyCount>0&&x.sellCount>0)"), "Only broker contracts with both buy and sell transactions may count as closed.");
+assert.ok(trader.includes("localStorage")&&trader.includes("brokerStatementSnapshot"), "Broker statement comparison must remain separate from the local journal.");
 assert.ok(trader.includes("function lastDigitFromQuote(value)"), "Entry and exit digits must be derived from the actual broker quote values.");
 assert.ok(trader.includes("contractData.entry_tick_display_value??contractData.entry_tick??null"), "Entry digit must use the broker display quote when available, with raw entry tick only as fallback.");
 assert.ok(trader.includes("contractData.exit_tick_display_value??contractData.exit_tick??null"), "Exit digit must use the broker display quote when available, with raw exit tick only as fallback.");
