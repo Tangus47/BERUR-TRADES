@@ -2754,7 +2754,7 @@ setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
 <script>
 (function(){
  const root=document.getElementById("marketSearchRadar");if(!root)return;
- const $=id=>document.getElementById(id);let cursor=0,lastSymbols=[];
+ const $=id=>document.getElementById(id);let cursor=0;
  const safeName=s=>typeof marketName==="function"?marketName(s):s;
  function paint(){
   const symbols=Array.isArray(SYMBOLS)?SYMBOLS.slice():[];
@@ -2765,8 +2765,8 @@ setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
   const discovered=symbols.some(s=>markets[s]&&markets[s].available);
   root.classList.toggle("market-radar-paused",!connected);
   $("marketRadarStatus").textContent=connected?(available.length?"SCANNING ALL AVAILABLE MARKETS":"DISCOVERING MARKETS"):((typeof running!=="undefined"&&running)?"CONNECTING / RECONNECTING":"RADAR PAUSED");
-  $("marketRadarCurrent").textContent=active?"NOW CHECKING · "+safeName(active):(connected?"Waiting for active market list…":"Connect & Scan to start market discovery");
-  $("marketRadarMeta").textContent=active?"Rotating through the configured volatility watchlist. Each market is checked for live ticks and analysis readiness.":(discovered?"No available markets in the current scan cycle.":"All configured markets will appear here after Deriv responds.");
+  $("marketRadarCurrent").textContent=active?"RADAR FOCUS · "+safeName(active):(connected?"Waiting for active market list…":"Connect & Scan to start market discovery");
+  $("marketRadarMeta").textContent=active?"All available markets continue receiving live feed analysis in parallel; the radar rotates its focus across the watchlist.":(discovered?"No available markets in the current scan cycle.":"All configured markets will appear here after Deriv responds.");
   $("marketRadarCounts").textContent=loaded.length+" / "+available.length+" available markets analysed · "+available.length+" available · "+(symbols.length-available.length)+" unavailable";
   $("marketRadarProgress").style.width=(available.length?Math.round(loaded.length/available.length*100):0)+"%";
   const list=$("marketRadarList");
