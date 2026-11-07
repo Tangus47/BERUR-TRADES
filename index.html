@@ -1346,8 +1346,10 @@ function analyze(m) {
  }
 
  const ouCandidates = [];
+ const splitIndex=Math.floor(n/2),firstHalf=ds.slice(0,splitIndex),secondHalf=ds.slice(splitIndex);
+ const STAT_MIN_SAMPLE=600,STAT_MIN_Z=3.4;
  let digitSignal = "WAIT";
- let digitReason = "Strict entry set: Over 3–6, Under 4–7, plus qualified Odd/Even; minimum 300 observations and z-score 2.25.";
+ let digitReason = "Strict entry set: Over 3–6, Under 4–7, plus qualified Odd/Even; at least 600 observations, z-score 3.4 and positive edge in both sample halves.";
  if (n >= 150) {
    for (let barrier = 0; barrier <= 9; barrier++) {
      const validN = n;
@@ -1361,38 +1363,46 @@ function analyze(m) {
        const observed = validN ? count / validN : 0;
        const standardError = validN > 0 ? Math.sqrt(expected * (1 - expected) / validN) : 0;
        const z = standardError > 0 ? (observed - expected) / standardError : 0;
+       const firstWins=firstHalf.filter(d=>side==="OVER"?d>barrier:d<barrier).length;
+       const secondWins=secondHalf.filter(d=>side==="OVER"?d>barrier:d<barrier).length;
+       const firstRate=firstHalf.length?firstWins/firstHalf.length:0;
+       const secondRate=secondHalf.length?secondWins/secondHalf.length:0;
+       const splitConsistent=firstHalf.length>=250&&secondHalf.length>=250&&firstRate>expected&&secondRate>expected;
        const impossible = (side === "UNDER" && barrier === 0) || (side === "OVER" && barrier === 9);
        ouCandidates.push({
          side, barrier, label: side + " " + barrier, count, validN,
-         observed, expected, deviation: observed - expected,
+         observed, expected, deviation: observed - expected,firstRate,secondRate,splitConsistent,
          z, strength: Math.abs(z), impossible, guaranteed: false
        });
      }
    }
    const ranked = ouCandidates
-     .filter(x => !x.impossible && x.validN >= 300 && x.deviation > 0 && x.strength >= 2.25 && ((x.side === "OVER" && x.barrier >= 3 && x.barrier <= 6) || (x.side === "UNDER" && x.barrier >= 4 && x.barrier <= 7)))
+     .filter(x => !x.impossible && x.validN >= STAT_MIN_SAMPLE && x.deviation > 0 && x.strength >= STAT_MIN_Z && x.splitConsistent && ((x.side === "OVER" && x.barrier >= 3 && x.barrier <= 6) || (x.side === "UNDER" && x.barrier >= 4 && x.barrier <= 7)))
      .sort((x,y) => y.strength - x.strength);
    const strongest = ranked[0];
-   if (strongest && strongest.strength >= 2) {
+   if (strongest && strongest.strength >= STAT_MIN_Z) {
      digitSignal = strongest.label;
      digitReason = strongest.label + " observed " + pct(strongest.observed * 100) +
        " versus " + pct(strongest.expected * 100) + " uniform baseline; z-score " +
        strongest.strength.toFixed(2) + " across " + strongest.validN +
-       " received observations. Historical evidence only.";
+       " received observations; first/second-half rates "+pct(strongest.firstRate*100)+"/"+pct(strongest.secondRate*100)+". Conservative historical screen only; not a forecast.";
    } else {
      digitReason = "No Over/Under threshold has reached the minimum evidence score. WAIT.";
    }
  }
  const parityCandidates = [];
  let paritySignal = "WAIT";
- let parityReason = "Parity contracts need at least 300 observations, z-score 2.25 and a positive statistical edge.";
+ let parityReason = "Parity contracts need at least 600 observations, z-score 3.4 and a positive edge in both sample halves.";
  if (n >= 300) {
    const evenRate = even / n, oddRate = odd / n;
    const paritySE = Math.sqrt(0.25 / n);
    const evenZ = paritySE ? (evenRate - 0.5) / paritySE : 0;
    const oddZ = paritySE ? (oddRate - 0.5) / paritySE : 0;
-   if (evenZ >= 2.25) parityCandidates.push({signal:"EVEN",observed:evenRate,z:evenZ,strength:evenZ});
-   if (oddZ >= 2.25) parityCandidates.push({signal:"ODD",observed:oddRate,z:oddZ,strength:oddZ});
+   const firstEven=firstHalf.filter(d=>d%2===0).length/Math.max(1,firstHalf.length);
+   const secondEven=secondHalf.filter(d=>d%2===0).length/Math.max(1,secondHalf.length);
+   const firstOdd=1-firstEven,secondOdd=1-secondEven;
+   if (n>=STAT_MIN_SAMPLE&&evenZ>=STAT_MIN_Z&&firstEven>.5&&secondEven>.5) parityCandidates.push({signal:"EVEN",observed:evenRate,z:evenZ,strength:evenZ,splitConsistent:true,firstRate:firstEven,secondRate:secondEven});
+   if (n>=STAT_MIN_SAMPLE&&oddZ>=STAT_MIN_Z&&firstOdd>.5&&secondOdd>.5) parityCandidates.push({signal:"ODD",observed:oddRate,z:oddZ,strength:oddZ,splitConsistent:true,firstRate:firstOdd,secondRate:secondOdd});
    parityCandidates.sort((x,y)=>y.strength-x.strength);
    if (parityCandidates.length) {
      paritySignal = parityCandidates[0].signal;
@@ -1436,12 +1446,12 @@ function qualifiedSetups(a){
  const ranked=[];
  (a.ouCandidates||[]).forEach(x=>{
   const allowed=(x.side==="UNDER"&&x.barrier>=4&&x.barrier<=7)||(x.side==="OVER"&&x.barrier>=3&&x.barrier<=6);
-  if(!allowed||x.impossible||x.validN<300||x.deviation<=0||x.strength<2.25)return;
-  ranked.push({signal:x.label,score:Math.min(95,Math.round(65+(x.strength-2.25)*15)),strength:x.strength,sample:x.validN,reason:x.label+" qualified: observed "+(x.observed*100).toFixed(1)+"% vs baseline "+(x.expected*100).toFixed(1)+"%; positive edge, z="+x.strength.toFixed(2)+", n="+x.validN,contract:x.side==="OVER"?"DIGITOVER":"DIGITUNDER",barrier:x.barrier});
+  if(!allowed||x.impossible||x.validN<600||x.deviation<=0||x.strength<3.4||!x.splitConsistent)return;
+  ranked.push({signal:x.label,score:Math.min(95,Math.round(70+(x.strength-3.4)*12)),strength:x.strength,sample:x.validN,reason:x.label+" qualified: observed "+(x.observed*100).toFixed(1)+"% vs baseline "+(x.expected*100).toFixed(1)+"%; positive edge, z="+x.strength.toFixed(2)+", n="+x.validN,contract:x.side==="OVER"?"DIGITOVER":"DIGITUNDER",barrier:x.barrier});
  });
  (a.parityCandidates||[]).forEach(x=>{
-  if(a.n<300||x.strength<2.25)return;
-  ranked.push({signal:x.signal,score:Math.min(95,Math.round(65+(x.strength-2.25)*15)),strength:x.strength,sample:a.n,reason:x.signal+" qualified: observed "+(x.observed*100).toFixed(1)+"% vs 50.0% baseline; z="+x.strength.toFixed(2)+", n="+a.n,contract:x.signal==="EVEN"?"DIGITEVEN":"DIGITODD"});
+  if(a.n<600||x.strength<3.4||!x.splitConsistent)return;
+  ranked.push({signal:x.signal,score:Math.min(95,Math.round(70+(x.strength-3.4)*12)),strength:x.strength,sample:a.n,reason:x.signal+" qualified: observed "+(x.observed*100).toFixed(1)+"% vs 50.0% baseline; z="+x.strength.toFixed(2)+", n="+a.n,contract:x.signal==="EVEN"?"DIGITEVEN":"DIGITODD"});
  });
  if((a.directionSignal==="RISE"||a.directionSignal==="FALL")&&a.directionScore>=70&&a.n>=120){
   const duration=a.directionScore>=80?3:5;
@@ -1500,7 +1510,7 @@ window.addEventListener("berur:candidate-queue-update",event=>{
  list.slice(0,3).forEach((x,i)=>{const tr=document.createElement("tr");[String(i+1),marketName(x.symbol),x.signal,String(x.score)+"/100",String(x.sample),i===0?"TOP RANKED — QUOTE REVIEW":("STANDBY #"+(i+1))].forEach(v=>{const td=document.createElement("td");td.textContent=v;if(i===0)td.className="green";tr.appendChild(td);});tbody.appendChild(tr);});
  table.appendChild(tbody);body.appendChild(table);
  let reasonPanel=document.getElementById("berur-purchase-reason-panel");
- if(!reasonPanel){reasonPanel=document.createElement("section");reasonPanel.id="berur-purchase-reason-panel";reasonPanel.className="card section";reasonPanel.style.borderTop="2px solid var(--amber)";reasonPanel.innerHTML="<h3>PURCHASE REASON & DECISION PANEL</h3><div id='berur-purchase-reason-main' class='note'></div><div id='berur-purchase-reason-next' class='note' style='margin-top:8px'></div><div class='note' style='margin-top:8px'>ENTRY GATES: Over/Under/Even/Odd require 300 observations and z-score ≥ 2.25. Rise/Fall require 120 observations, trend confirmation, direction score ≥ 70 and 3–5 tick duration. All require fresh feed, no cooldown and exact quote match. One open contract at a time.</div>";panel.insertAdjacentElement("afterend",reasonPanel);}
+ if(!reasonPanel){reasonPanel=document.createElement("section");reasonPanel.id="berur-purchase-reason-panel";reasonPanel.className="card section";reasonPanel.style.borderTop="2px solid var(--amber)";reasonPanel.innerHTML="<h3>PURCHASE REASON & DECISION PANEL</h3><div id='berur-purchase-reason-main' class='note'></div><div id='berur-purchase-reason-next' class='note' style='margin-top:8px'></div><div class='note' style='margin-top:8px'>ENTRY GATES: Over/Under/Even/Odd require 600 observations, z-score ≥ 3.4 and positive edge in both halves of the sample. Rise/Fall require 120 observations, trend confirmation, direction score ≥ 70 and 3–5 tick duration. All require fresh feed, no cooldown and exact quote match. One open contract at a time.</div>";panel.insertAdjacentElement("afterend",reasonPanel);}
  const main=document.getElementById("berur-purchase-reason-main"),next=document.getElementById("berur-purchase-reason-next");
  if(main)main.textContent=list[0]?"RANK #1 — "+marketName(list[0].symbol)+" · "+list[0].signal+" · "+list[0].score+"/100 · "+list[0].sample+" observations. WHY: "+list[0].reason+". Ranked first for quote review only — not a purchase instruction or authorization.":"NO PURCHASE: no candidate passed all strict entry gates. Waiting; no forced signal or trade.";
  if(next)next.textContent=[list[1]?"RANK #2 STANDBY — "+marketName(list[1].symbol)+" · "+list[1].signal+" · "+list[1].score+"/100. WHY: "+list[1].reason+". Eligible if rank #1 is rejected or after the current trade settles.":"RANK #2 — no second candidate currently qualifies.",list[2]?"RANK #3 STANDBY — "+marketName(list[2].symbol)+" · "+list[2].signal+" · "+list[2].score+"/100. WHY: "+list[2].reason+". Eligible when it becomes the strongest available candidate.":"RANK #3 — no third candidate currently qualifies."].join(" ");
