@@ -36,12 +36,13 @@ jobs:
           if (!/^[a-f0-9]{32}$/i.test(id)) {
             throw new Error("BERUR_SESSIONS_KV_ID must be the 32-character Cloudflare KV namespace ID.");
           }
-          const config = fs.readFileSync(path, "utf8");
-          const placeholder = "REPLACE_WITH_KV_NAMESPACE_ID";
-          if (!config.includes(placeholder)) {
-            throw new Error("Expected KV namespace placeholder was not found; review wrangler.jsonc before deploying.");
+          const config = JSON.parse(fs.readFileSync(path, "utf8"));
+          const namespace = config.kv_namespaces?.find(item => item.binding === "BERUR_SESSIONS");
+          if (!namespace) {
+            throw new Error("The BERUR_SESSIONS KV binding is missing from wrangler.jsonc.");
           }
-          fs.writeFileSync(path, config.replace(placeholder, id));
+          namespace.id = id;
+          fs.writeFileSync(path, JSON.stringify(config, null, 2) + "\n");
           NODE
 
       - name: Deploy Worker to Cloudflare
