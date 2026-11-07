@@ -147,8 +147,8 @@ function renderConnectionDiagnostics(){
  if(latestEl)latestEl.textContent=latest?latest.category+" · "+latest.detail:"No disconnection recorded in this page session. Connection health is monitored automatically.";
  if(historyEl)historyEl.innerHTML=connectionDiagnostics.length?connectionDiagnostics.slice(0,5).map(x=>"<div style='padding:6px 0;border-top:1px solid #263951'><b>"+new Date(x.at).toLocaleString()+" · "+esc(x.category)+"</b><br>"+esc(x.detail)+(x.code!==null?" · code "+esc(x.code):"")+"</div>").join(""):"No events recorded.";
 }
-window.addEventListener("offline",()=>classifyConnectionIssue("NETWORK","Browser offline",{online:false}));
-window.addEventListener("online",()=>classifyConnectionIssue("NETWORK","Browser reports internet connectivity restored",{online:true}));
+window.addEventListener("offline",()=>{classifyConnectionIssue("NETWORK","Browser offline",{online:false});reconciliationReady=false;proposal=null;proposalContext=null;proposalReceivedAt=0;latestAnalysisSignal=null;AI_GUARD.signal=null;autoQuotePending=false;autoQuoteSignal=null;clearTimeout(proposalTimer);proposalTimer=null;$("bt-buy").disabled=true;$("bt-conn").textContent="OFFLINE · TRADING PAUSED";setAIGuard("AMBER","Internet connection lost. Existing signals and quotes have been invalidated. Wait for internet restoration, fresh Deriv authentication and broker reconciliation.");renderRisk();});
+window.addEventListener("online",()=>{classifyConnectionIssue("NETWORK","Browser reports internet connectivity restored",{online:true});if(sessionId&&account)scheduleAccountReconnect("Internet restored. Re-authenticating Deriv and reconciling broker positions before trading can resume.");});
 
 function todayKey(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function riskStorageKey(){return "berur-risk-v1:"+(account?.account_id||account?.id||"unselected");}
