@@ -99,5 +99,5 @@ assert.ok(html.includes('berur:terminal-scan-update'), "The market scanner must 
 assert.ok(terminals.includes('const MODE="SMART",MARKET_SELECTION="AUTOMATIC"'), "Binary terminals must use the approved Smart mode and automatic market selection.");
 assert.ok(terminals.includes('document.getElementById("bt-auto")'), "The Smart terminal must hand off to the existing protected DEMO execution control.");
 assert.ok(terminals.includes('berur:terminal-scan-update'), "The Rise/Fall terminal must consume live candidate updates.");
-assert.doesNotMatch(terminals, /ws\\.send|buy\\s*:\\s*proposal|api\\.buy/i, "The terminal display module must not submit purchases or bypass the shared execution controller.");
+assert.doesNotMatch(terminals, /ws\.send|buy\s*:\s*proposal|api\.buy/i, "The terminal display module must not submit purchases or bypass the shared execution controller.");
 console.log("BERUR TRADES safety regression checks passed.");
