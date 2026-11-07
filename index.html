@@ -550,7 +550,7 @@ body{overflow-x:hidden}
     <p class="note">Ranking is a descriptive technical score from recent price movement and digit distribution. It is not a probability of winning.</p>
     <div class="section" style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
       <h3 class="section-title">INDEPENDENT DIGIT CONTRACT MARKET RANKINGS</h3>
-      <p class="note">Each OVER barrier and parity contract is ranked independently across every connected volatility market. A market selected for OVER 3 does not determine the market for OVER 4, 5, 6, EVEN or ODD.</p>
+      <p class="note">OVER 3, 4, 5 and 6; UNDER 7, 6, 5 and 4; and EVEN/ODD are ranked independently across every connected volatility market. Each contract family selects its own strongest eligible market; no family inherits another family's leader.</p>
       <div class="tablewrap"><table style="min-width:760px">
         <thead><tr><th>CONTRACT</th><th>BEST MARKET</th><th>OBSERVED RATE</th><th>BASELINE</th><th>STRENGTH</th><th>SAMPLE</th><th>STATUS</th></tr></thead>
         <tbody id="independentDigitMarketRows"><tr><td colspan="7">Collecting independent market samples…</td></tr></tbody>
@@ -2075,7 +2075,7 @@ function renderBestContractMarkets(){
 }
 function renderIndependentDigitMarketRankings(){
  const body=$("independentDigitMarketRows");if(!body)return;
- const families=["OVER 3","OVER 4","OVER 5","OVER 6","EVEN","ODD"];
+ const families=["OVER 3","OVER 4","OVER 5","OVER 6","UNDER 7","UNDER 6","UNDER 5","UNDER 4","EVEN","ODD"];
  const ranked=[];
  const add=(family,symbol,observed,expected,n,firstRate,secondRate)=>{
   if(!Number.isFinite(observed)||!Number.isFinite(expected)||!Number.isFinite(n)||n<600||expected<=0||expected>=1)return;
@@ -2087,10 +2087,12 @@ function renderIndependentDigitMarketRankings(){
   const market=markets[symbol],a=analyze(market),ds=digitsFor(market.ticks||[]),n=ds.length;
   if(n<600)return;
   const half=Math.floor(ds.length/2),first=ds.slice(0,half),second=ds.slice(half);
-  [3,4,5,6].forEach(barrier=>{
-   const candidate=(a.ouCandidates||[]).find(x=>x.side==="OVER"&&Number(x.barrier)===barrier);
-   if(!candidate||candidate.validN<600||candidate.deviation<=0||candidate.strength<2.25||candidate.splitConsistent!==true)return;
-   add("OVER "+barrier,symbol,candidate.observed,candidate.expected,candidate.validN,candidate.firstRate,candidate.secondRate);
+  [{side:"OVER",barriers:[3,4,5,6]},{side:"UNDER",barriers:[7,6,5,4]}].forEach(group=>{
+   group.barriers.forEach(barrier=>{
+    const candidate=(a.ouCandidates||[]).find(x=>x.side===group.side&&Number(x.barrier)===barrier);
+    if(!candidate||candidate.validN<600||candidate.deviation<=0||candidate.strength<2.25||candidate.splitConsistent!==true)return;
+    add(group.side+" "+barrier,symbol,candidate.observed,candidate.expected,candidate.validN,candidate.firstRate,candidate.secondRate);
+   });
   });
   const evenRate=ds.filter(d=>d%2===0).length/n,oddRate=1-evenRate;
   add("EVEN",symbol,evenRate,.5,n,first.filter(d=>d%2===0).length/Math.max(1,first.length),second.filter(d=>d%2===0).length/Math.max(1,second.length));
