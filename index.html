@@ -320,6 +320,74 @@ button.primary{box-shadow:0 0 0 1px rgba(53,224,162,.18),0 8px 24px rgba(53,224,
 #boom-crash-centre{border-top:3px solid #ff806e}
 #economic-news-centre{border-top:3px solid #71c6ef}
 
+
+
+/* Dashboard and panel usability refresh — responsive, readable, touch-first */
+html{scroll-padding-top:76px}
+body{overflow-x:hidden}
+.app-tabs{justify-content:flex-start;gap:8px;padding:9px max(12px,calc((100% - 1280px)/2));overscroll-behavior-x:contain;scroll-behavior:smooth;scrollbar-width:thin}
+.app-tabs .app-tab{min-height:44px;padding:10px 15px;line-height:1.1;letter-spacing:.02em}
+.app-tabs .app-tab:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.terminal-content{display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:0}
+.terminal-content>.section.card{min-width:0;overflow:hidden}
+.terminal-content .tablewrap{max-width:100%;overscroll-behavior-x:contain;scrollbar-width:thin}
+.market-sidebar[hidden]{display:none!important}
+.market-sidebar .note{line-height:1.45}
+.topline .actions button{min-height:44px}
+.card{box-shadow:0 10px 28px rgba(0,0,0,.14)}
+.section-title{line-height:1.35}
+.note{max-width:90ch}
+#overview>.card{display:flex;flex-direction:column;justify-content:center;gap:3px}
+#overview .metric{overflow-wrap:anywhere}
+@media(max-width:980px){
+ .wrap{padding:14px 12px 24px}
+ .terminal-layout{grid-template-columns:180px minmax(0,1fr);gap:10px}
+ .market-sidebar{padding:11px!important}
+ .watch-item{min-height:44px}
+}
+@media(max-width:720px){
+ header{padding:14px 13px}
+ .brand{font-size:22px}
+ .sub{font-size:9px;letter-spacing:1px;line-height:1.5}
+ .app-tabs{top:0;padding:8px 10px;gap:7px}
+ .app-tabs .app-tab{min-height:42px;padding:9px 13px;font-size:12px}
+ .wrap{padding:12px 10px 22px}
+ .topline{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:11px}
+ .topline .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:7px}
+ .topline .actions button{min-width:0;padding:10px 8px;font-size:11px}
+ .terminal-layout{display:block}
+ .market-sidebar{position:relative;top:auto;max-height:none;margin:0 0 10px;padding:10px!important}
+ .market-sidebar>.note{display:none}
+ .market-watchlist{display:flex;gap:7px;overflow-x:auto;padding:2px 1px 7px;scroll-snap-type:x proximity}
+ .watch-item{flex:0 0 142px;scroll-snap-align:start}
+ #overview{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ #overview>.card{min-height:94px;padding:11px}
+ #overview .metric{font-size:clamp(17px,4.8vw,21px)}
+ .terminal-content>.section.card{margin-top:10px;padding:12px}
+ .terminal-content .section-title{font-size:14px}
+ .radar-head{align-items:flex-start}
+ .radar-head>.pill,.radar-head>.radar-status{flex:0 0 auto}
+ .risk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .probability-card table{min-width:460px}
+ .trace-chart svg{height:145px}
+}
+@media(max-width:420px){
+ .brand{font-size:20px}
+ .wrap{padding-inline:8px}
+ .topline .actions{grid-template-columns:1fr 1fr}
+ .topline .actions button{font-size:10px}
+ #overview>.card{min-height:88px;padding:9px}
+ #overview>.card h3{font-size:10px;line-height:1.35}
+ .card{border-radius:12px}
+ .terminal-content>.section.card{padding:10px}
+ .risk-grid{grid-template-columns:1fr}
+ .digits{grid-template-columns:repeat(5,minmax(0,1fr))}
+ .trace-quote strong{font-size:18px}
+}
+@media(prefers-reduced-motion:reduce){
+ .app-tabs{scroll-behavior:auto}
+}
+
 </style>
 </head>
 <body>
@@ -2113,6 +2181,8 @@ function setupAppTabs(){
  const extra={digits:["probability","market-ou-ranking"],ou:["market-ou-board"],radar:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],derivcfd:["forex-cfd-centre"],xauusd:["forex-cfd-centre"],boomcrash:["boom-crash-centre"],news:["economic-news-centre"]};
  const panelNodes=Array.from(new Set(Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean)));
  const allRangeNodes=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
+ const marketSidebar=document.querySelector(".market-sidebar");
+ const tabsWithoutSyntheticWatchlist=new Set(["execution","forex","xauusd","derivcfd","boomcrash","news"]);
  function activate(name){
   if(!ranges[name]&&!extra[name])name="home";
   const range=ranges[name],visibleRange=range?new Set(children.slice(range[0],range[1])):new Set();
@@ -2135,7 +2205,15 @@ function setupAppTabs(){
    const active=btn.dataset.tab===name;
    btn.classList.toggle("active",active);
    btn.setAttribute("aria-selected",active?"true":"false");
+   if(active)btn.setAttribute("tabindex","0");else btn.setAttribute("tabindex","-1");
   });
+  content.dataset.activeTab=name;
+  if(marketSidebar)marketSidebar.hidden=tabsWithoutSyntheticWatchlist.has(name);
+  const activeButton=nav.querySelector('[data-tab="'+name+'"]');
+  if(activeButton){
+   const left=activeButton.offsetLeft-(nav.clientWidth-activeButton.offsetWidth)/2;
+   nav.scrollTo({left:Math.max(0,left),behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
+  }
   try{sessionStorage.setItem("berur-active-tab",name);}catch{}
   if(name==="markets")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));
   if(name==="forex"||name==="derivcfd"||name==="xauusd"){
@@ -2151,6 +2229,20 @@ function setupAppTabs(){
   if(!btn||!nav.contains(btn))return;
   e.preventDefault();e.stopPropagation();activate(btn.dataset.tab);
  },true);
+ nav.addEventListener("keydown",e=>{
+  const buttons=Array.from(nav.querySelectorAll("button[data-tab]"));
+  const current=buttons.indexOf(document.activeElement);
+  if(current<0)return;
+  let next=current;
+  if(e.key==="ArrowRight")next=(current+1)%buttons.length;
+  else if(e.key==="ArrowLeft")next=(current-1+buttons.length)%buttons.length;
+  else if(e.key==="Home")next=0;
+  else if(e.key==="End")next=buttons.length-1;
+  else return;
+  e.preventDefault();
+  buttons[next].focus();
+  activate(buttons[next].dataset.tab);
+ });
  let initial="home";
  try{const saved=sessionStorage.getItem("berur-active-tab");if(saved&&[...Object.keys(ranges),...Object.keys(extra)].includes(saved))initial=saved;}catch{}
  activate(initial);
