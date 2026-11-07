@@ -207,6 +207,8 @@ function renderTradeReadiness(){
  const el=$("bt-trade-ready");if(!el)return;
  const reason=tradeReadinessBlock(),s=latestAnalysisSignal;
  const ready=!reason&&!!s;
+ const guardBadge=$("bt-ai-state");
+ if(guardBadge&&AI_GUARD.state==="GREEN"&&!AI_GUARD.locked){guardBadge.textContent=ready?"GREEN — TRADE READY":"GREEN — SIGNAL ONLY";guardBadge.style.color=ready?"#35e0a2":"#ffc65c";}
  if(ready){
   const key=String(s.signalId||"")+"|"+String(proposal?.id||"");
   el.style.borderColor="#258b63";el.style.background="#0d2a25";
