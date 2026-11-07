@@ -548,6 +548,14 @@ body{overflow-x:hidden}
       </table>
     </div>
     <p class="note">Ranking is a descriptive technical score from recent price movement and digit distribution. It is not a probability of winning.</p>
+    <div class="section" style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
+      <h3 class="section-title">INDEPENDENT DIGIT CONTRACT MARKET RANKINGS</h3>
+      <p class="note">Each OVER barrier and parity contract is ranked independently across every connected volatility market. A market selected for OVER 3 does not determine the market for OVER 4, 5, 6, EVEN or ODD.</p>
+      <div class="tablewrap"><table style="min-width:760px">
+        <thead><tr><th>CONTRACT</th><th>BEST MARKET</th><th>OBSERVED RATE</th><th>BASELINE</th><th>STRENGTH</th><th>SAMPLE</th><th>STATUS</th></tr></thead>
+        <tbody id="independentDigitMarketRows"><tr><td colspan="7">Collecting independent market samples…</td></tr></tbody>
+      </table></div>
+    </div>
   </section>
 
   <div class="two section" id="analysis">
@@ -2061,8 +2069,39 @@ function renderBestContractMarkets(){
   return '<tr><td><b>'+type+'</b></td><td><b>'+marketName(best.symbol)+'</b></td><td>'+best.label+'</td><td>'+pct(best.observed*100)+'</td><td>'+pct(best.expected*100)+'</td><td>'+best.strength.toFixed(2)+' z</td><td>'+best.n+'</td><td><b>'+duration+'</b><br><span class="small">'+durationReason+'</span></td><td>'+status+'</td></tr>';
  }).join("");
  body.innerHTML=rows;
+ renderIndependentDigitMarketRankings();
  const ready=SYMBOLS.filter(symbol=>(markets[symbol].ticks||[]).length>=500).length;
  $("bestContractMarketNote").textContent="All Over/Under thresholds 0–9 are analysed for evidence. Automatic eligibility remains restricted to Over 3–7 and Under 3–6, with at least 150 received observations and positive deviation of at least 2.00 z. No arbitrary hit-rate cutoff is applied. Historical frequency is descriptive, not a forecast; live payout and break-even must still be checked.";
+}
+function renderIndependentDigitMarketRankings(){
+ const body=$("independentDigitMarketRows");if(!body)return;
+ const families=["OVER 3","OVER 4","OVER 5","OVER 6","EVEN","ODD"];
+ const ranked=[];
+ const add=(family,symbol,observed,expected,n,firstRate,secondRate)=>{
+  if(!Number.isFinite(observed)||!Number.isFinite(expected)||!Number.isFinite(n)||n<600||expected<=0||expected>=1)return;
+  const z=(observed-expected)/Math.sqrt(expected*(1-expected)/n);
+  const split=firstRate>expected&&secondRate>expected;
+  ranked.push({family,symbol,observed,expected,n,z,split});
+ };
+ SYMBOLS.forEach(symbol=>{
+  const market=markets[symbol],a=analyze(market),ds=digitsFor(market.ticks||[]),n=ds.length;
+  if(n<600)return;
+  const half=Math.floor(ds.length/2),first=ds.slice(0,half),second=ds.slice(half);
+  [3,4,5,6].forEach(barrier=>{
+   const candidate=(a.ouCandidates||[]).find(x=>x.side==="OVER"&&Number(x.barrier)===barrier);
+   if(!candidate||candidate.validN<600||candidate.deviation<=0||candidate.strength<2.25||candidate.splitConsistent!==true)return;
+   add("OVER "+barrier,symbol,candidate.observed,candidate.expected,candidate.validN,candidate.firstRate,candidate.secondRate);
+  });
+  const evenRate=ds.filter(d=>d%2===0).length/n,oddRate=1-evenRate;
+  add("EVEN",symbol,evenRate,.5,n,first.filter(d=>d%2===0).length/Math.max(1,first.length),second.filter(d=>d%2===0).length/Math.max(1,second.length));
+  add("ODD",symbol,oddRate,.5,n,first.filter(d=>d%2===1).length/Math.max(1,first.length),second.filter(d=>d%2===1).length/Math.max(1,second.length));
+ });
+ body.innerHTML=families.map(family=>{
+  const list=ranked.filter(x=>x.family===family&&x.z>=2.25&&x.split).sort((a,b)=>b.z-a.z);
+  const best=list[0];
+  if(!best)return '<tr><td><b>'+family+'</b></td><td colspan="5">WAIT — no market passed the independent evidence checks</td><td>NOT QUALIFIED</td></tr>';
+  return '<tr><td><b>'+family+'</b></td><td><b>'+marketName(best.symbol)+'</b></td><td>'+pct(best.observed*100)+'</td><td>'+pct(best.expected*100)+'</td><td>'+best.z.toFixed(2)+' z</td><td>'+best.n+'</td><td class="green">EVIDENCE QUALIFIED · REVIEW QUOTE</td></tr>';
+ }).join("");
 }
 function renderMarketOUBoard(){
  const host=$("marketOUCards");if(!host)return;
