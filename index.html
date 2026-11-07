@@ -2405,5 +2405,100 @@ setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
   greeting.textContent=message;
 })();
 </script>
+
+<!-- Independent navigation controller: intercepts tabs before legacy handlers. -->
+<script>
+(function(){
+  const nav=document.querySelector(".app-tabs");
+  const content=document.querySelector(".terminal-content");
+  if(!nav||!content)return;
+  const buttons=Array.from(nav.querySelectorAll("button[data-tab]"));
+  const children=Array.from(content.children);
+  const rootOf=(el)=>{
+    while(el&&el.parentElement!==content)el=el.parentElement;
+    return el&&el.parentElement===content?el:null;
+  };
+  const anchorIds={home:"overview",markets:"candleWorkspace",analysis:"analysis",execution:"execution",radar:"radar"};
+  const order=["home","markets","analysis","execution","radar"];
+  const positions={};
+  for(const [tab,id] of Object.entries(anchorIds)){
+    const root=rootOf(document.getElementById(id));
+    const at=root?children.indexOf(root):-1;
+    if(at>=0)positions[tab]=at;
+  }
+  const ranges={};
+  order.forEach((tab,i)=>{
+    if(positions[tab]===undefined)return;
+    const next=order.slice(i+1).map(k=>positions[k]).find(n=>n!==undefined&&n>positions[tab]);
+    ranges[tab]=[positions[tab],next===undefined?children.length:next];
+  });
+  const extra={
+    digits:["probability","market-ou-ranking"],
+    ou:["market-ou-board"],
+    radar:["all-market-command-centre"],
+    quality:["trade-quality-filter"],
+    forex:["forex-cfd-centre"],
+    xauusd:["forex-cfd-centre"],
+    derivcfd:["forex-cfd-centre"],
+    boomcrash:["boom-crash-centre"],
+    news:["economic-news-centre"]
+  };
+  const extraNodes=Array.from(new Set(Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean)));
+  function showTab(tab,button){
+    if(!buttons.some(b=>b.dataset.tab===tab))return;
+    const range=ranges[tab];
+    const visible=new Set(range?children.slice(range[0],range[1]):[]);
+    children.forEach(node=>{node.hidden=!visible.has(node);});
+    extraNodes.forEach(node=>{node.hidden=!(extra[tab]||[]).includes(node.id);});
+    (extra[tab]||[]).forEach(id=>{
+      const node=document.getElementById(id);
+      const root=node&&rootOf(node);
+      if(root)root.hidden=false;
+      if(node)node.hidden=false;
+    });
+    buttons.forEach(b=>{
+      const active=b.dataset.tab===tab;
+      b.classList.toggle("active",active);
+      b.setAttribute("aria-selected",active?"true":"false");
+      b.setAttribute("tabindex",active?"0":"-1");
+    });
+    content.dataset.activeTab=tab;
+    const sidebar=document.querySelector(".market-sidebar");
+    if(sidebar)sidebar.hidden=["execution","forex","xauusd","derivcfd","boomcrash","news"].includes(tab);
+    try{sessionStorage.setItem("berur-active-tab",tab);}catch(e){}
+    if(button){
+      try{button.focus({preventScroll:true});}catch(e){}
+      try{button.scrollIntoView({block:"nearest",inline:"center",behavior:"auto"});}catch(e){}
+    }
+    const target=range?children[range[0]]:((extra[tab]||[]).map(id=>document.getElementById(id)).find(Boolean)||content);
+    requestAnimationFrame(()=>{try{target.scrollIntoView({block:"start",behavior:"smooth"});}catch(e){}});
+    if(tab==="markets")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));
+    if(["forex","xauusd","derivcfd"].includes(tab)&&typeof renderCfdCentre==="function"){
+      try{
+        if(typeof cfdPanelMode!=="undefined")cfdPanelMode=tab==="forex"?"FOREX":tab==="xauusd"?"XAUUSD":"DERIV_CFD";
+        if(typeof cfdCategoryFilter!=="undefined")cfdCategoryFilter="ALL";
+        renderCfdCentre();
+      }catch(e){}
+    }
+    if(tab==="boomcrash"&&typeof renderBoomCrashCentre==="function"){
+      try{renderBoomCrashCentre();}catch(e){}
+    }
+  }
+  document.addEventListener("click",function(e){
+    const button=e.target&&e.target.closest?e.target.closest(".app-tabs button[data-tab]"):null;
+    if(!button)return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    showTab(button.dataset.tab,button);
+  },true);
+  let initial="home";
+  try{
+    const saved=sessionStorage.getItem("berur-active-tab");
+    if(buttons.some(b=>b.dataset.tab===saved))initial=saved;
+  }catch(e){}
+  showTab(initial,null);
+})();
+</script>
+
 </body>
 </html>
