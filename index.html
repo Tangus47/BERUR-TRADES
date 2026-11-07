@@ -2793,6 +2793,7 @@ setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
   }
   function place(node,tab){
     if(!node||!tabPanel[tab])return;
+    if(node.closest&&node.closest(".workspace-panel"))return;
     const root=content.contains(node)?contentRoot(node):mainRoot(node);
     if(!root||root===layout||root===content||root===sidebar)return;
     const prior=assigned.get(root);
@@ -2837,6 +2838,20 @@ setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
   place(byId("forex-cfd-centre"),"forex");
   place(byId("boom-crash-centre"),"boomcrash");
   place(byId("economic-news-centre"),"news");
+
+  // The Deriv connector mounts its live desk and auxiliary panels dynamically.
+  // Route those sections into the matching workspace as soon as they appear.
+  function placeDynamicPanels(){
+    place(byId("bt-membership"),"home");
+    place(byId("play-store-notice"),"home");
+    place(byId("bt-forex"),"forex");
+    place(byId("bt-desk"),"execution");
+  }
+  placeDynamicPanels();
+  const dynamicPanelObserver=new MutationObserver(placeDynamicPanels);
+  dynamicPanelObserver.observe(main,{childList:true,subtree:true});
+  const legacyForexLink=nav.querySelector('a[href="#bt-forex"]');
+  if(legacyForexLink)legacyForexLink.remove();
 
   // Remove any obsolete, unassigned content roots rather than allowing them to leak
   // into every tab. All known live modules above are assigned explicitly.
