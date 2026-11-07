@@ -498,7 +498,8 @@ body{overflow-x:hidden}
 .bt-module-item b{font-size:12px}.bt-module-item span{font-size:10px;color:var(--muted);font-weight:800}
 .bt-module-item.active{border-color:rgba(85,224,196,.5)}.bt-module-item.active span{color:#6fe2c6}
 .bt-terminal-actions{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0 8px}.bt-terminal-actions button{min-height:44px}
-@media(max-width:520px){.bt-terminal-card{padding:12px}.bt-terminal-metrics b{font-size:14px}.bt-terminal-actions button{flex:1 1 100%}}
+.bt-mtf-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:12px 0}.bt-mtf-cell{min-width:0;padding:9px;border:1px solid var(--line);border-radius:9px;background:rgba(4,13,25,.55)}.bt-mtf-cell b{display:block;font-size:12px}.bt-mtf-cell small{display:block;color:var(--muted);font-size:10px;margin-top:4px;overflow-wrap:anywhere}.bt-mtf-cell .trend-rise{color:#55e0a8}.bt-mtf-cell .trend-fall{color:#ff8295}.bt-rf-confirm{padding:10px;border:1px solid rgba(85,224,196,.22);border-radius:9px;background:rgba(85,224,196,.05);font-size:11px;color:var(--muted)}
+@media(max-width:520px){.bt-mtf-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bt-terminal-card{padding:12px}.bt-terminal-metrics b{font-size:14px}.bt-terminal-actions button{flex:1 1 100%}}
 </style>
 </head>
 <body>
@@ -551,10 +552,13 @@ body{overflow-x:hidden}
         <div><small>OBSERVATIONS</small><b id="bt-rf-sample">—</b></div>
       </div>
       <p class="note" id="bt-rf-reason">Rise/Fall scans all connected volatility markets for aligned trend and momentum confirmation. No eligible signal yet.</p>
+      <div class="bt-terminal-subhead"><h3>MULTI-TIMEFRAME CANDLE CONFIRMATION</h3><span class="note">Broker OHLC · completed candles</span></div>
+      <div class="bt-mtf-grid" id="bt-rf-timeframes"><div class="bt-mtf-cell"><b>1M · WAIT</b><small>Collecting candle history</small></div><div class="bt-mtf-cell"><b>5M · WAIT</b><small>Collecting candle history</small></div><div class="bt-mtf-cell"><b>15M · WAIT</b><small>Collecting candle history</small></div><div class="bt-mtf-cell"><b>1H · WAIT</b><small>Collecting candle history</small></div></div>
+      <div class="bt-rf-confirm" id="bt-rf-confirmation">EMA 10/25 · RSI 14 · candlestick pattern · wick/body validation · higher-timeframe alignment. WAIT until all required data is fresh.</div>
     </article>
   </div>
   <div class="bt-terminal-subhead"><h3>RISE / FALL MARKET LEADERS</h3><span class="note">Automatically ranked · analysis evidence, not win probability</span></div>
-  <div class="tablewrap"><table style="min-width:620px"><thead><tr><th>RANK</th><th>MARKET</th><th>DIRECTION</th><th>EVIDENCE</th><th>SAMPLE</th><th>DURATION</th></tr></thead><tbody id="bt-rf-market-rows"><tr><td colspan="6">Waiting for live market evidence…</td></tr></tbody></table></div>
+  <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>RANK</th><th>MARKET</th><th>DIRECTION</th><th>EVIDENCE</th><th>CANDLE CONFIRMATION</th><th>OHLC SAMPLE</th><th>DURATION</th></tr></thead><tbody id="bt-rf-market-rows"><tr><td colspan="6">Waiting for live market evidence…</td></tr></tbody></table></div>
   <div class="bt-terminal-subhead"><h3>MODULAR TERMINAL REGISTRY</h3><span class="note">One shared account and safety controller</span></div>
   <div class="bt-module-registry" id="bt-module-registry">
     <div class="bt-module-item active"><b>RISE / FALL</b><span>ACTIVE · SMART QUEUE</span></div>
