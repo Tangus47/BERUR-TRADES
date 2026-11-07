@@ -368,6 +368,33 @@ button.primary{box-shadow:0 0 0 1px rgba(53,224,162,.18),0 8px 24px rgba(53,224,
 .digit-probability-list{display:grid;gap:7px}.digit-probability-row{display:grid;grid-template-columns:24px minmax(40px,1fr) 58px;gap:9px;align-items:center;padding:5px 7px;border-radius:9px}.digit-probability-row.focus{outline:2px solid #32f879;background:rgba(0,180,70,.14);box-shadow:0 0 12px rgba(0,255,100,.22)}.digit-probability-row b{font-size:16px}.digit-probability-row strong{text-align:right;font-size:14px;font-variant-numeric:tabular-nums}.digit-bar{height:13px;border-radius:20px;background:#102c4c;overflow:hidden}.digit-bar i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,#ffc400,#ffeb48)}.digit-probability-row.focus .digit-bar i{background:linear-gradient(90deg,#00d85d,#a4ff36)}.digit-baseline{font-size:11px;color:var(--muted);padding-top:12px;margin-top:10px;border-top:1px solid rgba(0,153,255,.3)}
 @media(max-width:760px){.digit-radar-layout{grid-template-columns:1fr;gap:16px}.digit-wheel{width:min(100%,430px)}.digit-wheel-item{width:62px;min-height:54px}.digit-probability-panel{max-width:none}}
 
+
+/* Persistent trader control-room monitor */
+.control-room{display:grid;grid-template-columns:minmax(250px,1.05fr) minmax(0,2fr);gap:12px;margin:14px 0 16px;align-items:stretch}
+.control-room-card{min-width:0;border:1px solid rgba(118,183,255,.22);border-radius:16px;padding:14px;background:linear-gradient(145deg,rgba(16,34,55,.98),rgba(8,20,35,.98));box-shadow:0 12px 28px rgba(0,0,0,.18)}
+.control-room-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.control-room-title h2{font-size:12px;letter-spacing:.12em;margin:0;color:#eaf3ff}
+.control-room-live{font-size:9px;font-weight:900;letter-spacing:.1em;color:var(--green)}
+.control-room-radar{display:grid;grid-template-columns:86px minmax(0,1fr);gap:12px;align-items:center}
+.control-room-radar .market-search-visual{width:82px;height:82px}
+.control-room-radar .market-radar-current{font-size:16px;margin:3px 0}
+.control-room-radar .market-radar-meta{font-size:10px}
+.control-room-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.control-room-metric{min-width:0;padding:10px;border:1px solid rgba(125,164,208,.15);border-radius:11px;background:rgba(5,16,29,.55)}
+.control-room-metric small{display:block;font-size:9px;letter-spacing:.08em;color:#91a9c6;font-weight:800;margin-bottom:6px}
+.control-room-metric strong{display:block;font-size:14px;line-height:1.25;overflow-wrap:anywhere;color:#f2f7ff}
+.control-room-metric span{display:block;font-size:9px;color:var(--muted);margin-top:4px;line-height:1.35}
+.control-room-terminals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:9px}
+.control-room-terminal{padding:10px;border:1px solid rgba(125,164,208,.15);border-left:3px solid var(--cyan);border-radius:10px;background:rgba(5,16,29,.48);min-width:0}
+.control-room-terminal:nth-child(2){border-left-color:var(--violet)}
+.control-room-terminal:nth-child(3){border-left-color:var(--teal)}
+.control-room-terminal b{display:block;font-size:10px;letter-spacing:.06em}
+.control-room-terminal strong{display:block;font-size:13px;margin-top:6px;overflow-wrap:anywhere}
+.control-room-terminal span{display:block;font-size:9px;color:var(--muted);margin-top:3px}
+.control-room-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.control-room-actions button{min-height:34px;padding:7px 10px;font-size:10px}
+@media(max-width:900px){.control-room{grid-template-columns:1fr}.control-room-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.control-room{gap:9px;margin:10px 0}.control-room-card{padding:11px}.control-room-radar{grid-template-columns:72px minmax(0,1fr);gap:9px}.control-room-radar .market-search-visual{width:68px;height:68px}.control-room-terminals{grid-template-columns:1fr 1fr}.control-room-terminal:last-child{grid-column:1/-1}.control-room-metric strong{font-size:13px}}
 </style>
 <script>
 (function(){
@@ -518,6 +545,58 @@ body{overflow-x:hidden}
       <button id="stopBtn" disabled>STOP</button>
     </div>
   </div>
+
+
+<style>
+/* Visible rotating market discovery radar */
+.market-search-radar{display:grid;grid-template-columns:150px minmax(0,1fr);gap:18px;align-items:center;margin:14px 0 16px;padding:16px;border:1px solid rgba(57,214,195,.34);border-radius:17px;background:linear-gradient(125deg,rgba(9,37,48,.96),rgba(12,25,44,.98));box-shadow:0 12px 30px rgba(0,0,0,.2)}
+.market-search-visual{width:138px;height:138px;position:relative;border-radius:50%;border:1px solid rgba(57,214,195,.5);background:radial-gradient(circle,rgba(57,214,195,.13) 0 2px,transparent 3px),repeating-radial-gradient(circle,transparent 0 21px,rgba(99,200,255,.2) 22px 23px),linear-gradient(90deg,transparent 49.5%,rgba(99,200,255,.2) 50%,transparent 50.5%),linear-gradient(transparent 49.5%,rgba(99,200,255,.2) 50%,transparent 50.5%);overflow:hidden;box-shadow:0 0 25px rgba(57,214,195,.12),inset 0 0 22px rgba(57,214,195,.1)}
+.market-search-visual:before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 72%,rgba(57,214,195,.04) 82%,rgba(57,214,195,.55) 100%);animation:marketRadarSpin 2.4s linear infinite}
+.market-search-visual:after{content:"";position:absolute;width:7px;height:7px;left:calc(50% - 3.5px);top:calc(50% - 3.5px);border-radius:50%;background:#6effce;box-shadow:0 0 13px #35e0a2}
+.market-radar-blip{position:absolute;width:6px;height:6px;border-radius:50%;background:#8bdcff;box-shadow:0 0 9px #63c8ff;z-index:1;opacity:.25;transition:opacity .2s,transform .2s}
+.market-radar-blip.active{opacity:1;transform:scale(1.65);background:#ffd071;box-shadow:0 0 12px #ffd071}
+.market-radar-copy{min-width:0}.market-radar-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.market-radar-title{font-size:13px;font-weight:900;letter-spacing:.12em}.market-radar-status{font-size:10px;font-weight:900;color:#6effce;letter-spacing:.1em}.market-radar-current{font-size:clamp(18px,3vw,25px);font-weight:900;margin:8px 0 3px;letter-spacing:-.025em}.market-radar-meta{font-size:11px;color:var(--muted);line-height:1.5}.market-radar-progress{height:7px;background:#1b3045;border-radius:10px;overflow:hidden;margin:10px 0}.market-radar-progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#63c8ff,#39d6c3);transition:width .25s}.market-radar-list{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.market-radar-chip{font-size:9px;font-weight:800;padding:5px 7px;border:1px solid rgba(125,164,208,.2);border-radius:7px;color:#a9bdd5;background:rgba(12,25,42,.8)}.market-radar-chip.current{border-color:#ffd071;color:#ffe0a0;background:rgba(255,208,113,.1)}.market-radar-chip.done{border-color:rgba(57,214,195,.35);color:#79e8d8}.market-radar-chip.offline{opacity:.45;text-decoration:line-through}.market-radar-paused .market-search-visual:before{animation-play-state:paused;opacity:.25}.market-radar-paused .market-radar-status{color:#ffd071}
+@keyframes marketRadarSpin{to{transform:rotate(360deg)}}
+@media(max-width:560px){.market-search-radar{grid-template-columns:92px minmax(0,1fr);gap:12px;padding:12px}.market-search-visual{width:88px;height:88px}.market-radar-chip{font-size:8px;padding:4px 5px}}
+@media(prefers-reduced-motion:reduce){.market-search-visual:before{animation:none}}
+</style>
+<section class="market-search-radar" id="marketSearchRadar" aria-live="polite" aria-label="Live rotating market search radar">
+ <div class="market-search-visual" id="marketRadarVisual" aria-hidden="true"><i class="market-radar-blip" style="left:70%;top:23%"></i><i class="market-radar-blip" style="left:25%;top:35%"></i><i class="market-radar-blip" style="left:63%;top:72%"></i><i class="market-radar-blip" style="left:18%;top:67%"></i><i class="market-radar-blip" style="left:48%;top:14%"></i><i class="market-radar-blip" style="left:82%;top:51%"></i></div>
+ <div class="market-radar-copy">
+  <div class="market-radar-top"><span class="market-radar-title">LIVE MARKET SEARCH RADAR</span><span class="market-radar-status" id="marketRadarStatus">WAITING FOR CONNECTION</span></div>
+  <div class="market-radar-current" id="marketRadarCurrent">Preparing market discovery…</div>
+  <div class="market-radar-meta" id="marketRadarMeta">The radar will rotate through every configured volatility market and show which ones are available, collecting data, analysed or unavailable.</div>
+  <div class="market-radar-progress"><i id="marketRadarProgress"></i></div>
+  <div class="market-radar-meta" id="marketRadarCounts">0 / 13 markets analysed · 0 available</div>
+  <div class="market-radar-list" id="marketRadarList"></div>
+ </div>
+</section>
+
+<section class="control-room" id="traderControlRoom" aria-label="Trader control room overview">
+ <article class="control-room-card">
+  <div class="control-room-title"><h2>LIVE MARKET RADAR</h2><span class="control-room-live" id="cr-radar-state">CONNECTING</span></div>
+  <div class="control-room-radar">
+   <div class="market-search-visual" aria-hidden="true"><i class="market-radar-blip" style="left:70%;top:23%"></i><i class="market-radar-blip" style="left:25%;top:35%"></i><i class="market-radar-blip" style="left:63%;top:72%"></i><i class="market-radar-blip" style="left:18%;top:67%"></i></div>
+   <div><strong class="market-radar-current" id="cr-radar-focus">Waiting for market scan</strong><div class="market-radar-meta" id="cr-radar-counts">0 markets analysed</div><div class="market-radar-progress"><i id="cr-radar-progress"></i></div></div>
+  </div>
+  <div class="control-room-actions"><button type="button" data-cr-tab="radar">OPEN FULL RADAR</button><button type="button" data-cr-tab="markets">OPEN MARKET CHART</button></div>
+ </article>
+ <article class="control-room-card">
+  <div class="control-room-title"><h2>TERMINAL & EXECUTION MONITOR</h2><span class="control-room-live">LIVE OVERVIEW</span></div>
+  <div class="control-room-metrics">
+   <div class="control-room-metric"><small>SMART COORDINATOR</small><strong id="cr-smart-state">WAITING</strong><span id="cr-smart-pick">No qualified candidate</span></div>
+   <div class="control-room-metric"><small>BEST CONTRACT</small><strong id="cr-best-contract">WAIT</strong><span id="cr-best-score">Evidence —</span></div>
+   <div class="control-room-metric"><small>EXECUTION MODE</small><strong>DEMO ONLY</strong><span>REAL remains locked</span></div>
+   <div class="control-room-metric"><small>EXECUTION STATUS</small><strong id="cr-execution-state">REVIEW REQUIRED</strong><span>Existing protected execution desk</span></div>
+  </div>
+  <div class="control-room-terminals">
+   <div class="control-room-terminal"><b>RISE / FALL</b><strong id="cr-rf-market">WAIT</strong><span id="cr-rf-state">Collecting multi-timeframe candles</span></div>
+   <div class="control-room-terminal"><b>OVER / UNDER</b><strong id="cr-ou-market">SMART SCAN</strong><span>Independent Over 3–6 / Under 4–7 rankings</span></div>
+   <div class="control-room-terminal"><b>EVEN / ODD</b><strong id="cr-eo-market">SMART SCAN</strong><span>Independent digit contract ranking</span></div>
+  </div>
+  <div class="control-room-actions"><button type="button" data-cr-tab="terminals">OPEN ALL TERMINALS</button><button type="button" data-cr-tab="execution">OPEN EXECUTION DESK</button></div>
+ </article>
+</section>
 
   <div class="terminal-layout">
   <aside class="market-sidebar card" aria-label="Synthetic market watchlist">
@@ -2725,5 +2804,32 @@ setInterval(()=>{renderMarketSignalMonitor();renderMarketFeedHealth();},1000);
 })();
 </script>
 
+
+<script>
+(function(){
+ const root=document.getElementById("marketSearchRadar");if(!root)return;
+ const $=id=>document.getElementById(id);let cursor=0;
+ const safeName=s=>typeof marketName==="function"?marketName(s):s;
+ function paint(){
+  const symbols=Array.isArray(SYMBOLS)?SYMBOLS.slice():[];
+  const available=symbols.filter(s=>markets[s]&&markets[s].available);
+  const loaded=available.filter(s=>(markets[s].ticks||[]).length>=50);
+  const active=available.length?available[cursor%available.length]:null;
+  const connected=!!(typeof running!=="undefined"&&running&&typeof socket!=="undefined"&&socket&&socket.readyState===WebSocket.OPEN);
+  const discovered=symbols.some(s=>markets[s]&&markets[s].available);
+  root.classList.toggle("market-radar-paused",!connected);
+  $("marketRadarStatus").textContent=connected?(available.length?"SCANNING ALL AVAILABLE MARKETS":"DISCOVERING MARKETS"):((typeof running!=="undefined"&&running)?"CONNECTING / RECONNECTING":"RADAR PAUSED");
+  $("marketRadarCurrent").textContent=active?"RADAR FOCUS · "+safeName(active):(connected?"Waiting for active market list…":"Connect & Scan to start market discovery");
+  $("marketRadarMeta").textContent=active?"All available markets continue receiving live feed analysis in parallel; the radar rotates its focus across the watchlist.":(discovered?"No available markets in the current scan cycle.":"All configured markets will appear here after Deriv responds.");
+  $("marketRadarCounts").textContent=loaded.length+" / "+available.length+" available markets analysed · "+available.length+" available · "+(symbols.length-available.length)+" unavailable";
+  $("marketRadarProgress").style.width=(available.length?Math.round(loaded.length/available.length*100):0)+"%";
+  const list=$("marketRadarList");
+  list.innerHTML=symbols.map((symbol,i)=>{const m=markets[symbol]||{},ok=!!m.available,done=ok&&(m.ticks||[]).length>=50,cur=symbol===active;const cls=cur?"current":done?"done":!ok&&discovered?"offline":"";const state=done?"ANALYSED":ok?"COLLECTING":discovered?"UNAVAILABLE":"WAITING";return '<span class="market-radar-chip '+cls+'" title="'+safeName(symbol)+' · '+state+'">'+symbol+' · '+state+'</span>';}).join("");
+  const blips=$("marketRadarVisual").querySelectorAll(".market-radar-blip");blips.forEach((b,i)=>b.classList.toggle("active",connected&&i===(cursor%blips.length)));
+ }
+ function advance(){const available=SYMBOLS.filter(s=>markets[s]&&markets[s].available);if(available.length)cursor=(cursor+1)%available.length;paint();}
+ paint();setInterval(advance,1100);setInterval(paint,1800);
+})();
+</script>
 </body>
 </html>
