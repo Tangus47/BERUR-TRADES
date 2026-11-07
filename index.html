@@ -2250,20 +2250,38 @@ function setupAppTabs(){
  const content=document.querySelector(".terminal-content"),nav=document.querySelector(".app-tabs");
  if(!content||!nav)return;
  const direct=el=>{while(el&&el.parentElement!==content)el=el.parentElement;return el&&el.parentElement===content?el:null;};
- const anchors={home:direct(document.getElementById("overview")),markets:direct(document.getElementById("candleWorkspace")),analysis:direct(document.getElementById("analysis")),execution:direct(document.getElementById("execution")),radar:direct(document.getElementById("radar"))};
- if(Object.values(anchors).some(x=>!x))return;
- const children=Array.from(content.children),idx=Object.fromEntries(Object.entries(anchors).map(([k,v])=>[k,children.indexOf(v)]));
- const ranges={home:[idx.home,idx.markets],markets:[idx.markets,idx.analysis],analysis:[idx.analysis,idx.execution],execution:[idx.execution,idx.radar],radar:[idx.radar,children.length]};
- const extra={digits:["probability","market-ou-ranking"],ou:["market-ou-board"],radar:["all-market-command-centre"],quality:["trade-quality-filter"],forex:["forex-cfd-centre"],derivcfd:["forex-cfd-centre"],xauusd:["forex-cfd-centre"],boomcrash:["boom-crash-centre"],news:["economic-news-centre"]};
+ const anchorIds={home:"overview",markets:"candleWorkspace",analysis:"analysis",execution:"execution",radar:"radar"};
+ const children=Array.from(content.children);
+ const idx={};
+ Object.entries(anchorIds).forEach(([name,id])=>{const root=direct(document.getElementById(id));const n=root?children.indexOf(root):-1;if(n>=0)idx[name]=n;});
+ const order=["home","markets","analysis","execution","radar"];
+ const ranges={};
+ order.forEach((name,i)=>{
+   if(idx[name]===undefined)return;
+   const next=order.slice(i+1).map(k=>idx[k]).find(n=>n!==undefined&&n>idx[name]);
+   ranges[name]=[idx[name],next===undefined?children.length:next];
+ });
+ const extra={
+  digits:["probability","market-ou-ranking"],
+  ou:["market-ou-board"],
+  radar:["all-market-command-centre"],
+  quality:["trade-quality-filter"],
+  execution:["execution-desk"],
+  forex:["forex-cfd-centre"],
+  derivcfd:["forex-cfd-centre"],
+  xauusd:["forex-cfd-centre"],
+  boomcrash:["boom-crash-centre"],
+  news:["economic-news-centre"]
+ };
  const panelNodes=Array.from(new Set(Object.values(extra).flat().map(id=>document.getElementById(id)).filter(Boolean)));
- const allRangeNodes=Array.from(new Set(Object.values(ranges).flatMap(([a,b])=>children.slice(a,b))));
  const marketSidebar=document.querySelector(".market-sidebar");
  const tabsWithoutSyntheticWatchlist=new Set(["execution","forex","xauusd","derivcfd","boomcrash","news"]);
+ const buttons=Array.from(nav.querySelectorAll("button[data-tab]"));
  function activate(name){
-  if(!ranges[name]&&!extra[name])name="home";
-  const range=ranges[name],visibleRange=range?new Set(children.slice(range[0],range[1])):new Set();
+  if(!buttons.some(b=>b.dataset.tab===name))name="home";
+  const range=ranges[name];
+  const visibleRange=new Set(range?children.slice(range[0],range[1]):[]);
   children.forEach(node=>{
-   if(!allRangeNodes.includes(node))return;
    const show=visibleRange.has(node);
    node.hidden=!show;
    if(show)delete node.dataset.appTabHidden;else node.dataset.appTabHidden="true";
@@ -2277,15 +2295,15 @@ function setupAppTabs(){
     if(root){root.hidden=false;delete root.dataset.appTabHidden;}
    }
   });
-  nav.querySelectorAll("[data-tab]").forEach(btn=>{
+  buttons.forEach(btn=>{
    const active=btn.dataset.tab===name;
    btn.classList.toggle("active",active);
    btn.setAttribute("aria-selected",active?"true":"false");
-   if(active)btn.setAttribute("tabindex","0");else btn.setAttribute("tabindex","-1");
+   btn.setAttribute("tabindex",active?"0":"-1");
   });
   content.dataset.activeTab=name;
   if(marketSidebar)marketSidebar.hidden=tabsWithoutSyntheticWatchlist.has(name);
-  const activeButton=nav.querySelector('[data-tab="'+name+'"]');
+  const activeButton=buttons.find(b=>b.dataset.tab===name);
   if(activeButton){
    const left=activeButton.offsetLeft-(nav.clientWidth-activeButton.offsetWidth)/2;
    nav.scrollTo({left:Math.max(0,left),behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
@@ -2293,32 +2311,36 @@ function setupAppTabs(){
   try{sessionStorage.setItem("berur-active-tab",name);}catch{}
   if(name==="markets")requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));
   if(name==="forex"||name==="derivcfd"||name==="xauusd"){
-   cfdPanelMode=name==="forex"?"FOREX":name==="derivcfd"?"DERIV_CFD":"XAUUSD";
-   cfdCategoryFilter="ALL";
-   if($("cfdCategoryFilter"))$("cfdCategoryFilter").value="ALL";
-   renderCfdCentre();
+   if(typeof cfdPanelMode!=="undefined"){
+    cfdPanelMode=name==="forex"?"FOREX":name==="derivcfd"?"DERIV_CFD":"XAUUSD";
+    cfdCategoryFilter="ALL";
+    if(document.getElementById("cfdCategoryFilter"))document.getElementById("cfdCategoryFilter").value="ALL";
+    if(typeof renderCfdCentre==="function")renderCfdCentre();
+   }
   }
-  if(name==="boomcrash")renderBoomCrashCentre();
+  if(name==="boomcrash"&&typeof renderBoomCrashCentre==="function")renderBoomCrashCentre();
  }
  function tabTarget(name){
-  if(ranges[name])return children[ranges[name][0]]||content;
-  const id=(extra[name]||[]).find(panelId=>document.getElementById(panelId));
-  const panel=id&&document.getElementById(id);
-  return panel?(direct(panel)||panel):content;
+  const range=ranges[name];
+  if(range)return children[range[0]]||content;
+  const ids=extra[name]||[];
+  for(const id of ids){const panel=document.getElementById(id);if(panel)return direct(panel)||panel;}
+  return content;
+ }
+ function go(name,button){
+  activate(name);
+  if(button)button.focus({preventScroll:true});
+  const target=tabTarget(name);
+  const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  requestAnimationFrame(()=>target.scrollIntoView({block:"start",behavior:reduce?"auto":"smooth"}));
  }
  nav.addEventListener("click",e=>{
   const btn=e.target.closest("button[data-tab]");
   if(!btn||!nav.contains(btn))return;
   e.preventDefault();e.stopPropagation();
-  const name=btn.dataset.tab;
-  activate(name);
-  btn.focus({preventScroll:true});
-  const target=tabTarget(name);
-  const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  requestAnimationFrame(()=>target.scrollIntoView({block:"start",behavior:reduce?"auto":"smooth"}));
+  go(btn.dataset.tab,btn);
  },true);
  nav.addEventListener("keydown",e=>{
-  const buttons=Array.from(nav.querySelectorAll("button[data-tab]"));
   const current=buttons.indexOf(document.activeElement);
   if(current<0)return;
   let next=current;
@@ -2326,13 +2348,12 @@ function setupAppTabs(){
   else if(e.key==="ArrowLeft")next=(current-1+buttons.length)%buttons.length;
   else if(e.key==="Home")next=0;
   else if(e.key==="End")next=buttons.length-1;
+  else if(e.key==="Enter"||e.key===" "){e.preventDefault();go(document.activeElement.dataset.tab,document.activeElement);return;}
   else return;
-  e.preventDefault();
-  buttons[next].focus();
-  activate(buttons[next].dataset.tab);
+  e.preventDefault();go(buttons[next].dataset.tab,buttons[next]);
  });
  let initial="home";
- try{const saved=sessionStorage.getItem("berur-active-tab");if(saved&&[...Object.keys(ranges),...Object.keys(extra)].includes(saved))initial=saved;}catch{}
+ try{const saved=sessionStorage.getItem("berur-active-tab");if(buttons.some(b=>b.dataset.tab===saved))initial=saved;}catch{}
  activate(initial);
 }
 setupAppTabs();
