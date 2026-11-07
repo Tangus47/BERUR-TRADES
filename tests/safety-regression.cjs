@@ -55,8 +55,9 @@ has(html, /#marketOUCards\{grid-template-columns:repeat\(auto-fit/, "Over/Under 
 has(html, /@media\(max-width:520px\)[\s\S]*?#digitGrid\{grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/, "Digit Radar must reflow into five columns on narrow screens.");
 
 assert.ok(html.includes("function renderIndependentDigitMarketRankings()"), "Markets panel must calculate independent digit-contract market leaders.");
-assert.ok(html.includes('const families=["OVER 3","OVER 4","OVER 5","OVER 6","EVEN","ODD"]'), "OVER 3–6, EVEN and ODD must each have independent market rankings.");
-assert.ok(html.includes('candidate.side==="OVER"&&Number(x.barrier)===barrier'), "Each OVER barrier must be evaluated independently rather than inheriting the OVER 3 leader.");
+assert.ok(html.includes('const families=["OVER 3","OVER 4","OVER 5","OVER 6","UNDER 7","UNDER 6","UNDER 5","UNDER 4","EVEN","ODD"]'), "OVER 3–6, UNDER 4–7, EVEN and ODD must each have independent market rankings.");
+assert.ok(html.includes('x.side===group.side&&Number(x.barrier)===barrier'), "Every OVER and UNDER barrier must be evaluated independently rather than inheriting another contract's leader.");
+assert.ok(html.includes('barriers:[7,6,5,4]'), "UNDER 7, 6, 5 and 4 must all be ranked independently.");
 assert.ok(html.includes('id="independentDigitMarketRows"'), "Independent digit market rankings must be visible inside the Markets panel.");
 assert.ok(html.includes("function validatePurchaseSignal(a,signal)"), "Purchase handoff must revalidate the exact live signal.");
 assert.ok(html.includes("FOCUS & REVALIDATE"), "Ranked candidates must offer a direct focus action for execution review.");
