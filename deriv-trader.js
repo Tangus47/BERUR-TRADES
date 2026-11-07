@@ -224,7 +224,8 @@ function tradeReadinessBlock(){
  const aiBlock=aiExecutionGate();if(aiBlock)return aiBlock;
  if(!account||account.account_type!=="demo")return "DEMO account required. REAL execution remains disabled.";
  if(!ws||ws.readyState!==WebSocket.OPEN)return "The public market feed may be connected, but the separate authenticated DEMO trading socket is not OPEN. Reconnect Deriv in the Execution Desk; trading remains safely blocked until it is.";
- if(!reconciliationReady)return "EXECUTION PAUSED — broker reconciliation is not currently confirmed for this authenticated socket. Wait for a fresh portfolio response; do not retry any uncertain purchase.";\n if(readPendingPurchase())return "EXECUTION PAUSED — an unresolved purchase safety lock exists for the selected DEMO account. Verify Deriv statement and open positions before clearing it.";
+ if(!reconciliationReady)return "EXECUTION PAUSED — broker reconciliation is not currently confirmed for this authenticated socket. Wait for a fresh portfolio response; do not retry any uncertain purchase.";
+ if(readPendingPurchase())return "EXECUTION PAUSED — an unresolved purchase safety lock exists for the selected DEMO account. Verify Deriv statement and open positions before clearing it.";
  if(busy||openContracts.size>=maxOpenTrades())return "A trade is already open or awaiting settlement.";
  const riskBlock=riskLimitReason();if(riskBlock)return riskBlock;
  const s=latestAnalysisSignal;
