@@ -4,13 +4,15 @@ on:
     branches: [main]
     paths:
       - 'deriv-trader.js'
+      - 'binary-terminals.js'
       - 'index.html'
       - 'tests/**'
       - '.github/workflows/safety-regression.yml'
   pull_request:
-    branches: [main]
+    branches: [main, feat/independent-over-market-rankings]
     paths:
       - 'deriv-trader.js'
+      - 'binary-terminals.js'
       - 'index.html'
       - 'tests/**'
       - '.github/workflows/safety-regression.yml'
@@ -26,6 +28,8 @@ jobs:
         with:
           node-version: '22'
       - name: Check JavaScript syntax
-        run: node --check deriv-trader.js
+        run: |
+          node --check deriv-trader.js
+          node --check binary-terminals.js
       - name: Run safety regression assertions
         run: node tests/safety-regression.cjs
