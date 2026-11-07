@@ -30,6 +30,9 @@ has(trader, /DEMO validation only: REAL purchases are disabled/, "Purchase funct
 has(trader, /baseStake:0\.35,maxTradePct:2,maxExposurePct:2,sessionLossPct:5,sessionProfitPct:3,dailyLossPct:5,dailyProfitPct:3,rapidLossPct:2/, "Approved capital-risk limits must remain unchanged.");
 has(trader, /rapidLossWindowMs:60000/, "Rapid-loss window must remain 60 seconds.");
 assert.ok(trader.includes("if(Date.now()<nextAutoEntryAt)return;"), "AUTO DEMO must not enter another trade during the post-settlement cooldown.");
+assert.ok(trader.includes('if(readPendingPurchase())throw Error("Auto trading is blocked by an unresolved purchase safety lock.'), "AUTO DEMO may be armed while reconciliation is pending, but an uncertain purchase lock must still block startup.");
+assert.ok(trader.includes('AUTO DEMO ARMED — waiting for authenticated broker portfolio reconciliation.'), "The UI must clearly show that AUTO is armed but waiting for broker reconciliation.");
+assert.ok(trader.includes("!reconciliationReady||readPendingPurchase()"), "The automatic entry loop must remain blocked until broker reconciliation is confirmed and no uncertain purchase exists.");
 assert.ok(trader.includes("const postTradeCooldownMs=v<0?10000:5000"), "Automatic DEMO must wait 10 seconds after a loss and 5 seconds after a win before the next entry.");
 assert.ok(trader.includes("nextAutoEntryAt=Date.now()+postTradeCooldownMs"), "Post-settlement cooldown must be anchored to the broker-confirmed settlement time.");
 
