@@ -8,6 +8,13 @@ has(trader, /account\.account_type!=="demo"/, "Execution must remain DEMO-only."
 has(trader, /REAL execution remains disabled/, "Trade readiness must explicitly block REAL execution.");
 has(trader, /ws\.readyState!==WebSocket\.OPEN/, "Purchases must require an open authenticated socket.");
 assert.ok(trader.includes('function send(o){if(!ws||ws.readyState!==WebSocket.OPEN){say("Deriv account socket is disconnected.");return false;}try{ws.send(JSON.stringify(o));return true;}catch(e){say("Deriv request was not transmitted:'), "WebSocket send must return true only after successful transmission and catch close races.");
+assert.ok(trader.includes("function sameExecutionSignal(a,b)"), "Execution must compare the exact approved signal identity, including market, contract, barrier and duration.");
+assert.ok(trader.includes("function signalMatchesQuoteContext(signal,context)"), "Broker quotes must be matched to the approved signal's exact execution parameters.");
+assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — selected quote parameters do not match the exact approved signal."), "Auto quote requests must be rejected before transmission when their parameters differ from the approved signal.");
+assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — the live signal, approved candidate and quoted market/contract/barrier/duration no longer match."), "Purchases must be blocked if the live signal and quote context diverge.");
+assert.ok(trader.includes("AUTO DEMO STOPPED — the approved signal changed while its quote was pending."), "Auto DEMO must stop if the approved signal changes while a quote is pending.");
+assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — broker quote does not match the exact AI-approved market, contract, barrier and duration."), "Manual execution readiness must reject a quote that does not match the AI-approved signal.");
+
 has(trader, /if\(!send\(requestParams\)\)\{proposalContext=null;proposal=null;/, "Quote requests must fail immediately and visibly when the authenticated socket is disconnected.");
 has(trader, /if\(!send\(\{buy:proposal\.id,price:ask\}\)\)\{clearPendingPurchase\(\);busy=false;submittedTradeSignal=null;renderRisk\(\);throw Error\("Purchase was not sent:/, "A purchase that was not transmitted must clear its local pending lock and must not be reported as submitted.");
 has(trader, /if\(!reconciliationReady\)return "EXECUTION PAUSED — broker reconciliation is not currently confirmed/, "Execution readiness must explain pending broker reconciliation.");
