@@ -1820,12 +1820,13 @@ function qualifiedSetups(a){
 let automaticCandidateRefreshTimer=null;
 function scheduleAutomaticBestSignal(){if(automaticCandidateRefreshTimer)return;automaticCandidateRefreshTimer=setTimeout(()=>{automaticCandidateRefreshTimer=null;refreshAutomaticBestSignal();},300);}
 function refreshAutomaticBestSignal(){
- const now=Date.now(),candidates=[];
+ const now=Date.now(),candidates=[],riseFallWatch=[];
  SYMBOLS.forEach(symbol=>{
   requestRiseFallTimeframes(symbol);
   const market=markets[symbol];
   if(!market||!market.available||!market.ticks?.length||!market.updated||now-market.updated>20000||Number(market.liveTickCount||0)<20)return;
-  const analysis=analyze(market);
+  const analysis=analyze(market),mtf=analysis.riseFallMtf;
+  if(mtf?.ready)riseFallWatch.push({symbol,market,analysis,setup:{signal:mtf.qualified?mtf.direction:"WAIT",contract:mtf.qualified?(mtf.direction==="RISE"?"CALL":"PUT"):"WAIT",score:mtf.qualified?mtf.score:null,strength:mtf.qualified?mtf.score:null,sample:mtf.count,duration:mtf.qualified?3:null,reason:mtf.reason,mtf}});
   qualifiedSetups(analysis).forEach(setup=>{
    const family=signalFamily(setup.signal),cooldownUntil=candidateCooldowns.get(symbol+"|"+family);
    if(cooldownUntil!==undefined&&(Number(market.liveTickCount)||0)<=cooldownUntil)return;
@@ -1837,10 +1838,11 @@ function refreshAutomaticBestSignal(){
  const terminalSnapshot=x=>x?({symbol:x.symbol,marketName:marketName(x.symbol),signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier??null,score:x.setup.score,strength:x.setup.strength??null,sample:x.setup.sample,duration:x.setup.duration??null,reason:x.setup.reason,updatedAt:x.market.updated,mtf:x.setup.mtf||x.analysis.riseFallMtf||null}):null;
  const familyLeaders={};candidates.forEach(x=>{if(!familyLeaders[x.setup.contract])familyLeaders[x.setup.contract]=terminalSnapshot(x);});
  const riseFallCandidates=candidates.filter(x=>x.setup.contract==="CALL"||x.setup.contract==="PUT").slice(0,5).map(terminalSnapshot);
- window.dispatchEvent(new CustomEvent("berur:terminal-scan-update",{detail:{mode:"SMART",marketSelection:"AUTOMATIC",total:candidates.length,globalBest:terminalSnapshot(candidates[0]),familyLeaders,riseFallCandidates}}));
+ const riseFallWatchList=riseFallWatch.sort((a,b)=>Number(b.setup.mtf.qualified)-Number(a.setup.mtf.qualified)||Number(b.setup.mtf.aligned)-Number(a.setup.mtf.aligned)||b.setup.sample-a.setup.sample).slice(0,5).map(terminalSnapshot);
+ window.dispatchEvent(new CustomEvent("berur:terminal-scan-update",{detail:{mode:"SMART",marketSelection:"AUTOMATIC",total:candidates.length,globalBest:terminalSnapshot(candidates[0]),familyLeaders,riseFallCandidates,riseFallWatch:riseFallWatchList}}));
  window.dispatchEvent(new CustomEvent("berur:candidate-queue-update",{detail:{count:candidates.length,candidates:candidates.slice(0,3).map((x,i)=>({rank:i+1,symbol:x.symbol,signal:x.setup.signal,contract:x.setup.contract,barrier:x.setup.barrier,score:x.setup.score,strength:x.setup.strength,sample:x.setup.sample,firstRate:x.setup.firstRate??null,secondRate:x.setup.secondRate??null,reason:x.setup.reason}))}}));
  if(!candidates.length){
-  window.dispatchEvent(new CustomEvent("berur:terminal-scan-update",{detail:{mode:"SMART",marketSelection:"AUTOMATIC",total:0,globalBest:null,familyLeaders:{},riseFallCandidates:[]}}));
+  window.dispatchEvent(new CustomEvent("berur:terminal-scan-update",{detail:{mode:"SMART",marketSelection:"AUTOMATIC",total:0,globalBest:null,familyLeaders:{},riseFallCandidates:[],riseFallWatch:riseFallWatchList}}));
   activeCandidateKey=null;activeSignal=null;
   window.dispatchEvent(new CustomEvent("berur:signal-update",{detail:{signalId:"",tradeAllowed:false}}));
   return;
