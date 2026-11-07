@@ -103,9 +103,9 @@ assert.ok(html.includes("support,resistance"), "Rise/Fall must calculate recent 
 assert.ok(html.includes('duration=60,duration_unit="s"'), "Qualified Rise/Fall candidates must use a 60-second duration.");
 assert.ok(html.includes('duration:signal==="RISE"||signal==="FALL"?60:1') && html.includes('duration_unit:signal==="RISE"||signal==="FALL"?"s":"t"'), "Manual Rise/Fall handoff must specify 60 seconds.");
 assert.ok(html.includes('duration:contract==="CALL"||contract==="PUT"?60:1') && html.includes('duration_unit:contract==="CALL"||contract==="PUT"?"s":"t"'), "Analysis handoff must specify seconds for Rise/Fall.");
-assert.ok(html.includes('const isRiseFall=type==="CALL"||type==="PUT"') && html.includes('duration:isRiseFall?60') && html.includes('duration_unit:isRiseFall?"s":"t"'), "Execution quote parameters must enforce 60 seconds for CALL/PUT contracts.");
-assert.ok(html.includes('Number(s.duration)===60&&String(s.duration_unit)==="s"'), "The execution signal validator must reject Rise/Fall durations other than 60 seconds.");
-assert.ok(html.includes('durationUnit:String(p.duration_unit||"t")'), "Quote context must bind the duration unit as well as the numeric duration.");
+assert.ok(trader.includes('const isRiseFall=type==="CALL"||type==="PUT"') && trader.includes('duration:isRiseFall?60') && trader.includes('duration_unit:isRiseFall?"s":"t"'), "Execution quote parameters must enforce 60 seconds for CALL/PUT contracts.");
+assert.ok(trader.includes('Number(s.duration)===60&&String(s.duration_unit)==="s"'), "The execution signal validator must reject Rise/Fall durations other than 60 seconds.");
+assert.ok(trader.includes('durationUnit:String(p.duration_unit||"t")'), "Quote context must bind the duration unit as well as the numeric duration.");
 
 assert.ok(html.includes('!mtf?.qualified||mtf.direction!==value'), "Rise/Fall purchase validation must reject unconfirmed or conflicting timeframes.");
 assert.ok(html.includes("requestRiseFallTimeframes(symbol,true)"), "Every connected volatility market must request independent OHLC history for all Rise/Fall timeframes.");
