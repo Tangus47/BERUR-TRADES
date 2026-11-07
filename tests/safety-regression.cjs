@@ -19,5 +19,9 @@ has(trader, /rapidLossWindowMs:60000/, "Rapid-loss window must remain 60 seconds
 has(trader, /Math\.max\(600,Number\(s\.requiredTicks\|\|0\)\)/, "Digit execution must retain 600-observation minimum.");
 has(trader, /Number\(s\.liveObservations\|\|0\)<20/, "Signals must retain minimum live observations.");
 has(trader, /EMERGENCY STOP ACTIVATED/, "Emergency stop must remain available.");
+has(trader, /function persistOpenTradeState\(\)/, "Open contracts must be persisted for reload recovery.");
+has(trader, /function restoreOpenTradeState\(\)/, "Open contracts must be restored before broker reconciliation.");
+has(trader, /restoreOpenTradeState\(\);loadRiskState\(\);await connectAccount\(\)/, "Saved open contracts must be restored before the authenticated connection is reconciled.");
+has(trader, /persistOpenTradeState\(\);updateRow\(settledId/, "Settlement must remove the saved open-contract record.");
 has(html, /DERIV MARKET INTELLIGENCE/, "Main app shell should contain the market-intelligence interface.");
 console.log("BERUR TRADES safety regression checks passed.");
