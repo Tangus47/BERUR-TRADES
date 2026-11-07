@@ -14,7 +14,11 @@ assert.ok(trader.includes("function signalMatchesQuoteContext(signal,context)"),
 assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — selected quote parameters do not match the exact approved signal."), "Auto quote requests must be rejected before transmission when their parameters differ from the approved signal.");
 assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — the live signal, approved candidate and quoted market/contract/barrier/duration no longer match."), "Purchases must be blocked if the live signal and quote context diverge.");
 assert.ok(trader.includes("AUTO DEMO STOPPED — the approved signal changed while its quote was pending."), "Auto DEMO must stop if the approved signal changes while a quote is pending.");
-assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — broker quote does not match the exact AI-approved market, contract, barrier and duration."), "Manual execution readiness must reject a quote that does not match the AI-approved signal.");
+assert.ok(trader.includes("EXECUTION CONSISTENCY LOCK — broker quote does not match the exact qualified market-analysis candidate."), "Execution must reject broker quotes that do not match the exact selected market-analysis candidate.");
+assert.ok(trader.includes("function aiExecutionGate(){return \"\";}"), "AI must remain advisory and must not independently block execution.");
+assert.ok(!trader.includes('if(AI_GUARD.locked)throw Error("AI protection is LOCKED'), "AI advisory lock must not prevent AUTO from starting.");
+assert.ok(!trader.includes('AI_GUARD.state!=="GREEN"'), "AI advisory state must not be a purchase or AUTO execution gate.");
+assert.ok(trader.includes('el.textContent="ADVISORY · "+state'), "AI status must be visibly labelled advisory.");
 
 has(trader, /if\(!send\(requestParams\)\)\{proposalContext=null;proposal=null;/, "Quote requests must fail immediately and visibly when the authenticated socket is disconnected.");
 has(trader, /if\(!send\(\{buy:proposal\.id,price:ask\}\)\)\{clearPendingPurchase\(\);busy=false;submittedTradeSignal=null;renderRisk\(\);throw Error\("Purchase was not sent:/, "A purchase that was not transmitted must clear its local pending lock and must not be reported as submitted.");
